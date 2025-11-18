@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --compuplay-blue: #2454FF;
+        --compuplay-green: #5FAD56;
+        --compuplay-orange: #F26430;
+        --compuplay-yellow: #FFBA08;
+        --compuplay-red: #E92222;
+        --compuplay-black: #000000;
+        --compuplay-dark-gray: #3E3E3E;
+        --compuplay-gray: #969696;
+        --compuplay-white: #FFFFFF;
+    }
+}
