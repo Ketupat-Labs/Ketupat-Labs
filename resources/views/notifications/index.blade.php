@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - CompuPlay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            color: white;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: #6b7280;
+            font-weight: 500;
+            transition: color 0.2s;
+            padding: 0.5rem 0;
+        }
+
+        .nav-link.active {
+            color: #3b82f6;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        .nav-link:hover {
+            color: #3b82f6;
+        }
+
+        .user-dropdown {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header Section */
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            font-size: 1rem;
+            color: #6b7280;
+        }
+
+        /* Notifications Card */
+        .notifications-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .notifications-header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 1.5rem;
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .notification-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .notification-item:hover {
+            background-color: #f9fafb;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notification-icon {
+            width: 48px;
+            height: 48px;
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 0.25rem;
+        }
+
+        .notification-message {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .notification-meta {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.25rem;
+        }
+
+        .notification-action {
+            color: #3b82f6;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .no-notifications {
+            padding: 3rem;
+            text-align: center;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="logo-container">
+            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+                <div class="logo">C</div>
+                <div class="logo-text">CompuPlay</div>
+            </a>
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/performance" class="nav-link">Track Student</a>
+            <a href="/progress" class="nav-link">View Progress</a>
+            <a href="/notifications" class="nav-link active">Notifications</a>
+            <a href="/manage-activities" class="nav-link">Manage Activities</a>
+        </div>
+        <div class="user-dropdown">
+            <span>test</span>
+            <span>▼</span>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Performance Alerts</h1>
+            <p class="page-subtitle">Notifications for students scoring 20% and below</p>
+        </div>
+
+        <!-- Notifications Card -->
+        <div class="notifications-card">
+            <div class="notifications-header">
+                🚩 Low Performance Alerts
+            </div>
+            
+            @if(count($notifications) > 0)
+                @foreach($notifications as $notification)
+                    <a href="{{ route('progress.index', ['class' => $notification['class']]) }}" 
+                       style="text-decoration: none; color: inherit;">
+                        <div class="notification-item">
+                            <div class="notification-icon">🚩</div>
+                            <div class="notification-content">
+                                <div class="notification-title">
+                                    {{ $notification['student']->name }} - Class {{ $notification['class'] }}
+                                </div>
+                                <div class="notification-message">
+                                    Scored {{ $notification['score'] }}/3 ({{ $notification['percentage'] }}%) 
+                                    in {{ $notification['lesson']->q1 ?? 'Lesson ' . $notification['lesson']->id }}
+                                </div>
+                                <div class="notification-meta">
+                                    {{ $notification['created_at']->format('M d, Y h:i A') }}
+                                </div>
+                            </div>
+                            <div class="notification-action">
+                                View Progress →
+                            </div>
+                        </div>
+                    </a>
+                @endforeach
+            @else
+                <div class="no-notifications">
+                    <p>🎉 No low performance alerts at this time.</p>
+                    <p style="margin-top: 0.5rem; font-size: 0.875rem;">All students are performing above 20%.</p>
+                </div>
+            @endif
+        </div>
+    </div>
+</body>
+</html>
+
