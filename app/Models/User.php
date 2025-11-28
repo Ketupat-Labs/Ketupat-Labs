@@ -9,8 +9,28 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
+
+    public function enrollments()
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
+    public function taughtClassrooms()
+    {
+        return $this->hasMany(Classroom::class, 'teacher_id');
+    }
+
+    public function enrolledClassrooms()
+    {
+        return $this->belongsToMany(Classroom::class, 'class_students', 'student_id', 'classroom_id')
+            ->withPivot('enrolled_at');
+    }
+
+    public function submissions()
+    {
+        return $this->hasMany(Submission::class);
+    }
 
     /**
      * The attributes that are mass assignable.

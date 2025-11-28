@@ -1,0 +1,34 @@
+[
+    {
+        "lesson_id": 201,
+        "title": "Introduction to Python",
+        "topic": "Programming",
+        "duration": 45,
+        "is_mandatory": false,
+        "enrolled": true
+    },
+    {
+        "lesson_id": 202,
+        "title": "Web Design Basics (HTML\/CSS)",
+        "topic": "Web Dev",
+        "duration": 60,
+        "is_mandatory": false,
+        "enrolled": true
+    },
+    {
+        "lesson_id": 203,
+        "title": "Database Fundamentals (SQL)",
+        "topic": "Database",
+        "duration": 40,
+        "is_mandatory": false,
+        "enrolled": false
+    },
+    {
+        "lesson_id": 204,
+        "title": "Advanced Java Algorithms",
+        "topic": "Programming",
+        "duration": 90,
+        "is_mandatory": true,
+        "enrolled": false
+    }
+]

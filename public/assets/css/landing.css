@@ -691,7 +691,8 @@ body {
 
 @media (max-width: 768px) {
     .logo-img {
-        height: 50px;
+        height: 150px; /* Adjust this number to make it bigger */
+        width: auto;  /* This ensures the logo doesn't get stretched/squished */
     }
 
     .hero-title {

@@ -15,24 +15,36 @@ Route::middleware('session.auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::resource('lessons', LessonController::class);
-    
+
     // Student lesson viewing route (singular /lesson)
     Route::get('/lesson', [LessonController::class, 'studentIndex'])->name('lesson.index');
     Route::get('/lesson/{lesson}', [LessonController::class, 'studentShow'])->name('lesson.show');
-    
+
     // Quiz routes
     Route::get('/quiz/{lesson?}', [\App\Http\Controllers\QuizController::class, 'show'])->name('quiz.show');
     Route::post('/quiz', [\App\Http\Controllers\QuizController::class, 'submit'])->name('quiz.submit');
-    
+
     // Submission routes
     Route::get('/submission', [\App\Http\Controllers\SubmissionController::class, 'show'])->name('submission.show');
     Route::post('/submission', [\App\Http\Controllers\SubmissionController::class, 'submit'])->name('submission.submit');
+    Route::get('/submissions', [\App\Http\Controllers\SubmissionController::class, 'index'])->name('submission.index');
 
-    // Assign routes
-    Route::get('/lessons/assign', [LessonController::class, 'showAssignForm'])->name('lessons.assign.form');
-    Route::post('/lessons/assign', [LessonController::class, 'assignLessons'])->name('lessons.assign.store');
+    Route::resource('assignments', \App\Http\Controllers\LessonAssignmentController::class);
+
+    // Enrollment Routes
+    Route::get('/enrollment', [\App\Http\Controllers\EnrollmentController::class, 'index'])->name('enrollment.index');
+    Route::post('/enrollment', [\App\Http\Controllers\EnrollmentController::class, 'store'])->name('enrollment.store');
+
+    // Monitoring Routes
+    Route::get('/monitoring', [\App\Http\Controllers\MonitoringController::class, 'index'])->name('monitoring.index');
+
+    // Classroom Routes (Merged Module)
+    Route::resource('classrooms', \App\Http\Controllers\ClassroomController::class);
+    Route::post('/classrooms/{classroom}/students', [\App\Http\Controllers\ClassroomController::class, 'addStudent'])->name('classrooms.students.add');
+    Route::delete('/classrooms/{classroom}/students/{student}', [\App\Http\Controllers\ClassroomController::class, 'removeStudent'])->name('classrooms.students.remove');
+
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
 
 

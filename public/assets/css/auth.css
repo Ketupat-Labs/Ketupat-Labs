@@ -54,9 +54,8 @@ body {
 }
 
 .auth-logo .logo-img {
-    height: 70px;
-    width: auto;
-    object-fit: contain;
+    height: 150px; /* Adjust this number to make it bigger */
+    width: auto; 
 }
 
 /* Role Tabs */
@@ -400,7 +399,8 @@ body {
     }
 
     .auth-logo .logo-img {
-        height: 60px;
+        height: 150px; /* Adjust this number to make it bigger */
+        width: auto; 
     }
 
     .role-tabs {

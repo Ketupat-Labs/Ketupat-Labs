@@ -10,8 +10,13 @@ class Lesson extends Model
 {
     use HasFactory;
 
+    public function enrollments()
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
     // The 'lessons' table is explicitly defined in your SQL dump.
-    
+
     // Mass assignable fields, matching the columns in your 'lessons' table.
     protected $fillable = [
         'title',
@@ -26,5 +31,16 @@ class Lesson extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    public function assignments()
+    {
+        return $this->hasMany(LessonAssignment::class);
+    }
+
+    public function classrooms()
+    {
+        return $this->belongsToMany(Classroom::class, 'lesson_assignments', 'lesson_id', 'classroom_id')
+            ->withPivot('type', 'assigned_at');
     }
 }

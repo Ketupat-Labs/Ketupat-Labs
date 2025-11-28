@@ -15,14 +15,12 @@ class DashboardController extends Controller
     public function index(Request $request): View|RedirectResponse
     {
         $userId = session('user_id');
-        
+
         if (!$userId) {
             return redirect()->route('login');
         }
 
-        $user = DB::table('users')
-            ->where('id', $userId)
-            ->first();
+        $user = \App\Models\User::find($userId);
 
         if (!$user) {
             return redirect()->route('login');
@@ -34,6 +32,9 @@ class DashboardController extends Controller
                 'user' => $user
             ]);
         } else {
+            // Eager load enrolled classrooms for student dashboard
+            $user->load('enrolledClassrooms');
+
             return view('dashboard.student', [
                 'user' => $user
             ]);
