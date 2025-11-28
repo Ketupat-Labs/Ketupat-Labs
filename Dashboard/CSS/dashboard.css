@@ -1,0 +1,113 @@
+/* Dashboard Specific Styles */
+
+/* Color Variables */
+:root {
+    --compuplay-blue: #2454FF;
+    --compuplay-green: #5FAD56;
+    --compuplay-orange: #F26430;
+    --compuplay-yellow: #FFBA08;
+    --compuplay-dark-gray: #3E3E3E;
+    --compuplay-light-gray: #969696;
+}
+
+/* Quick Access Cards Hover Effects */
+.quick-access-card:hover {
+    border-color: var(--compuplay-blue) !important;
+}
+
+.quick-access-card[data-action="manage-lessons"]:hover,
+.quick-access-card[data-action="create-lesson"]:hover {
+    border-color: var(--compuplay-green) !important;
+}
+
+.quick-access-card[data-action="take-quiz"]:hover,
+.quick-access-card[data-action="review-submissions"]:hover {
+    border-color: var(--compuplay-orange) !important;
+}
+
+.quick-access-card[data-action="submit-assignment"]:hover {
+    border-color: var(--compuplay-yellow) !important;
+}
+
+/* Stats Cards Animation */
+#statsSection .bg-white {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+#statsSection .bg-white:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Loading State */
+.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--compuplay-light-gray);
+}
+
+.empty-state svg {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    opacity: 0.5;
+}
+
+/* Lesson Item Hover */
+.lesson-item {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.lesson-item:hover {
+    background-color: rgba(36, 84, 255, 0.05) !important;
+}
+
+/* Mobile Menu Animation */
+#mobileMenu {
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+#mobileMenu.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+/* User Menu Dropdown */
+#userMenu {
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .grid.grid-cols-1.md\:grid-cols-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    
+    .grid.grid-cols-1.md\:grid-cols-3 {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .grid.grid-cols-1.md\:grid-cols-4 {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+}
+

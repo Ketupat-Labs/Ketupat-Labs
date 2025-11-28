@@ -1,0 +1,38 @@
+[
+    {
+        "student_id": 101,
+        "student_name": "Muhammad Haziq Bin Mohd Hafizal",
+        "class": "4 Amanah",
+        "lesson_title": "HCI Principles",
+        "progress": 100,
+        "status": "Completed",
+        "last_accessed": "2023-10-25 10:00 AM"
+    },
+    {
+        "student_id": 102,
+        "student_name": "Nur Elissha Binti Zainal Abidin",
+        "class": "4 Amanah",
+        "lesson_title": "HCI Principles",
+        "progress": 45,
+        "status": "In Progress",
+        "last_accessed": "2023-10-26 02:30 PM"
+    },
+    {
+        "student_id": 103,
+        "student_name": "Ang Chong Wei",
+        "class": "4 Amanah",
+        "lesson_title": "HCI Principles",
+        "progress": 10,
+        "status": "Stalled",
+        "last_accessed": "2023-10-20 09:00 AM"
+    },
+    {
+        "student_id": 104,
+        "student_name": "Muhammad Haqeem Bin Mohd Hafizal",
+        "class": "5 Bestari",
+        "lesson_title": "Algorithm Basics",
+        "progress": 0,
+        "status": "Enrolled",
+        "last_accessed": "Never"
+    }
+]

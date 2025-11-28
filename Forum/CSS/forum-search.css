@@ -1,0 +1,70 @@
+/* CompuPlay Color Variables - Matching Dashboard */
+:root {
+    --compuplay-blue: #2454FF;
+    --compuplay-green: #5FAD56;
+    --compuplay-orange: #F26430;
+    --compuplay-yellow: #FFBA08;
+    --compuplay-dark-gray: #3E3E3E;
+    --compuplay-light-gray: #969696;
+    --compuplay-bg: #F5F7FA;
+    --compuplay-border: #E5E7EB;
+    --compuplay-text: #1F2937;
+    --compuplay-text-light: #6B7280;
+}
+
+.search-results-header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #edeff1;
+    padding: 16px 32px;
+    margin-bottom: 16px;
+}
+
+.search-results-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1c1c1c;
+    margin-bottom: 8px;
+}
+
+.back-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--compuplay-blue);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    cursor: pointer;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.empty-search-state {
+    background-color: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #edeff1;
+    padding: 80px 32px;
+    text-align: center;
+}
+
+.empty-search-state i {
+    font-size: 64px;
+    color: #878a8c;
+    margin-bottom: 16px;
+}
+
+.empty-search-state h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1c1c1c;
+    margin-bottom: 8px;
+}
+
+.empty-search-state p {
+    color: #787c7e;
+    font-size: 14px;
+}
+

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messaging - Material Learning Platform</title>
+    <link rel="stylesheet" href="CSS/messaging.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-['Inter']">
+    <div class="min-h-screen flex flex-col">
+        <!-- Navigation -->
+        <nav class="bg-white border-b-2 border-blue-200 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex">
+                        <!-- Logo -->
+                        <div class="shrink-0 flex items-center">
+                            <a href="../Dashboard/dashboard.php" class="flex items-center space-x-3">
+                                <img src="../assets/images/LOGOCompuPlay.png" alt="Logo" class="h-10 w-auto">
+                            </a>
+                        </div>
+
+                        <!-- Navigation Links -->
+                        <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <a href="../Dashboard/dashboard.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none">
+                                Dashboard
+                            </a>
+                            <a href="../Classroom/index.html" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none">
+                                Classroom
+                            </a>
+                            <a href="../Forum/forum.html" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none">
+                                Forum
+                            </a>
+                            <a href="../Lesson/lesson.html" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none">
+                                Lessons
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Icons + Profile -->
+                    <div class="hidden sm:flex sm:items-center sm:ms-6 sm:gap-3">
+                        <div class="relative">
+                            <button id="notificationBtn" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out relative">
+                                <i class="fas fa-bell text-lg"></i>
+                                <span id="notificationBadge" class="hidden absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"></span>
+                            </button>
+                            <div id="notificationMenu" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 max-h-96 overflow-y-auto">
+                                <div class="px-4 py-2 border-b border-gray-200">
+                                    <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
+                                </div>
+                                <div id="notificationList" class="py-1">
+                                    <div class="px-4 py-3 text-sm text-gray-500 text-center">No notifications</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <a href="messaging.html" class="inline-flex items-center justify-center p-2 rounded-lg text-[#2454FF] bg-blue-50 hover:bg-blue-100 focus:outline-none focus:bg-blue-100 transition duration-150 ease-in-out relative">
+                                <i class="fas fa-envelope text-lg"></i>
+                            </a>
+                        </div>
+                        <div class="relative">
+                            <button id="userMenuBtn" class="inline-flex items-center px-4 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150">
+                                <div id="userName">User</div>
+                                <svg class="fill-current h-4 w-4 ms-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                            <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                                <a href="../Forum/logout.php" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Out</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hamburger -->
+                    <div class="-me-2 flex items-center sm:hidden">
+                        <button id="mobileMenuBtn" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
+                            <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                                <path class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation Menu -->
+            <div id="mobileMenu" class="hidden sm:hidden">
+                <div class="pt-2 pb-3 space-y-1">
+                    <a href="../Dashboard/dashboard.php" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 transition duration-150 ease-in-out">
+                        Dashboard
+                    </a>
+                    <a href="../Classroom/classroom.html" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 transition duration-150 ease-in-out">
+                        Classroom
+                    </a>
+                    <a href="../Forum/forum.html" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 transition duration-150 ease-in-out">
+                        Forum
+                    </a>
+                </div>
+
+                <div class="pt-4 pb-1 border-t border-gray-200">
+                    <div class="px-4">
+                        <div class="font-medium text-base text-gray-800" id="mobileUserName">User</div>
+                        <div class="font-medium text-sm text-gray-500" id="mobileUserEmail"></div>
+                    </div>
+                    <div class="mt-3 space-y-1">
+                        <a href="#" class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100">Profile</a>
+                        <a href="../Forum/logout.php" class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100">Log Out</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 py-8 px-4 sm:px-6 lg:px-8">
+            <div class="messaging-shell max-w-7xl mx-auto">
+                <div class="mb-6"></div>
+
+                <div class="messaging-container">
+                    <aside class="conversations-sidebar">
+                        <div class="sidebar-header">
+                            <h2><i class="fas fa-comments"></i> Messages</h2>
+                            <button class="btn-create-group" id="btnCreateGroup" title="Create Group Chat">
+                                <i class="fas fa-plus-circle"></i>
+                            </button>
+                        </div>
+                        <div class="search-bar">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchConversations" placeholder="Search conversations...">
+                        </div>
+                        <div class="sort-filter">
+                            <select id="sortConversations">
+                                <option value="recent">Most Recent</option>
+                                <option value="oldest">Oldest</option>
+                                <option value="unread">Unread</option>
+                            </select>
+                        </div>
+                        <div class="conversations-list" id="conversationsList"></div>
+                    </aside>
+
+                    <section class="chat-main">
+                        <div class="chat-header" id="chatHeader">
+                            <div class="chat-header-placeholder">
+                                <i class="fas fa-comment-dots"></i>
+                                <p>Select a conversation to start chatting</p>
+                            </div>
+                        </div>
+                        <div class="chat-messages" id="chatMessages"></div>
+                        <div class="chat-input-container" id="chatInputContainer" style="display: none;">
+                            <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                                <span id="typingUser"></span> is typing...
+                            </div>
+                            <div class="chat-input-wrapper">
+                                <button class="btn-attach" id="btnAttach" title="Attach File">
+                                    <i class="fas fa-paperclip"></i>
+                                </button>
+                                <input type="file" id="fileInput" style="display: none;" multiple>
+                                <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
+                                <button class="btn-send" id="btnSend" title="Send">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <aside class="info-sidebar" id="infoSidebar" style="display: none;">
+                        <div class="info-header">
+                            <h3 id="infoTitle">Group Info</h3>
+                            <button class="btn-close-info" id="btnCloseInfo">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="info-content" id="infoContent"></div>
+                    </aside>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal" id="createGroupModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Group Chat</h2>
+                <button class="modal-close" id="closeGroupModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="createGroupForm">
+                    <div class="form-group">
+                        <label for="groupName">Group Name</label>
+                        <input type="text" id="groupName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="groupMembers">Add Members</label>
+                        <div class="members-selector" id="membersSelector"></div>
+                        <div class="selected-members" id="selectedMembers"></div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="cancelGroupModal">Cancel</button>
+                        <button type="submit" class="btn-primary">Create Group</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="JS/messaging.js"></script>
+</body>
+</html>

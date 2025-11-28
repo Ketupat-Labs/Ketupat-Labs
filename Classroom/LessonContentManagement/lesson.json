@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "title": "Interaction Design Principles",
+        "topic": "HCI",
+        "duration": 30,
+        "file": "principles.pdf"
+    },
+    {
+        "id": 2,
+        "title": "Usability Heuristics",
+        "topic": "HCI_SCREEN",
+        "duration": 45,
+        "file": "heuristics.docx"
+    }
+]
