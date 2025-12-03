@@ -2,9 +2,9 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- 主機： 127.0.0.1
--- 產生時間： 2025 年 11 月 28 日 03:02
--- 伺服器版本： 10.4.32-MariaDB
+-- 主机： 127.0.0.1
+-- 生成日期： 2025-12-03 09:53:34
+-- 服务器版本： 10.4.32-MariaDB
 -- PHP 版本： 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
@@ -18,13 +18,42 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- 資料庫： `compuplay`
+-- 数据库： `compuplay`
 --
 
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `comment`
+-- 表的结构 `classes`
+--
+
+CREATE TABLE `classes` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `teacher_id` bigint(20) UNSIGNED NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `class_students`
+--
+
+CREATE TABLE `class_students` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `class_id` bigint(20) UNSIGNED NOT NULL,
+  `student_id` bigint(20) UNSIGNED NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `comment`
 --
 
 CREATE TABLE `comment` (
@@ -45,7 +74,23 @@ CREATE TABLE `comment` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `forum`
+-- 表的结构 `enrollment`
+--
+
+CREATE TABLE `enrollment` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `lesson_id` bigint(20) UNSIGNED NOT NULL,
+  `status` varchar(50) NOT NULL DEFAULT 'in_progress',
+  `progress` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `forum`
 --
 
 CREATE TABLE `forum` (
@@ -69,7 +114,7 @@ CREATE TABLE `forum` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `forum_member`
+-- 表的结构 `forum_member`
 --
 
 CREATE TABLE `forum_member` (
@@ -85,7 +130,7 @@ CREATE TABLE `forum_member` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `forum_post`
+-- 表的结构 `forum_post`
 --
 
 CREATE TABLE `forum_post` (
@@ -111,16 +156,21 @@ CREATE TABLE `forum_post` (
 -- --------------------------------------------------------
 
 --
--- 替換檢視表以便查看 `forum_statistics`
--- (請參考以下實際畫面)
+-- 替换视图以便查看 `forum_statistics`
+-- （参见下面的实际视图）
 --
 CREATE TABLE `forum_statistics` (
+`forum_id` bigint(20) unsigned
+,`member_count` bigint(21)
+,`post_count` bigint(21)
+,`comment_count` bigint(21)
+,`last_activity` timestamp
 );
 
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `forum_tags`
+-- 表的结构 `forum_tags`
 --
 
 CREATE TABLE `forum_tags` (
@@ -134,16 +184,58 @@ CREATE TABLE `forum_tags` (
 -- --------------------------------------------------------
 
 --
--- 替換檢視表以便查看 `forum_user_activity`
--- (請參考以下實際畫面)
+-- 替换视图以便查看 `forum_user_activity`
+-- （参见下面的实际视图）
 --
 CREATE TABLE `forum_user_activity` (
+`user_id` bigint(20) unsigned
+,`forum_id` bigint(20) unsigned
+,`posts_count` bigint(21)
+,`comments_count` bigint(21)
+,`reactions_count` bigint(21)
+,`last_activity_date` varchar(19)
 );
 
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `muted_user`
+-- 表的结构 `lessons`
+--
+
+CREATE TABLE `lessons` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `topic` varchar(255) NOT NULL,
+  `content` text DEFAULT NULL,
+  `duration` varchar(255) DEFAULT NULL,
+  `material_path` varchar(255) DEFAULT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  `teacher_id` bigint(20) UNSIGNED NOT NULL,
+  `is_published` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `lesson_assignments`
+--
+
+CREATE TABLE `lesson_assignments` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `classroom_id` bigint(20) UNSIGNED NOT NULL,
+  `lesson_id` bigint(20) UNSIGNED NOT NULL,
+  `type` varchar(50) NOT NULL DEFAULT 'Mandatory',
+  `assigned_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `muted_user`
 --
 
 CREATE TABLE `muted_user` (
@@ -160,7 +252,7 @@ CREATE TABLE `muted_user` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `poll_option`
+-- 表的结构 `poll_option`
 --
 
 CREATE TABLE `poll_option` (
@@ -175,7 +267,7 @@ CREATE TABLE `poll_option` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `poll_vote`
+-- 表的结构 `poll_vote`
 --
 
 CREATE TABLE `poll_vote` (
@@ -190,7 +282,7 @@ CREATE TABLE `poll_vote` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `post_attachment`
+-- 表的结构 `post_attachment`
 --
 
 CREATE TABLE `post_attachment` (
@@ -207,7 +299,7 @@ CREATE TABLE `post_attachment` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `post_tags`
+-- 表的结构 `post_tags`
 --
 
 CREATE TABLE `post_tags` (
@@ -221,7 +313,7 @@ CREATE TABLE `post_tags` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `reaction`
+-- 表的结构 `reaction`
 --
 
 CREATE TABLE `reaction` (
@@ -237,7 +329,7 @@ CREATE TABLE `reaction` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `reported_content`
+-- 表的结构 `reported_content`
 --
 
 CREATE TABLE `reported_content` (
@@ -255,7 +347,7 @@ CREATE TABLE `reported_content` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `saved_post`
+-- 表的结构 `saved_post`
 --
 
 CREATE TABLE `saved_post` (
@@ -269,8 +361,8 @@ CREATE TABLE `saved_post` (
 -- --------------------------------------------------------
 
 --
--- 替換檢視表以便查看 `unread_message_counts`
--- (請參考以下實際畫面)
+-- 替换视图以便查看 `unread_message_counts`
+-- （参见下面的实际视图）
 --
 CREATE TABLE `unread_message_counts` (
 );
@@ -278,7 +370,7 @@ CREATE TABLE `unread_message_counts` (
 -- --------------------------------------------------------
 
 --
--- 資料表結構 `user`
+-- 表的结构 `user`
 --
 
 CREATE TABLE `user` (
@@ -300,7 +392,7 @@ CREATE TABLE `user` (
 -- --------------------------------------------------------
 
 --
--- 檢視表結構 `forum_statistics`
+-- 视图结构 `forum_statistics`
 --
 DROP TABLE IF EXISTS `forum_statistics`;
 
@@ -309,7 +401,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 -- --------------------------------------------------------
 
 --
--- 檢視表結構 `forum_user_activity`
+-- 视图结构 `forum_user_activity`
 --
 DROP TABLE IF EXISTS `forum_user_activity`;
 
@@ -318,18 +410,33 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 -- --------------------------------------------------------
 
 --
--- 檢視表結構 `unread_message_counts`
+-- 视图结构 `unread_message_counts`
 --
 DROP TABLE IF EXISTS `unread_message_counts`;
 
--- CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `unread_message_counts`  AS SELECT `cp`.`user_id` AS `user_id`, `c`.`id` AS `conversation_id`, count(`m`.`id`) AS `unread_count` FROM ((`conversation_participants` `cp` left join `conversations` `c` on(`cp`.`conversation_id` = `c`.`id`)) left join `messages` `m` on(`c`.`id` = `m`.`conversation_id` and `m`.`sender_id` <> `cp`.`user_id` and `m`.`created_at` > `cp`.`last_read_at` and `m`.`is_deleted` = 0)) GROUP BY `cp`.`user_id`, `c`.`id` ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `unread_message_counts`  AS SELECT `cp`.`user_id` AS `user_id`, `c`.`id` AS `conversation_id`, count(`m`.`id`) AS `unread_count` FROM ((`conversation_participants` `cp` left join `conversations` `c` on(`cp`.`conversation_id` = `c`.`id`)) left join `messages` `m` on(`c`.`id` = `m`.`conversation_id` and `m`.`sender_id` <> `cp`.`user_id` and `m`.`created_at` > `cp`.`last_read_at` and `m`.`is_deleted` = 0)) GROUP BY `cp`.`user_id`, `c`.`id` ;
 
 --
--- 已傾印資料表的索引
+-- 转储表的索引
 --
 
 --
--- 資料表索引 `comment`
+-- 表的索引 `classes`
+--
+ALTER TABLE `classes`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `classes_teacher_id_foreign` (`teacher_id`);
+
+--
+-- 表的索引 `class_students`
+--
+ALTER TABLE `class_students`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `class_students_class_student_unique` (`class_id`,`student_id`),
+  ADD KEY `class_students_student_id_foreign` (`student_id`);
+
+--
+-- 表的索引 `comment`
 --
 ALTER TABLE `comment`
   ADD PRIMARY KEY (`id`),
@@ -338,7 +445,15 @@ ALTER TABLE `comment`
   ADD KEY `comments_author_id_index` (`author_id`);
 
 --
--- 資料表索引 `forum`
+-- 表的索引 `enrollment`
+--
+ALTER TABLE `enrollment`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `enrollment_user_lesson_unique` (`user_id`,`lesson_id`),
+  ADD KEY `enrollment_lesson_id_foreign` (`lesson_id`);
+
+--
+-- 表的索引 `forum`
 --
 ALTER TABLE `forum`
   ADD PRIMARY KEY (`id`),
@@ -346,7 +461,7 @@ ALTER TABLE `forum`
   ADD KEY `forums_created_by_index` (`created_by`);
 
 --
--- 資料表索引 `forum_member`
+-- 表的索引 `forum_member`
 --
 ALTER TABLE `forum_member`
   ADD PRIMARY KEY (`id`),
@@ -354,7 +469,7 @@ ALTER TABLE `forum_member`
   ADD KEY `forum_members_user_id_index` (`user_id`);
 
 --
--- 資料表索引 `forum_post`
+-- 表的索引 `forum_post`
 --
 ALTER TABLE `forum_post`
   ADD PRIMARY KEY (`id`),
@@ -363,14 +478,29 @@ ALTER TABLE `forum_post`
   ADD KEY `forum_posts_created_at_index` (`created_at`);
 
 --
--- 資料表索引 `forum_tags`
+-- 表的索引 `forum_tags`
 --
 ALTER TABLE `forum_tags`
   ADD PRIMARY KEY (`id`),
   ADD KEY `forum_tags_forum_id_tag_name_index` (`forum_id`,`tag_name`);
 
 --
--- 資料表索引 `muted_user`
+-- 表的索引 `lessons`
+--
+ALTER TABLE `lessons`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `lessons_teacher_id_foreign` (`teacher_id`);
+
+--
+-- 表的索引 `lesson_assignments`
+--
+ALTER TABLE `lesson_assignments`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `lesson_assignments_classroom_lesson_unique` (`classroom_id`,`lesson_id`),
+  ADD KEY `lesson_assignments_lesson_id_foreign` (`lesson_id`);
+
+--
+-- 表的索引 `muted_user`
 --
 ALTER TABLE `muted_user`
   ADD PRIMARY KEY (`id`),
@@ -379,14 +509,14 @@ ALTER TABLE `muted_user`
   ADD KEY `muted_users_user_id_index` (`user_id`);
 
 --
--- 資料表索引 `poll_option`
+-- 表的索引 `poll_option`
 --
 ALTER TABLE `poll_option`
   ADD PRIMARY KEY (`id`),
   ADD KEY `poll_options_post_id_index` (`post_id`);
 
 --
--- 資料表索引 `poll_vote`
+-- 表的索引 `poll_vote`
 --
 ALTER TABLE `poll_vote`
   ADD PRIMARY KEY (`id`),
@@ -395,21 +525,21 @@ ALTER TABLE `poll_vote`
   ADD KEY `poll_votes_option_id_index` (`option_id`);
 
 --
--- 資料表索引 `post_attachment`
+-- 表的索引 `post_attachment`
 --
 ALTER TABLE `post_attachment`
   ADD PRIMARY KEY (`id`),
   ADD KEY `post_attachments_post_id_index` (`post_id`);
 
 --
--- 資料表索引 `post_tags`
+-- 表的索引 `post_tags`
 --
 ALTER TABLE `post_tags`
   ADD PRIMARY KEY (`id`),
   ADD KEY `post_tags_post_id_tag_name_index` (`post_id`,`tag_name`);
 
 --
--- 資料表索引 `reaction`
+-- 表的索引 `reaction`
 --
 ALTER TABLE `reaction`
   ADD PRIMARY KEY (`id`),
@@ -417,7 +547,7 @@ ALTER TABLE `reaction`
   ADD KEY `reactions_target_type_target_id_index` (`target_type`,`target_id`);
 
 --
--- 資料表索引 `reported_content`
+-- 表的索引 `reported_content`
 --
 ALTER TABLE `reported_content`
   ADD PRIMARY KEY (`id`),
@@ -425,7 +555,7 @@ ALTER TABLE `reported_content`
   ADD KEY `reported_content_reporter_id_index` (`reporter_id`);
 
 --
--- 資料表索引 `saved_post`
+-- 表的索引 `saved_post`
 --
 ALTER TABLE `saved_post`
   ADD PRIMARY KEY (`id`),
@@ -434,7 +564,7 @@ ALTER TABLE `saved_post`
   ADD KEY `saved_posts_user_id_index` (`user_id`);
 
 --
--- 資料表索引 `user`
+-- 表的索引 `user`
 --
 ALTER TABLE `user`
   ADD PRIMARY KEY (`id`),
@@ -442,99 +572,142 @@ ALTER TABLE `user`
   ADD UNIQUE KEY `username` (`username`);
 
 --
--- 在傾印的資料表使用自動遞增(AUTO_INCREMENT)
+-- 在导出的表使用AUTO_INCREMENT
 --
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `comment`
+-- 使用表AUTO_INCREMENT `classes`
+--
+ALTER TABLE `classes`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- 使用表AUTO_INCREMENT `class_students`
+--
+ALTER TABLE `class_students`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- 使用表AUTO_INCREMENT `comment`
 --
 ALTER TABLE `comment`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `forum`
+-- 使用表AUTO_INCREMENT `enrollment`
+--
+ALTER TABLE `enrollment`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- 使用表AUTO_INCREMENT `forum`
 --
 ALTER TABLE `forum`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `forum_member`
+-- 使用表AUTO_INCREMENT `forum_member`
 --
 ALTER TABLE `forum_member`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `forum_post`
+-- 使用表AUTO_INCREMENT `forum_post`
 --
 ALTER TABLE `forum_post`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `forum_tags`
+-- 使用表AUTO_INCREMENT `forum_tags`
 --
 ALTER TABLE `forum_tags`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `muted_user`
+-- 使用表AUTO_INCREMENT `lessons`
+--
+ALTER TABLE `lessons`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- 使用表AUTO_INCREMENT `lesson_assignments`
+--
+ALTER TABLE `lesson_assignments`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- 使用表AUTO_INCREMENT `muted_user`
 --
 ALTER TABLE `muted_user`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `poll_option`
+-- 使用表AUTO_INCREMENT `poll_option`
 --
 ALTER TABLE `poll_option`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `poll_vote`
+-- 使用表AUTO_INCREMENT `poll_vote`
 --
 ALTER TABLE `poll_vote`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `post_attachment`
+-- 使用表AUTO_INCREMENT `post_attachment`
 --
 ALTER TABLE `post_attachment`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `post_tags`
+-- 使用表AUTO_INCREMENT `post_tags`
 --
 ALTER TABLE `post_tags`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `reaction`
+-- 使用表AUTO_INCREMENT `reaction`
 --
 ALTER TABLE `reaction`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `reported_content`
+-- 使用表AUTO_INCREMENT `reported_content`
 --
 ALTER TABLE `reported_content`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `saved_post`
+-- 使用表AUTO_INCREMENT `saved_post`
 --
 ALTER TABLE `saved_post`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 使用資料表自動遞增(AUTO_INCREMENT) `user`
+-- 使用表AUTO_INCREMENT `user`
 --
 ALTER TABLE `user`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- 已傾印資料表的限制式
+-- 限制导出的表
 --
 
 --
--- 資料表的限制式 `comment`
+-- 限制表 `classes`
+--
+ALTER TABLE `classes`
+  ADD CONSTRAINT `classes_teacher_id_foreign` FOREIGN KEY (`teacher_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
+
+--
+-- 限制表 `class_students`
+--
+ALTER TABLE `class_students`
+  ADD CONSTRAINT `class_students_class_id_foreign` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `class_students_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
+
+--
+-- 限制表 `comment`
 --
 ALTER TABLE `comment`
   ADD CONSTRAINT `comments_author_id_foreign` FOREIGN KEY (`author_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
@@ -542,33 +715,53 @@ ALTER TABLE `comment`
   ADD CONSTRAINT `comments_post_id_foreign` FOREIGN KEY (`post_id`) REFERENCES `forum_post` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `forum`
+-- 限制表 `enrollment`
+--
+ALTER TABLE `enrollment`
+  ADD CONSTRAINT `enrollment_lesson_id_foreign` FOREIGN KEY (`lesson_id`) REFERENCES `lessons` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `enrollment_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
+
+--
+-- 限制表 `forum`
 --
 ALTER TABLE `forum`
   ADD CONSTRAINT `forums_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `forum_member`
+-- 限制表 `forum_member`
 --
 ALTER TABLE `forum_member`
   ADD CONSTRAINT `forum_members_forum_id_foreign` FOREIGN KEY (`forum_id`) REFERENCES `forum` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `forum_members_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `forum_post`
+-- 限制表 `forum_post`
 --
 ALTER TABLE `forum_post`
   ADD CONSTRAINT `forum_posts_author_id_foreign` FOREIGN KEY (`author_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `forum_posts_forum_id_foreign` FOREIGN KEY (`forum_id`) REFERENCES `forum` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `forum_tags`
+-- 限制表 `forum_tags`
 --
 ALTER TABLE `forum_tags`
   ADD CONSTRAINT `forum_tags_forum_id_foreign` FOREIGN KEY (`forum_id`) REFERENCES `forum` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `muted_user`
+-- 限制表 `lessons`
+--
+ALTER TABLE `lessons`
+  ADD CONSTRAINT `lessons_teacher_id_foreign` FOREIGN KEY (`teacher_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
+
+--
+-- 限制表 `lesson_assignments`
+--
+ALTER TABLE `lesson_assignments`
+  ADD CONSTRAINT `lesson_assignments_classroom_id_foreign` FOREIGN KEY (`classroom_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `lesson_assignments_lesson_id_foreign` FOREIGN KEY (`lesson_id`) REFERENCES `lessons` (`id`) ON DELETE CASCADE;
+
+--
+-- 限制表 `muted_user`
 --
 ALTER TABLE `muted_user`
   ADD CONSTRAINT `muted_users_forum_id_foreign` FOREIGN KEY (`forum_id`) REFERENCES `forum` (`id`) ON DELETE CASCADE,
@@ -576,13 +769,13 @@ ALTER TABLE `muted_user`
   ADD CONSTRAINT `muted_users_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `poll_option`
+-- 限制表 `poll_option`
 --
 ALTER TABLE `poll_option`
   ADD CONSTRAINT `poll_options_post_id_foreign` FOREIGN KEY (`post_id`) REFERENCES `forum_post` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `poll_vote`
+-- 限制表 `poll_vote`
 --
 ALTER TABLE `poll_vote`
   ADD CONSTRAINT `poll_votes_option_id_foreign` FOREIGN KEY (`option_id`) REFERENCES `poll_option` (`id`) ON DELETE CASCADE,
@@ -590,31 +783,31 @@ ALTER TABLE `poll_vote`
   ADD CONSTRAINT `poll_votes_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `post_attachment`
+-- 限制表 `post_attachment`
 --
 ALTER TABLE `post_attachment`
   ADD CONSTRAINT `post_attachments_post_id_foreign` FOREIGN KEY (`post_id`) REFERENCES `forum_post` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `post_tags`
+-- 限制表 `post_tags`
 --
 ALTER TABLE `post_tags`
   ADD CONSTRAINT `post_tags_post_id_foreign` FOREIGN KEY (`post_id`) REFERENCES `forum_post` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `reaction`
+-- 限制表 `reaction`
 --
 ALTER TABLE `reaction`
   ADD CONSTRAINT `reactions_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `reported_content`
+-- 限制表 `reported_content`
 --
 ALTER TABLE `reported_content`
   ADD CONSTRAINT `reported_content_reporter_id_foreign` FOREIGN KEY (`reporter_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 
 --
--- 資料表的限制式 `saved_post`
+-- 限制表 `saved_post`
 --
 ALTER TABLE `saved_post`
   ADD CONSTRAINT `saved_posts_post_id_foreign` FOREIGN KEY (`post_id`) REFERENCES `forum_post` (`id`) ON DELETE CASCADE,

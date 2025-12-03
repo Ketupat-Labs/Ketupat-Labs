@@ -233,6 +233,21 @@ function renderPosts(posts) {
                                 <span class="post-time">${formatTime(post.created_at)}</span>
                                 ${post.is_pinned ? '<span class="post-pinned"><i class="fas fa-thumbtack"></i> pinned</span>' : ''}
                             </div>
+                            ${(getCurrentUserId() === post.author_id || (post.user_forum_role && ['admin', 'moderator'].includes(post.user_forum_role))) ? `
+                            <div class="post-options-container" onclick="event.stopPropagation();">
+                                <button class="post-options-btn" onclick="event.stopPropagation(); togglePostOptions(${post.id})" title="More options">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <div id="postOptions_${post.id}" class="post-options-menu hidden">
+                                    <button class="post-options-item" onclick="event.stopPropagation(); openShareModal(${post.id}, '${escapeHtml(post.title)}', '${escapeHtml(post.forum_name || 'Forum')}')">
+                                        <i class="fas fa-share"></i> Share
+                                    </button>
+                                    <button class="post-options-item delete-option" onclick="event.stopPropagation(); confirmDeletePost(${post.id})">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                            ` : ''}
                         </div>
                         <div class="post-title">
                             ${escapeHtml(post.title)}
@@ -1135,7 +1150,7 @@ function showSuccess(message) {
 }
 
 function getCurrentUserId() {
-    return 1;
+    return parseInt(sessionStorage.getItem('userId')) || 0;
 }
 
 async function submitReplyForum(commentId, postId) {
@@ -1230,11 +1245,192 @@ async function joinForum(forumId) {
     // You can implement the join functionality here when the API endpoint is ready
 }
 
+function togglePostOptions(postId) {
+    const menu = document.getElementById(`postOptions_${postId}`);
+    if (!menu) return;
+    
+    // Close all other menus
+    document.querySelectorAll('.post-options-menu').forEach(m => {
+        if (m.id !== `postOptions_${postId}`) {
+            m.classList.add('hidden');
+        }
+    });
+    
+    menu.classList.toggle('hidden');
+}
+
+async function confirmDeletePost(postId) {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`../api/forum_endpoints.php?action=delete_post&post_id=${postId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 200) {
+            // Remove the post from the DOM
+            const postCard = document.querySelector(`.reddit-post-card[onclick*="${postId}"]`);
+            if (postCard) {
+                postCard.remove();
+            }
+            
+            // Reload posts to refresh the list
+            loadAllPosts();
+        } else {
+            alert(data.message || 'Failed to delete post');
+        }
+    } catch (error) {
+        console.error('Error deleting post:', error);
+        alert('Failed to delete post');
+    }
+}
+
+async function openShareModal(postId, postTitle, forumName) {
+    // Close post options menu
+    document.querySelectorAll('.post-options-menu').forEach(menu => {
+        menu.classList.add('hidden');
+    });
+    
+    // Create or get share modal
+    let modal = document.getElementById('sharePostModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sharePostModal';
+        modal.className = 'share-modal';
+        modal.innerHTML = `
+            <div class="share-modal-overlay" onclick="closeShareModal()"></div>
+            <div class="share-modal-content">
+                <div class="share-modal-header">
+                    <h3>Share Post</h3>
+                    <button class="share-modal-close" onclick="closeShareModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="share-modal-body">
+                    <div class="share-post-preview">
+                        <div class="share-post-title">${escapeHtml(postTitle)}</div>
+                        <div class="share-post-forum">r/${escapeHtml(forumName)}</div>
+                    </div>
+                    <div class="share-conversations-list" id="shareConversationsList">
+                        <div class="loading">Loading conversations...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Update modal with current post info
+    modal.querySelector('.share-post-title').textContent = postTitle;
+    modal.querySelector('.share-post-forum').textContent = `r/${forumName}`;
+    modal.dataset.postId = postId;
+    
+    // Show modal
+    modal.classList.add('active');
+    
+    // Load conversations
+    await loadShareConversations();
+}
+
+function closeShareModal() {
+    const modal = document.getElementById('sharePostModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+async function loadShareConversations() {
+    const container = document.getElementById('shareConversationsList');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="loading">Loading conversations...</div>';
+    
+    try {
+        const response = await fetch('../api/messaging_endpoints.php?action=get_conversations', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 200 && data.data.conversations) {
+            const conversations = data.data.conversations;
+            
+            if (conversations.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-comments"></i>
+                        <p>No conversations found</p>
+                        <a href="../Messaging/messaging.html" class="btn-create-conversation">Start a conversation</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = conversations.map(conv => {
+                const displayName = conv.type === 'group' 
+                    ? conv.name 
+                    : (conv.other_full_name || conv.other_username || 'Unknown');
+                const avatar = conv.type === 'group'
+                    ? '<i class="fas fa-users"></i>'
+                    : (conv.other_avatar 
+                        ? `<img src="${conv.other_avatar}" alt="${displayName}">`
+                        : `<div class="avatar-initial">${displayName.charAt(0).toUpperCase()}</div>`);
+                
+                return `
+                    <div class="share-conversation-item" onclick="shareToConversation(${conv.id}, '${conv.type}')">
+                        <div class="share-conversation-avatar">${avatar}</div>
+                        <div class="share-conversation-info">
+                            <div class="share-conversation-name">${escapeHtml(displayName)}</div>
+                            <div class="share-conversation-type">${conv.type === 'group' ? 'Group' : 'Direct message'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<div class="error">Failed to load conversations</div>';
+        }
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+        container.innerHTML = '<div class="error">Failed to load conversations</div>';
+    }
+}
+
+function shareToConversation(conversationId, conversationType) {
+    const modal = document.getElementById('sharePostModal');
+    if (!modal) return;
+    
+    const postId = modal.dataset.postId;
+    const postUrl = `${window.location.origin}${window.location.pathname.replace('forum.html', 'post-detail.html')}?id=${postId}`;
+    
+    // Navigate to messaging page with conversation and post link
+    window.location.href = `../Messaging/messaging.html?conversation=${conversationId}&share=${encodeURIComponent(postUrl)}`;
+}
+
+// Close post options menu when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.post-options-container')) {
+        document.querySelectorAll('.post-options-menu').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+});
+
 window.filterByForum = filterByForum;
 window.openPost = openPost;
 window.toggleReaction = toggleReaction;
 window.toggleBookmark = toggleBookmark;
 window.submitComment = submitComment;
+window.togglePostOptions = togglePostOptions;
+window.confirmDeletePost = confirmDeletePost;
+window.openShareModal = openShareModal;
+window.closeShareModal = closeShareModal;
+window.shareToConversation = shareToConversation;
 window.submitReplyForum = submitReplyForum;
 window.toggleReplyFormForum = toggleReplyFormForum;
 window.cancelReplyForum = cancelReplyForum;

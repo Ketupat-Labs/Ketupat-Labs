@@ -1,5 +1,8 @@
 <?php
 
+// Suppress any output before JSON
+ob_start();
+
 header('Content-Type: application/json');
 require_once '../config/database.php';
 
@@ -9,6 +12,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 function sendResponse($status, $data, $message = '') {
+    // Clear any output buffer to prevent PHP errors from breaking JSON
+    ob_clean();
     http_response_code($status);
     echo json_encode([
         'status' => $status,
@@ -428,21 +433,25 @@ try {
             
             $query .= " ORDER BY f.is_pinned DESC, $order_by";
             
+            // Ensure user_id is an integer
+            $user_id = (int)$user_id;
+            $params[0] = $user_id;
+            
             $stmt = $db->prepare($query);
             $stmt->execute($params);
-            $forum = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $forums = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            // Convert tags from comma-separated string to JSON array
-            foreach ($forum as &$forum) {
-                if (!empty($forum['tags'])) {
-                    $forum['tags'] = json_encode(explode(',', $forum['tags']));
+            // Convert tags from comma-separated string to array
+            foreach ($forums as &$forumItem) {
+                if (!empty($forumItem['tags'])) {
+                    $forumItem['tags'] = explode(',', $forumItem['tags']);
                 } else {
-                    $forum['tags'] = '[]';
+                    $forumItem['tags'] = [];
                 }
             }
-            unset($forum);
+            unset($forumItem);
             
-            sendResponse(200, ['forum' => $forum]);
+            sendResponse(200, ['forum' => $forums]);
             break;
         
         case 'get_posts':
@@ -459,7 +468,7 @@ try {
             $offset = ($page - 1) * $limit;
             
             $where_clause = "fp.is_deleted = FALSE";
-            $params = [$user_id, $user_id];
+            $params = [$user_id, $user_id, $user_id];
             
             if ($post_id) {
                 $where_clause .= " AND fp.id = ?";
@@ -542,7 +551,12 @@ try {
                         SELECT COUNT(*) > 0
                         FROM reaction
                         WHERE target_type = 'post' AND target_id = fp.id AND user_id = ?
-                    ) as user_reacted
+                    ) as user_reacted,
+                    (
+                        SELECT role
+                        FROM forum_member
+                        WHERE forum_id = fp.forum_id AND user_id = ?
+                    ) as user_forum_role
                 FROM forum_post fp
                 JOIN user u ON fp.author_id = u.id
                 JOIN forum f ON fp.forum_id = f.id
@@ -1677,6 +1691,8 @@ try {
     }
     
 } catch (Exception $e) {
+    // Clear any output buffer
+    ob_clean();
     sendResponse(500, null, 'Server error: ' . $e->getMessage());
 }
 

@@ -28,11 +28,11 @@
                         <a href="../Dashboard/dashboard.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             Dashboard
                         </a>
+                        <a href="../Classroom/index.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            Classroom
+                        </a>
                         <a href="forum.html" class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
                             Forum
-                        </a>
-                        <a href="../Classroom/classroom.html" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Classroom
                         </a>
                     </div>
                 </div>
@@ -70,35 +70,19 @@
                 <a href="../Dashboard/dashboard.php" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
                     Dashboard
                 </a>
+                <a href="../Classroom/index.php" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
+                    Classroom
+                </a>
                 <a href="forum.html" class="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-blue-700 bg-blue-50 focus:outline-none focus:text-blue-800 focus:bg-blue-100 focus:border-blue-700 transition duration-150 ease-in-out">
                     Forum
                 </a>
-                <a href="../Classroom/classroom.html" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Classroom
-                </a>
-            </div>
-
-            <div class="pt-4 pb-1 border-t border-gray-200">
-                <div class="px-4">
-                    <div class="font-medium text-base text-gray-800" id="mobileUserName">User</div>
-                    <div class="font-medium text-sm text-gray-500" id="mobileUserEmail"></div>
-                </div>
-
-                <div class="mt-3 space-y-1">
-                    <a href="#" class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:text-gray-800 focus:bg-gray-100 transition duration-150 ease-in-out">
-                        Profile
-                    </a>
-                    <a href="logout.php" class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:text-gray-800 focus:bg-gray-100 transition duration-150 ease-in-out">
-                        Log Out
-                    </a>
-                </div>
             </div>
         </div>
     </nav>
 
-    <div class="create-post-header" style="margin-top: 0; padding: 16px 32px;">
+    <div class="create-post-header">
         <div class="header-left">
-            <button class="back-btn" onclick="goBack()">
+            <button class="back-btn" onclick="window.history.back()">
                 <i class="fas fa-arrow-left"></i>
                 Back
             </button>
@@ -119,16 +103,21 @@
             <div class="error-message" id="errorMessage"></div>
 
             <form id="createPostForm">
-                <div class="forum-selection">
-                    <h3>Select Forum</h3>
-                    <select id="forumSelect" class="form-group" style="width: 100%; padding: 10px;" required>
-                        <option value="">Choose a forum...</option>
-                    </select>
+                <div class="form-section">
+                    <div class="form-section-title">Select Forum</div>
+                    <div class="form-group">
+                        <label for="forumSelect">
+                            Forum <span class="required">*</span>
+                        </label>
+                        <select id="forumSelect" class="form-control" required>
+                            <option value="">Choose a forum...</option>
+                        </select>
+                        <small>Select the forum where you want to create this post</small>
+                    </div>
                 </div>
 
                 <div class="form-section">
                     <div class="form-section-title">Post Type</div>
-                    
                     <div class="category-grid">
                         <label class="category-option" id="postTypePost">
                             <input type="radio" name="postType" value="post" checked>
@@ -152,7 +141,7 @@
                         <label for="postTitle">
                             Post Title <span class="required">*</span>
                         </label>
-                        <input type="text" id="postTitle" placeholder="Enter a clear and descriptive title" required>
+                        <input type="text" id="postTitle" class="form-control" placeholder="Enter a clear and descriptive title" required>
                         <small>Be specific about what you're asking or discussing</small>
                     </div>
 
@@ -160,7 +149,7 @@
                         <label for="postContent">
                             Content <span class="required">*</span>
                         </label>
-                        <textarea id="postContent" rows="8" placeholder="Write your post content here..." required minlength="10"></textarea>
+                        <textarea id="postContent" class="form-control" rows="8" placeholder="Write your post content here..." required minlength="10" style="resize: vertical; min-height: 120px;"></textarea>
                         <small>Minimum 10 characters. Be clear and detailed in your explanation.</small>
                     </div>
 
@@ -168,16 +157,16 @@
                         <label for="postLink">
                             URL Link <span class="required">*</span>
                         </label>
-                        <input type="url" id="postLink" placeholder="https://example.com">
+                        <input type="url" id="postLink" class="form-control" placeholder="https://example.com">
                         <small>Enter the full URL you want to share</small>
                     </div>
 
                     <div class="form-group" id="pollGroup" style="display: none;">
-                        <label for="pollOptions">
+                        <label>
                             Poll Options <span class="required">*</span>
                         </label>
                         <div id="pollOptionsContainer"></div>
-                        <button type="button" id="addPollOption" class="btn-secondary" style="display: none;">
+                        <button type="button" id="addPollOption" class="btn-secondary">
                             <i class="fas fa-plus"></i> Add Option
                         </button>
                         <small>Add at least 2 options for your poll</small>
@@ -188,9 +177,9 @@
                     <div class="form-section-title">Attachments (Optional)</div>
                     
                     <div class="form-group">
-                        <input type="file" id="attachmentInput" multiple>
+                        <input type="file" id="attachmentInput" multiple accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx">
                         <div id="attachmentsPreview" class="attachments-preview"></div>
-                        <small>Upload files of any type. Maximum file size: 10MB each.</small>
+                        <small>Upload images or files. Maximum file size: 10MB each.</small>
                     </div>
                 </div>
 
@@ -199,14 +188,14 @@
                     
                     <div class="form-group">
                         <label for="tagsInput">Tags</label>
-                        <input type="text" id="tagsInput" placeholder="Add tags (press Enter)" onkeypress="handleTagInput(event)">
+                        <input type="text" id="tagsInput" class="form-control" placeholder="Add tags (press Enter)">
                         <div class="tag-input-container" id="tagsContainer"></div>
                         <small>Press Enter to add a tag. Click the X to remove.</small>
                     </div>
                 </div>
 
                 <div class="action-buttons">
-                    <button type="button" class="btn-cancel" onclick="goBack()">
+                    <button type="button" class="btn-cancel" onclick="window.history.back()">
                         Cancel
                     </button>
                     <button type="submit" class="btn-primary">
@@ -229,16 +218,6 @@
             const userNameElement = document.getElementById('userName');
             if (userNameElement) {
                 userNameElement.textContent = userName;
-            }
-            
-            const mobileUserName = document.getElementById('mobileUserName');
-            if (mobileUserName) {
-                mobileUserName.textContent = userName;
-            }
-            
-            const mobileUserEmail = document.getElementById('mobileUserEmail');
-            if (mobileUserEmail) {
-                mobileUserEmail.textContent = userEmail;
             }
             
             // User menu toggle

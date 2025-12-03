@@ -24,7 +24,37 @@ document.addEventListener('DOMContentLoaded', () => {
     if (messageInput) {
         messageInput.addEventListener('input', autoResizeTextarea);
     }
+    
+    // Handle shared post link
+    handleSharedPost();
 });
+
+async function handleSharedPost() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const conversationId = urlParams.get('conversation');
+    const shareUrl = urlParams.get('share');
+    
+    if (conversationId && shareUrl) {
+        // Wait for conversations to load
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Select the conversation
+        await selectConversation(parseInt(conversationId));
+        
+        // Pre-fill the message input with the shared post link
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+            messageInput.value = `Check out this post: ${decodeURIComponent(shareUrl)}`;
+            messageInput.style.height = 'auto';
+            messageInput.style.height = messageInput.scrollHeight + 'px';
+            messageInput.focus();
+        }
+        
+        // Clean up URL parameters
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+}
 
 function initEventListeners() {
     document.getElementById('btnSend').addEventListener('click', sendMessage);

@@ -32,14 +32,11 @@
                             <a href="dashboard.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
                                 Dashboard
                             </a>
-                            <a href="../Classroom/classroom.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            <a href="../Classroom/Lesson/student-lessons.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                                 Classroom
                             </a>
                             <a href="../Forum/forum.html" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                                 Forum
-                            </a>
-                            <a href="../Lesson/lesson.html" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                                Lessons
                             </a>
                         </div>
                     </div>
@@ -102,14 +99,11 @@
                     <a href="dashboard.php" class="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-blue-700 bg-blue-50 focus:outline-none focus:text-blue-800 focus:bg-blue-100 focus:border-blue-700 transition duration-150 ease-in-out">
                         Dashboard
                     </a>
-                    <a href="../Classroom/classroom.php" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
+                    <a href="../Classroom/Lesson/student-lessons.php" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
                         Classroom
                     </a>
                     <a href="../Forum/forum.html" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
                         Forum
-                    </a>
-                    <a href="../Lesson/lesson.html" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                        Lessons
                     </a>
                 </div>
 
@@ -208,7 +202,7 @@
                     <h3 class="text-xl font-bold mb-4" style="color: #3E3E3E;">Quick Access</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <!-- View Lessons Card -->
-                        <a href="../Lesson/lesson.html" class="group bg-white rounded-xl shadow-sm border-2 border-transparent hover:shadow-lg transition-all duration-300 overflow-hidden">
+                        <a href="../Classroom/Lesson/student-lessons.php" class="group bg-white rounded-xl shadow-sm border-2 border-transparent hover:shadow-lg transition-all duration-300 overflow-hidden">
                             <div class="p-6 text-white" style="background: linear-gradient(to bottom right, #2454FF, #1a3fcc);">
                                 <div class="flex items-center justify-between mb-4">
                                     <svg class="w-12 h-12 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,7 +257,7 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-lg font-bold" style="color: #3E3E3E;">Recent Lessons</h3>
-                            <a href="../Lesson/lesson.html" class="text-sm hover:underline font-medium" style="color: #2454FF;">View all</a>
+                            <a href="../Classroom/Lesson/student-lessons.php" class="text-sm hover:underline font-medium" style="color: #2454FF;">View all</a>
                         </div>
                         <div class="space-y-4" id="recentLessonsSection">
                             <div class="text-center py-8 text-gray-500">
@@ -276,7 +270,7 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h3 class="text-lg font-bold mb-4" style="color: #3E3E3E;">Quick Actions</h3>
                         <div class="space-y-3">
-                            <a href="../Lesson/lesson.html" class="flex items-center justify-between p-4 text-white rounded-lg hover:shadow-lg transition-all group" style="background: linear-gradient(to right, #2454FF, #1a3fcc);">
+                            <a href="../Classroom/Lesson/student-lessons.php" class="flex items-center justify-between p-4 text-white rounded-lg hover:shadow-lg transition-all group" style="background: linear-gradient(to right, #2454FF, #1a3fcc);">
                                 <div class="flex items-center">
                                     <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
