@@ -7,10 +7,37 @@ let forumState = {
     isFavorite: false
 };
 
+// Helper function to normalize file URLs
+function normalizeFileUrl(url) {
+    if (!url) return '';
+    
+    // If URL is already absolute (starts with / or http), return as-is
+    if (url.startsWith('/') || url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+    }
+    
+    // If URL is relative, make it absolute from web root
+    // Get base path from current location
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split('/').filter(part => part);
+    // Remove filename and 'Forum' directory to get base path
+    if (pathParts.length > 1) {
+        pathParts.pop(); // Remove filename
+        if (pathParts[pathParts.length - 1] === 'Forum') {
+            pathParts.pop(); // Remove 'Forum' directory
+        }
+    }
+    const basePath = pathParts.length > 0 ? '/' + pathParts.join('/') : '';
+    
+    // Ensure URL starts with / and doesn't have double slashes
+    const normalizedUrl = (basePath + '/' + url).replace(/\/+/g, '/');
+    return normalizedUrl;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is logged in
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
-        window.location.href = 'login.html';
+        window.location.href = '../login.html';
         return;
     }
 
@@ -34,7 +61,7 @@ function initEventListeners() {
             sessionStorage.removeItem('userLoggedIn');
             sessionStorage.removeItem('userEmail');
             sessionStorage.removeItem('userId');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
 
@@ -42,7 +69,8 @@ function initEventListeners() {
     if (btnCreatePost) {
         btnCreatePost.addEventListener('click', () => {
             const forumId = forumState.forumId || new URLSearchParams(window.location.search).get('id');
-            window.location.href = `create-post.html?forum=${forumId}`;
+            const referrer = `forum-detail.html?id=${forumId}`;
+            window.location.href = `create-post.html?forum=${forumId}&referrer=${encodeURIComponent(referrer)}`;
         });
     }
 
@@ -50,7 +78,8 @@ function initEventListeners() {
     if (btnCreatePostForForum) {
         btnCreatePostForForum.addEventListener('click', () => {
             const forumId = forumState.forumId || new URLSearchParams(window.location.search).get('id');
-            window.location.href = `create-post.html?forum=${forumId}`;
+            const referrer = `forum-detail.html?id=${forumId}`;
+            window.location.href = `create-post.html?forum=${forumId}&referrer=${encodeURIComponent(referrer)}`;
         });
     }
 
@@ -315,11 +344,12 @@ function renderPosts(posts) {
                     if (imageAttachments.length > 0) {
                         html += '<div class="post-image-preview" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">';
                         imageAttachments.forEach(att => {
+                            const normalizedUrl = normalizeFileUrl(att.url);
                             html += `
                                                     <div style="position: relative; max-width: 300px; max-height: 300px;">
-                                                        <img src="${att.url}" alt="${escapeHtml(att.name)}" 
+                                                        <img src="${normalizedUrl}" alt="${escapeHtml(att.name)}" 
                                                              style="max-width: 100%; max-height: 300px; object-fit: contain; border-radius: 4px; cursor: pointer;" 
-                                                             onclick="event.stopPropagation(); window.open('${att.url}', '_blank');"
+                                                             onclick="event.stopPropagation(); window.open('${normalizedUrl}', '_blank');"
                                                              onerror="this.style.display='none';">
                                                     </div>
                                                 `;
@@ -331,8 +361,9 @@ function renderPosts(posts) {
                     if (otherAttachments.length > 0) {
                         html += '<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">';
                         otherAttachments.forEach(att => {
+                            const normalizedUrl = normalizeFileUrl(att.url);
                             html += `
-                                                    <a href="${att.url}" target="_blank" class="attachment-file" onclick="event.stopPropagation();">
+                                                    <a href="${normalizedUrl}" target="_blank" class="attachment-file" onclick="event.stopPropagation();">
                                                         <i class="fas ${getFileIcon(att.name)}"></i>
                                                         ${escapeHtml(att.name)}
                                                     </a>
@@ -492,7 +523,10 @@ async function leaveForum() {
 }
 
 async function openPost(postId) {
-    window.location.href = `post-detail.html?id=${postId}`;
+    // Get current forum ID to pass as referrer
+    const forumId = forumState.forumId || new URLSearchParams(window.location.search).get('id');
+    const referrer = forumId ? `forum-detail.html?id=${forumId}` : 'forum-detail.html';
+    window.location.href = `post-detail.html?id=${postId}&referrer=${encodeURIComponent(referrer)}`;
 }
 
 async function renderPostDetail(post) {
@@ -526,12 +560,15 @@ async function renderPostDetail(post) {
                 } catch (e) {
                     return [];
                 }
-            })().map(att => `
-                        <a href="${att.url}" target="_blank" class="attachment-file" style="display: inline-flex; margin-right: 10px;">
+            })().map(att => {
+                        const normalizedUrl = normalizeFileUrl(att.url);
+                        return `
+                        <a href="${normalizedUrl}" target="_blank" class="attachment-file" style="display: inline-flex; margin-right: 10px;">
                             <i class="fas ${getFileIcon(att.name)}"></i>
                             ${escapeHtml(att.name)}
                         </a>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             ` : ''}
             
@@ -1012,9 +1049,25 @@ window.closeShareModal = closeShareModal;
 window.shareToConversation = shareToConversation;
 
 function formatTime(dateString) {
+    if (!dateString) {
+        return 'Unknown';
+    }
+    
     const date = new Date(dateString);
+    
+    // Check if date is valid (not NaN and not epoch 0)
+    if (isNaN(date.getTime()) || date.getTime() === 0) {
+        return 'Unknown';
+    }
+    
     const now = new Date();
     const diff = now - date;
+    
+    // If date is in the future or diff is negative, return formatted date
+    if (diff < 0) {
+        return date.toLocaleDateString();
+    }
+    
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);

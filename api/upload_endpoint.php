@@ -64,8 +64,24 @@ foreach ($files as $file) {
         sendResponse(500, null, "Failed to save file {$file['name']}");
     }
     
+    // Generate URL relative to web root
+    // Remove '../' and ensure it starts with '/'
+    $relative_path = str_replace('../', '', $filepath);
+    // Ensure the path uses forward slashes and starts with '/'
+    $relative_path = '/' . ltrim(str_replace('\\', '/', $relative_path), '/');
+    
+    // Get base path from script location
+    // Script is at: /Material/api/upload_endpoint.php
+    // We want: /Material/uploads/2025/01/file_xxx.png
+    $script_dir = dirname($_SERVER['SCRIPT_NAME']); // e.g., /Material/api
+    $base_path = dirname($script_dir); // e.g., /Material
+    $base_path = rtrim($base_path, '/');
+    
+    // Construct absolute path from web root
+    $absolute_path = $base_path . $relative_path;
+    
     $uploaded_files[] = [
-        'url' => str_replace('../', '', $filepath),
+        'url' => $absolute_path, // e.g., /Material/uploads/2025/01/file_xxx.png
         'name' => $file['name'],
         'type' => $file['type'],
         'size' => $file['size']

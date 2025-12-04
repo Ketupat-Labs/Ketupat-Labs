@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is logged in
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
-        window.location.href = 'login.html';
+        window.location.href = '../login.html';
         return;
     }
     
@@ -25,14 +25,14 @@ function initEventListeners() {
             sessionStorage.removeItem('userLoggedIn');
             sessionStorage.removeItem('userEmail');
             sessionStorage.removeItem('userId');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
     
     const btnCreatePost = document.getElementById('btnCreatePost');
     if (btnCreatePost) {
         btnCreatePost.addEventListener('click', () => {
-            window.location.href = 'create-post.html';
+            window.location.href = 'create-post.html?referrer=forum-search.html' + window.location.search;
         });
     }
     

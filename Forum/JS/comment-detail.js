@@ -6,7 +6,7 @@ let commentState = {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
-        window.location.href = 'login.html';
+        window.location.href = '../login.html';
         return;
     }
     
@@ -30,14 +30,21 @@ function initEventListeners() {
             sessionStorage.removeItem('userLoggedIn');
             sessionStorage.removeItem('userEmail');
             sessionStorage.removeItem('userId');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
     
     const btnCreatePost = document.getElementById('btnCreatePost');
     if (btnCreatePost) {
         btnCreatePost.addEventListener('click', () => {
-            window.location.href = 'create-post.html';
+            // Get post ID from URL to determine referrer
+            const urlParams = new URLSearchParams(window.location.search);
+            const postId = urlParams.get('post_id');
+            if (postId) {
+                window.location.href = `create-post.html?referrer=post-detail.html?id=${postId}`;
+            } else {
+                window.location.href = 'create-post.html?referrer=comment-detail.html' + window.location.search;
+            }
         });
     }
 
@@ -394,9 +401,25 @@ function copyToClipboard(text) {
 }
 
 function formatTime(dateString) {
+    if (!dateString) {
+        return 'Unknown';
+    }
+    
     const date = new Date(dateString);
+    
+    // Check if date is valid (not NaN and not epoch 0)
+    if (isNaN(date.getTime()) || date.getTime() === 0) {
+        return 'Unknown';
+    }
+    
     const now = new Date();
     const diff = now - date;
+    
+    // If date is in the future or diff is negative, return formatted date
+    if (diff < 0) {
+        return date.toLocaleDateString();
+    }
+    
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);

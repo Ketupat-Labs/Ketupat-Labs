@@ -136,6 +136,10 @@
                                 <option value="unread">Unread</option>
                             </select>
                         </div>
+                        <div class="conversation-tabs">
+                            <button class="tab-btn active" id="tabActive" data-tab="active">Active</button>
+                            <button class="tab-btn" id="tabArchived" data-tab="archived">Archived</button>
+                        </div>
                         <div class="conversations-list" id="conversationsList"></div>
                     </aside>
 
@@ -145,6 +149,23 @@
                                 <i class="fas fa-comment-dots"></i>
                                 <p>Select a conversation to start chatting</p>
                             </div>
+                        </div>
+                        <div class="chat-actions-bar" id="chatActionsBar" style="display: none;">
+                            <button class="btn-chat-action" id="btnSearchMessages" title="Search Messages">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                            <button class="btn-chat-action" id="btnArchiveConversation" title="Archive Conversation">
+                                <i class="fas fa-archive"></i> Archive
+                            </button>
+                        </div>
+                        <div class="search-messages-container" id="searchMessagesContainer" style="display: none;">
+                            <div class="search-messages-header">
+                                <input type="text" id="searchMessagesInput" placeholder="Search messages in this conversation...">
+                                <button class="btn-close-search" id="btnCloseSearch">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="search-results" id="searchResults"></div>
                         </div>
                         <div class="chat-messages" id="chatMessages"></div>
                         <div class="chat-input-container" id="chatInputContainer" style="display: none;">

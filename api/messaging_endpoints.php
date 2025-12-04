@@ -99,6 +99,18 @@ try {
                     break;
                 }
                 
+                // Check if is_archived column exists
+                $includeArchived = $_GET['include_archived'] ?? false;
+                $archiveFilter = '';
+                if (!$includeArchived) {
+                    try {
+                        $db->query("SELECT is_archived FROM conversation_participants LIMIT 1");
+                        $archiveFilter = " AND (cp.is_archived = 0 OR cp.is_archived IS NULL)";
+                    } catch (PDOException $e) {
+                        // Column doesn't exist yet, ignore
+                    }
+                }
+                
                 // First, get all conversations for this user
                 $stmt = $db->prepare("
                     SELECT 
@@ -106,10 +118,11 @@ try {
                         c.type,
                         COALESCE(c.name, '') as name,
                         c.created_at,
-                        c.updated_at
+                        c.updated_at,
+                        COALESCE(cp.is_archived, 0) as is_archived
                     FROM conversations c
                     INNER JOIN conversation_participants cp ON c.id = cp.conversation_id
-                    WHERE cp.user_id = ?
+                    WHERE cp.user_id = ? $archiveFilter
                     ORDER BY COALESCE(c.updated_at, c.created_at) $order
                 ");
                 $stmt->execute([$user_id]);
@@ -323,7 +336,11 @@ try {
                     m.sender_id,
                     u.username,
                     u.full_name,
+                    u.avatar_url,
                     m.content,
+                    m.message_type,
+                    m.attachment_url,
+                    m.attachment_name,
                     m.created_at
                 FROM messages m
                 JOIN user u ON m.sender_id = u.id
@@ -425,18 +442,74 @@ try {
                 sendResponse(400, null, 'At least one member is required');
             }
             
-            $stmt = $db->prepare("INSERT INTO conversations (type, name, created_by) VALUES ('group', ?, ?)");
-            $stmt->execute([$name, $user_id]);
-            $conversation_id = $db->lastInsertId();
-            
-            $stmt = $db->prepare("INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)");
-            $stmt->execute([$conversation_id, $user_id]);
-            
-            foreach ($member_ids as $member_id) {
-                $stmt->execute([$conversation_id, $member_id]);
+            // Check if tables exist
+            try {
+                $db->query("SELECT 1 FROM conversations LIMIT 1");
+                $db->query("SELECT 1 FROM conversation_participants LIMIT 1");
+            } catch (PDOException $e) {
+                error_log("Tables not found. Error: " . $e->getMessage());
+                error_log("Please run create_messaging_tables.sql to create the required tables.");
+                sendResponse(500, null, 'Database tables not found. Please run create_messaging_tables.sql to create the required tables (conversations, conversation_participants, messages).');
+                break;
             }
             
-            sendResponse(200, ['conversation_id' => $conversation_id], 'Group chat created');
+            $db->beginTransaction();
+            
+            try {
+                // Check if created_by column exists, if not use alternative approach
+                $hasCreatedBy = true;
+                try {
+                    $db->query("SELECT created_by FROM conversations LIMIT 1");
+                } catch (PDOException $e) {
+                    $hasCreatedBy = false;
+                }
+                
+                if ($hasCreatedBy) {
+                    $stmt = $db->prepare("INSERT INTO conversations (type, name, created_by) VALUES ('group', ?, ?)");
+                    $stmt->execute([$name, $user_id]);
+                } else {
+                    // Fallback if created_by column doesn't exist
+                    $stmt = $db->prepare("INSERT INTO conversations (type, name) VALUES ('group', ?)");
+                    $stmt->execute([$name]);
+                }
+                
+                $conversation_id = $db->lastInsertId();
+                
+                if (!$conversation_id) {
+                    throw new Exception('Failed to create conversation - no ID returned');
+                }
+                
+                // Add creator as participant
+                $stmt = $db->prepare("INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)");
+                $stmt->execute([$conversation_id, $user_id]);
+                
+                // Add other members
+                $participantStmt = $db->prepare("INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)");
+                foreach ($member_ids as $member_id) {
+                    // Check if member already exists (avoid duplicates)
+                    $checkStmt = $db->prepare("SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?");
+                    $checkStmt->execute([$conversation_id, $member_id]);
+                    if (!$checkStmt->fetch()) {
+                        $participantStmt->execute([$conversation_id, $member_id]);
+                    }
+                }
+                
+                $db->commit();
+                sendResponse(200, ['conversation_id' => $conversation_id], 'Group chat created');
+            } catch (PDOException $e) {
+                $db->rollBack();
+                error_log("PDO Error creating group chat: " . $e->getMessage());
+                error_log("SQL Error Code: " . $e->getCode());
+                error_log("SQL Error Info: " . print_r($e->errorInfo ?? [], true));
+                error_log("SQL State: " . ($e->errorInfo[0] ?? 'N/A'));
+                $errorMsg = 'Database error: ' . ($e->errorInfo[2] ?? $e->getMessage());
+                sendResponse(500, null, $errorMsg);
+            } catch (Exception $e) {
+                $db->rollBack();
+                error_log("Error creating group chat: " . $e->getMessage());
+                error_log("Stack trace: " . $e->getTraceAsString());
+                sendResponse(500, null, 'Failed to create group chat: ' . $e->getMessage());
+            }
             break;
         
         case 'manage_group_members':
@@ -474,15 +547,114 @@ try {
             }
             break;
         
+        case 'archive_conversation':
+            if ($method !== 'POST') {
+                sendResponse(405, null, 'Method not allowed');
+            }
+            
+            $data = json_decode(file_get_contents('php://input'), true);
+            $conversation_id = $data['conversation_id'] ?? 0;
+            $archive = $data['archive'] ?? true;
+            
+            // Check if user is participant
+            $stmt = $db->prepare("SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ?");
+            $stmt->execute([$conversation_id, $user_id]);
+            if (!$stmt->fetch()) {
+                sendResponse(403, null, 'Not a participant in this conversation');
+            }
+            
+            // Check if is_archived column exists, if not, add it
+            try {
+                $db->query("SELECT is_archived FROM conversation_participants LIMIT 1");
+            } catch (PDOException $e) {
+                // Column doesn't exist, add it
+                try {
+                    $db->exec("ALTER TABLE conversation_participants ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0");
+                } catch (PDOException $e2) {
+                    error_log("Error adding is_archived column: " . $e2->getMessage());
+                }
+            }
+            
+            $stmt = $db->prepare("UPDATE conversation_participants SET is_archived = ? WHERE conversation_id = ? AND user_id = ?");
+            $stmt->execute([$archive ? 1 : 0, $conversation_id, $user_id]);
+            
+            sendResponse(200, null, $archive ? 'Conversation archived' : 'Conversation unarchived');
+            break;
+        
+        case 'get_archived_conversations':
+            if ($method !== 'GET') {
+                sendResponse(405, null, 'Method not allowed');
+            }
+            
+            // Check if is_archived column exists
+            try {
+                $db->query("SELECT is_archived FROM conversation_participants LIMIT 1");
+            } catch (PDOException $e) {
+                // Column doesn't exist, return empty array
+                sendResponse(200, ['conversations' => []]);
+                break;
+            }
+            
+            $stmt = $db->prepare("
+                SELECT 
+                    c.id,
+                    c.type,
+                    COALESCE(c.name, '') as name,
+                    c.created_at,
+                    c.updated_at
+                FROM conversations c
+                INNER JOIN conversation_participants cp ON c.id = cp.conversation_id
+                WHERE cp.user_id = ? AND cp.is_archived = 1
+                ORDER BY COALESCE(c.updated_at, c.created_at) DESC
+            ");
+            $stmt->execute([$user_id]);
+            $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get additional details (same as get_conversations)
+            foreach ($conversations as &$conv) {
+                if ($conv['type'] === 'direct') {
+                    $stmt = $db->prepare("
+                        SELECT u.id, u.username, u.full_name, u.avatar_url, u.is_online, u.last_seen
+                        FROM conversation_participants cp
+                        JOIN user u ON cp.user_id = u.id
+                        WHERE cp.conversation_id = ? AND cp.user_id != ?
+                        LIMIT 1
+                    ");
+                    $stmt->execute([$conv['id'], $user_id]);
+                    $otherUser = $stmt->fetch();
+                    
+                    if ($otherUser) {
+                        $conv['other_username'] = $otherUser['username'];
+                        $conv['other_full_name'] = $otherUser['full_name'];
+                        $conv['other_avatar'] = $otherUser['avatar_url'];
+                        $conv['is_online'] = $otherUser['is_online'];
+                    }
+                }
+                
+                // Get last message
+                $stmt = $db->prepare("SELECT content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1");
+                $stmt->execute([$conv['id']]);
+                $lastMessage = $stmt->fetch();
+                $conv['last_message'] = $lastMessage ? $lastMessage['content'] : null;
+                $conv['last_message_time'] = $lastMessage ? $lastMessage['created_at'] : null;
+            }
+            
+            sendResponse(200, ['conversations' => $conversations]);
+            break;
+        
         default:
             sendResponse(404, null, 'Action not found');
     }
     
 } catch (PDOException $e) {
     error_log("Database error in messaging_endpoints.php: " . $e->getMessage());
-    sendResponse(500, null, 'Ralat pangkalan data. Sila cuba lagi kemudian.');
+    error_log("Action: " . ($action ?? 'unknown'));
+    error_log("SQL Error Info: " . print_r($e->errorInfo ?? [], true));
+    sendResponse(500, null, 'Database error: ' . ($e->errorInfo[2] ?? $e->getMessage()));
 } catch (Exception $e) {
     error_log("Error in messaging_endpoints.php: " . $e->getMessage());
-    sendResponse(500, null, 'Ralat pelayan: ' . $e->getMessage());
+    error_log("Action: " . ($action ?? 'unknown'));
+    error_log("Stack trace: " . $e->getTraceAsString());
+    sendResponse(500, null, 'Server error: ' . $e->getMessage());
 }
 

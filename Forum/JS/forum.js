@@ -45,7 +45,7 @@ function initEventListeners() {
             sessionStorage.removeItem('userLoggedIn');
             sessionStorage.removeItem('userEmail');
             sessionStorage.removeItem('userId');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
 
@@ -68,7 +68,7 @@ function initEventListeners() {
     const btnCreatePost = document.getElementById('btnCreatePost');
     if (btnCreatePost) {
         btnCreatePost.addEventListener('click', () => {
-            window.location.href = 'create-post.html';
+            window.location.href = 'create-post.html?referrer=forum.html';
         });
     }
 
@@ -228,7 +228,7 @@ function renderPosts(posts) {
                     <div class="post-content-section">
                         <div class="post-header">
                             <div class="post-header-left">
-                                <span class="post-community">r/${escapeHtml(post.forum_name || 'Forum')}</span>
+                                <span class="post-community">${escapeHtml(post.forum_name || 'Forum')}</span>
                                 <span class="post-time">•</span>
                                 <span class="post-time">${formatTime(post.created_at)}</span>
                                 ${post.is_pinned ? '<span class="post-pinned"><i class="fas fa-thumbtack"></i> pinned</span>' : ''}
@@ -377,7 +377,9 @@ function renderPosts(posts) {
 async function openPost(postId) {
     // Track visited post
     trackVisitedPost(postId);
-    window.location.href = `post-detail.html?id=${postId}`;
+    // Pass referrer so back button works correctly
+    const referrer = 'forum.html';
+    window.location.href = `post-detail.html?id=${postId}&referrer=${encodeURIComponent(referrer)}`;
 }
 
 function trackVisitedPost(postId) {
@@ -517,7 +519,7 @@ function renderRecentPosts(posts) {
                     <div class="recent-post-header">
                         <div class="recent-post-forum-icon">${forumInitials}</div>
                         <div class="recent-post-meta">
-                            <span class="recent-post-forum">r/${escapeHtml(post.forum_name || 'Forum')}</span>
+                            <span class="recent-post-forum">${escapeHtml(post.forum_name || 'Forum')}</span>
                             <span class="recent-post-time">${timeAgo}</span>
                         </div>
                     </div>
@@ -1100,9 +1102,25 @@ function closePostModal() {
 }
 
 function formatTime(dateString) {
+    if (!dateString) {
+        return 'Unknown';
+    }
+    
     const date = new Date(dateString);
+    
+    // Check if date is valid (not NaN and not epoch 0)
+    if (isNaN(date.getTime()) || date.getTime() === 0) {
+        return 'Unknown';
+    }
+    
     const now = new Date();
     const diff = now - date;
+    
+    // If date is in the future or diff is negative, return formatted date
+    if (diff < 0) {
+        return date.toLocaleDateString();
+    }
+    
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);

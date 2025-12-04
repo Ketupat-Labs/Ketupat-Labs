@@ -12,6 +12,54 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Store the ORIGINAL referrer page (where user clicked "create post" button)
+    // This should be forum.html or forum-detail.html, NOT create-post.html
+    const urlParams = new URLSearchParams(window.location.search);
+    let originalReferrer = urlParams.get('referrer');
+    
+    // Safety check: Never use create-post.html as referrer
+    if (originalReferrer && originalReferrer.includes('create-post.html')) {
+        originalReferrer = null; // Reset if it's create-post.html
+    }
+    
+    // If no referrer in URL parameter, try to get it from document.referrer
+    // But EXCLUDE create-post.html to avoid going back to create-post page
+    if (!originalReferrer) {
+        const referrerUrl = document.referrer;
+        if (referrerUrl && !referrerUrl.includes('create-post.html')) {
+            try {
+                const referrerObj = new URL(referrerUrl);
+                const referrerPath = referrerObj.pathname;
+                
+                // Extract just the filename and query params
+                const pathParts = referrerPath.split('/');
+                const filename = pathParts[pathParts.length - 1];
+                
+                if (filename === 'forum.html' || referrerPath.includes('forum.html')) {
+                    originalReferrer = 'forum.html';
+                } else if (filename === 'forum-detail.html' || referrerPath.includes('forum-detail.html')) {
+                    const forumId = referrerObj.searchParams.get('id');
+                    originalReferrer = forumId ? `forum-detail.html?id=${forumId}` : 'forum-detail.html';
+                } else if (filename === 'post-detail.html' || referrerPath.includes('post-detail.html')) {
+                    // If coming from post-detail, preserve the full URL with query params
+                    const queryString = referrerObj.search;
+                    originalReferrer = queryString ? `post-detail.html${queryString}` : 'post-detail.html';
+                }
+            } catch (e) {
+                // Invalid URL, ignore
+                console.log('Could not parse referrer URL:', e);
+            }
+        }
+    }
+    
+    // Final safety check: Never store create-post.html as referrer
+    if (originalReferrer && !originalReferrer.includes('create-post.html')) {
+        sessionStorage.setItem('postCreateReferrer', originalReferrer);
+        console.log('Stored original referrer:', originalReferrer);
+    } else if (originalReferrer) {
+        console.warn('Ignored create-post.html as referrer');
+    }
+
     initEventListeners();
     loadForums();
     initializePollOptions();
@@ -132,6 +180,9 @@ function handlePostTypeChange(e) {
         opt.classList.remove('selected');
     });
     
+    // Get poll option inputs
+    const pollInputs = document.querySelectorAll('.poll-option-input');
+    
     if (postType === 'post') {
         document.getElementById('postTypePost').classList.add('selected');
         document.getElementById('contentGroup').style.display = 'block';
@@ -139,6 +190,8 @@ function handlePostTypeChange(e) {
         document.getElementById('pollGroup').style.display = 'none';
         document.getElementById('postContent').required = true;
         document.getElementById('postLink').required = false;
+        // Remove required from poll inputs when hidden
+        pollInputs.forEach(input => input.removeAttribute('required'));
     } else if (postType === 'link') {
         document.getElementById('postTypeLink').classList.add('selected');
         document.getElementById('contentGroup').style.display = 'block';
@@ -146,6 +199,8 @@ function handlePostTypeChange(e) {
         document.getElementById('pollGroup').style.display = 'none';
         document.getElementById('postContent').required = true;
         document.getElementById('postLink').required = true;
+        // Remove required from poll inputs when hidden
+        pollInputs.forEach(input => input.removeAttribute('required'));
     } else if (postType === 'poll') {
         document.getElementById('postTypePoll').classList.add('selected');
         document.getElementById('contentGroup').style.display = 'none';
@@ -153,6 +208,8 @@ function handlePostTypeChange(e) {
         document.getElementById('pollGroup').style.display = 'block';
         document.getElementById('postContent').required = false;
         document.getElementById('postLink').required = false;
+        // Add required to poll inputs when visible
+        pollInputs.forEach(input => input.setAttribute('required', 'required'));
     }
 }
 
@@ -170,8 +227,13 @@ function addPollOptionField() {
     const optionDiv = document.createElement('div');
     optionDiv.className = 'poll-option-item';
     optionDiv.id = `pollOption_${optionId}`;
+    
+    // Check if poll type is currently selected
+    const pollTypeSelected = document.querySelector('input[name="postType"]:checked')?.value === 'poll';
+    const requiredAttr = pollTypeSelected ? 'required' : '';
+    
     optionDiv.innerHTML = `
-        <input type="text" class="form-control poll-option-input" placeholder="Enter poll option" required>
+        <input type="text" class="form-control poll-option-input" placeholder="Enter poll option" ${requiredAttr}>
         <button type="button" class="remove-btn" onclick="removePollOption(${optionId})">
             <i class="fas fa-times"></i>
         </button>
@@ -278,21 +340,96 @@ function renderAttachments() {
         return;
     }
 
-    container.innerHTML = postState.selectedFiles.map((file, index) => {
+    // Clear container first
+    container.innerHTML = '';
+
+    // Render each file
+    postState.selectedFiles.forEach((file, index) => {
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
         const fileIcon = getFileIcon(file.name);
+        const isImage = file.type.startsWith('image/') || 
+                       ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(file.name.split('.').pop().toLowerCase());
         
-        return `
-            <div class="attachment-preview-item">
+        if (isImage) {
+            // Create image preview using FileReader
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'attachment-image-preview';
+                const dataUrl = e.target.result;
+                const fileName = escapeHtml(file.name);
+                
+                // Create wrapper
+                const wrapper = document.createElement('div');
+                wrapper.className = 'image-preview-wrapper';
+                wrapper.onclick = () => viewImagePreview(dataUrl, fileName);
+                
+                // Create image
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.alt = fileName;
+                img.className = 'preview-image';
+                
+                // Create overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'image-preview-overlay';
+                
+                const filenameSpan = document.createElement('span');
+                filenameSpan.className = 'image-filename';
+                filenameSpan.textContent = fileName;
+                
+                const filesizeSpan = document.createElement('span');
+                filesizeSpan.className = 'image-filesize';
+                filesizeSpan.textContent = fileSize + ' MB';
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-btn';
+                removeBtn.title = 'Remove';
+                removeBtn.onclick = (event) => {
+                    event.stopPropagation();
+                    removeAttachment(index);
+                };
+                removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                
+                overlay.appendChild(filenameSpan);
+                overlay.appendChild(filesizeSpan);
+                overlay.appendChild(removeBtn);
+                
+                wrapper.appendChild(img);
+                wrapper.appendChild(overlay);
+                previewDiv.appendChild(wrapper);
+                container.appendChild(previewDiv);
+            };
+            reader.onerror = function() {
+                // Fallback to file icon if image fails to load
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'attachment-preview-item';
+                fileDiv.innerHTML = `
+                    <i class="fas ${fileIcon}"></i>
+                    <span>${escapeHtml(file.name)}</span>
+                    <span class="file-size">(${fileSize} MB)</span>
+                    <span class="remove-btn" onclick="removeAttachment(${index})">
+                        <i class="fas fa-times"></i>
+                    </span>
+                `;
+                container.appendChild(fileDiv);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // Non-image files - show file icon
+            const fileDiv = document.createElement('div');
+            fileDiv.className = 'attachment-preview-item';
+            fileDiv.innerHTML = `
                 <i class="fas ${fileIcon}"></i>
                 <span>${escapeHtml(file.name)}</span>
                 <span class="file-size">(${fileSize} MB)</span>
                 <span class="remove-btn" onclick="removeAttachment(${index})">
                     <i class="fas fa-times"></i>
                 </span>
-            </div>
-        `;
-    }).join('');
+            `;
+            container.appendChild(fileDiv);
+        }
+    });
 }
 
 function getFileIcon(filename) {
@@ -325,6 +462,17 @@ async function handleFormSubmit(e) {
     // Validation
     if (!forumId) {
         showError('Please select a forum');
+        return;
+    }
+    
+    // Verify the forum exists in the loaded forums
+    const selectedForum = postState.forums.find(f => f.id == forumId);
+    if (!selectedForum) {
+        console.error('Selected forum not found in loaded forums:', {
+            forumId: forumId,
+            loadedForums: postState.forums
+        });
+        showError('Selected forum is invalid. Please refresh the page and try again.');
         return;
     }
     
@@ -380,6 +528,16 @@ async function handleFormSubmit(e) {
             postData.poll_option = getPollOptions();
         }
         
+        // Debug: Log the data being sent
+        console.log('Creating post with data:', {
+            forum_id: postData.forum_id,
+            title: postData.title,
+            post_type: postData.post_type,
+            has_content: !!postData.content,
+            tags_count: postData.tags.length,
+            attachments_count: postData.attachments.length
+        });
+        
         // Create post
         const response = await fetch('../api/forum_endpoints.php?action=create_post', {
             method: 'POST',
@@ -390,21 +548,93 @@ async function handleFormSubmit(e) {
             body: JSON.stringify(postData)
         });
         
-        const data = await response.json();
+        // Log response status for debugging
+        console.log('Response status:', response.status, response.statusText);
+        
+        // Read response as text first (can only read once)
+        let responseText;
+        try {
+            responseText = await response.text();
+        } catch (readError) {
+            console.error('Error reading response:', readError);
+            showError('Failed to read server response. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Create Post';
+            return;
+        }
+        
+        // Try to parse as JSON
+        let data;
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.includes('application/json') || responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+            try {
+                data = JSON.parse(responseText);
+                console.log('Server response:', data);
+            } catch (jsonError) {
+                console.error('JSON Parse Error:', jsonError);
+                console.error('Response Text:', responseText.substring(0, 500));
+                showError('Invalid JSON response from server. Please check the console for details.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Create Post';
+                return;
+            }
+        } else {
+            console.error('Non-JSON response:', responseText.substring(0, 500));
+            showError('Server returned non-JSON response. Please check the console for details.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Create Post';
+            return;
+        }
         
         if (data.status === 200) {
             showSuccess('Post created successfully!');
             setTimeout(() => {
-                window.location.href = `post-detail.html?id=${data.data.post_id}`;
+                // Get the ORIGINAL referrer (where they clicked "create post" button)
+                // This should be forum.html or forum-detail.html, NOT create-post.html
+                const originalReferrer = sessionStorage.getItem('postCreateReferrer') || '';
+                const referrerParam = originalReferrer ? `&referrer=${encodeURIComponent(originalReferrer)}` : '';
+                window.location.href = `post-detail.html?id=${data.data.post_id}${referrerParam}`;
             }, 1500);
         } else {
-            showError(data.message || 'Failed to create post');
+            // Extract error message - check both 'message' field and status code
+            let errorMessage = data.message || 'Failed to create post';
+            
+            // Provide more specific messages for common errors
+            if (response.status === 403) {
+                if (data.message && data.message.includes('Not a member of this forum')) {
+                    errorMessage = 'You are not a member of this forum. Please join the forum first before creating posts.';
+                } else if (data.message && data.message.includes('muted')) {
+                    // Show the detailed mute message from server
+                    errorMessage = data.message || 'You are currently muted in this forum and cannot create posts.';
+                    if (data.data && data.data.muted_until) {
+                        const muteDate = new Date(data.data.muted_until);
+                        errorMessage += ` The mute expires on ${muteDate.toLocaleString()}.`;
+                    } else if (data.data && !data.data.muted_until) {
+                        errorMessage += ' This is a permanent mute.';
+                    }
+                    if (data.data && data.data.reason) {
+                        errorMessage += ` Reason: ${data.data.reason}`;
+                    }
+                } else {
+                    errorMessage = data.message || 'Access denied. You may not have permission to create posts in this forum.';
+                }
+            } else if (response.status === 401) {
+                errorMessage = 'Your session has expired. Please log in again.';
+            }
+            
+            console.error('Post creation failed:', {
+                status: data.status || response.status,
+                message: data.message,
+                fullResponse: data
+            });
+            showError(errorMessage);
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-check"></i> Create Post';
         }
     } catch (error) {
         console.error('Error creating post:', error);
-        showError('Failed to create post. Please try again.');
+        showError(`Failed to create post: ${error.message || 'Please try again.'}`);
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-check"></i> Create Post';
     }
@@ -427,12 +657,28 @@ async function uploadFiles() {
             body: formData
         });
         
-        const data = await response.json();
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response from upload:', text.substring(0, 500));
+            throw new Error('Server error during file upload. Please check the console for details.');
+        }
+        
+        let data;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            console.error('JSON Parse Error in upload:', parseError);
+            const text = await response.text();
+            console.error('Upload Response Text:', text.substring(0, 500));
+            throw new Error('Invalid response from upload server. Please try again.');
+        }
         
         if (data.status === 200) {
             return data.data.files || [];
         } else {
-            throw new Error(data.message || 'File upload failed');
+            throw new Error(data.message || `File upload failed (Status: ${data.status || response.status})`);
         }
     } catch (error) {
         console.error('Error uploading files:', error);
@@ -494,8 +740,74 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// View image in full size
+function viewImagePreview(imageUrl, imageName) {
+    // Create a modal to view the image
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        cursor: pointer;
+    `;
+    
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = imageName;
+    img.style.cssText = `
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+        border-radius: 8px;
+    `;
+    
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        background-color: rgba(0, 0, 0, 0.5);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s;
+    `;
+    closeBtn.onmouseover = () => closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    closeBtn.onmouseout = () => closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    
+    const closeModal = () => {
+        document.body.removeChild(modal);
+    };
+    
+    closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        closeModal();
+    };
+    modal.onclick = closeModal;
+    img.onclick = (e) => e.stopPropagation();
+    
+    modal.appendChild(img);
+    modal.appendChild(closeBtn);
+    document.body.appendChild(modal);
+}
+
 // Make functions globally accessible
 window.removeTag = removeTag;
 window.removeAttachment = removeAttachment;
 window.removePollOption = removePollOption;
+window.viewImagePreview = viewImagePreview;
 

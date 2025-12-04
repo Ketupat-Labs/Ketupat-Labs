@@ -151,21 +151,32 @@ try {
             }
             
             $stmt = $db->prepare("
-                SELECT id FROM muted_user 
+                SELECT id, muted_until, reason 
+                FROM muted_user 
                 WHERE forum_id = ? AND user_id = ? 
                 AND (muted_until IS NULL OR muted_until > NOW())
             ");
             $stmt->execute([$forum_id, $user_id]);
-            if ($stmt->fetch()) {
-                sendResponse(403, null, 'You are currently muted in this forum');
+            $muteRecord = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($muteRecord) {
+                $muteMessage = 'You are currently muted in this forum';
+                if ($muteRecord['muted_until']) {
+                    $muteMessage .= ' until ' . date('Y-m-d H:i:s', strtotime($muteRecord['muted_until']));
+                } else {
+                    $muteMessage .= ' (permanently)';
+                }
+                if ($muteRecord['reason']) {
+                    $muteMessage .= '. Reason: ' . $muteRecord['reason'];
+                }
+                sendResponse(403, ['muted_until' => $muteRecord['muted_until'], 'reason' => $muteRecord['reason']], $muteMessage);
             }
             
             $db->beginTransaction();
             
             try {
                 $stmt = $db->prepare("
-                    INSERT INTO forum_post (forum_id, author_id, title, content, category, post_type)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO forum_post (forum_id, author_id, title, content, category, post_type, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ");
                 $stmt->execute([$forum_id, $user_id, $title, $content, $category, $post_type]);
                 $post_id = $db->lastInsertId();
@@ -266,13 +277,95 @@ try {
                 sendResponse(403, null, 'Not authorized to delete this post');
             }
             
+            // Get all attachments for this post
+            $stmt = $db->prepare("SELECT file_url FROM post_attachment WHERE post_id = ?");
+            $stmt->execute([$post_id]);
+            $attachments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Delete physical files
+            $deleted_files = 0;
+            $failed_files = 0;
+            foreach ($attachments as $attachment) {
+                $file_url = $attachment['file_url'];
+                
+                // Convert URL to server file path
+                // Handle different URL formats:
+                // 1. Absolute path: /Material/uploads/2025/12/file.png
+                // 2. Relative path: uploads/2025/12/file.png
+                // 3. Full URL: http://localhost/Material/uploads/2025/12/file.png
+                
+                $file_path = $file_url;
+                
+                // If it's a full URL, extract the path
+                if (preg_match('#https?://[^/]+(/.+)#', $file_path, $matches)) {
+                    $file_path = $matches[1];
+                }
+                
+                // Remove leading slash if present
+                $file_path = ltrim($file_path, '/');
+                
+                // Extract just the uploads/... part
+                if (strpos($file_path, 'uploads/') !== false) {
+                    $file_path = substr($file_path, strpos($file_path, 'uploads/'));
+                } elseif (!strpos($file_path, 'uploads/') && strpos($file_path, '/') === false) {
+                    // If it's just a filename, it's probably already in uploads folder
+                    // This shouldn't happen, but handle it gracefully
+                    continue;
+                }
+                
+                // Convert to server file path (relative to api directory)
+                $server_path = '../' . $file_path;
+                
+                // Normalize path separators
+                $server_path = str_replace('\\', '/', $server_path);
+                
+                // Check if file exists and delete it
+                if (file_exists($server_path)) {
+                    if (@unlink($server_path)) {
+                        $deleted_files++;
+                    } else {
+                        $failed_files++;
+                        error_log("Failed to delete file: $server_path (URL: $file_url)");
+                    }
+                } else {
+                    // File doesn't exist, log but don't fail
+                    error_log("File not found (may already be deleted): $server_path (URL: $file_url)");
+                }
+            }
+            
+            // Delete attachment records from database
+            $stmt = $db->prepare("DELETE FROM post_attachment WHERE post_id = ?");
+            $stmt->execute([$post_id]);
+            
+            // Delete post tags
+            $stmt = $db->prepare("DELETE FROM post_tags WHERE post_id = ?");
+            $stmt->execute([$post_id]);
+            
+            // Delete poll options if any
+            $stmt = $db->prepare("DELETE FROM poll_option WHERE post_id = ?");
+            $stmt->execute([$post_id]);
+            
+            // Delete poll votes if any
+            $stmt = $db->prepare("DELETE FROM poll_vote WHERE post_id = ?");
+            $stmt->execute([$post_id]);
+            
+            // Mark post as deleted (soft delete)
             $stmt = $db->prepare("UPDATE forum_post SET is_deleted = TRUE, deleted_at = NOW() WHERE id = ?");
             $stmt->execute([$post_id]);
             
+            // Update forum post count
             $stmt = $db->prepare("UPDATE forum SET post_count = post_count - 1 WHERE id = ?");
             $stmt->execute([$post['forum_id']]);
             
-            sendResponse(200, null, 'Post deleted');
+            $message = 'Post deleted';
+            if ($deleted_files > 0) {
+                $message .= " ($deleted_files file(s) deleted)";
+            }
+            if ($failed_files > 0) {
+                $message .= " ($failed_files file(s) failed to delete)";
+            }
+            
+            sendResponse(200, null, $message);
             break;
         
         case 'get_forums':

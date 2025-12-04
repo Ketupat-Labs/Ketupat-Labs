@@ -105,7 +105,7 @@ document.getElementById('createForumForm').addEventListener('submit', async func
 
 // Check if user is logged in
 if (sessionStorage.getItem('userLoggedIn') !== 'true') {
-    window.location.href = 'login.html';
+    window.location.href = '../login.html';
 }
 
 // Load classes on page load

@@ -6,7 +6,7 @@ let postState = {
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is logged in
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
-        window.location.href = 'login.html';
+        window.location.href = '../login.html';
         return;
     }
 
@@ -30,14 +30,21 @@ function initEventListeners() {
             sessionStorage.removeItem('userLoggedIn');
             sessionStorage.removeItem('userEmail');
             sessionStorage.removeItem('userId');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
 
     const btnCreatePost = document.getElementById('btnCreatePost');
     if (btnCreatePost) {
         btnCreatePost.addEventListener('click', () => {
-            window.location.href = 'create-post.html';
+            // Get current forum ID from post if available
+            const forumId = postState.post?.forum_id;
+            if (forumId) {
+                const referrer = `forum-detail.html?id=${forumId}`;
+                window.location.href = `create-post.html?forum=${forumId}&referrer=${encodeURIComponent(referrer)}`;
+            } else {
+                window.location.href = 'create-post.html?referrer=post-detail.html' + window.location.search;
+            }
         });
     }
 
@@ -103,7 +110,7 @@ function renderPostDetail(post) {
             <div class="post-content-section">
                 <div class="post-detail-header">
                     <div class="post-detail-header-left">
-                        <button class="post-back-link" onclick="window.history.back()" title="Back">
+                        <button class="post-back-link" onclick="goBackToReferrer()" title="Back">
                             <i class="fas fa-arrow-left"></i>
                         </button>
                         <div class="post-community-avatar">${forumInitials}</div>
@@ -596,9 +603,25 @@ function copyToClipboard(text) {
 }
 
 function formatTime(dateString) {
+    if (!dateString) {
+        return 'Unknown';
+    }
+    
     const date = new Date(dateString);
+    
+    // Check if date is valid (not NaN and not epoch 0)
+    if (isNaN(date.getTime()) || date.getTime() === 0) {
+        return 'Unknown';
+    }
+    
     const now = new Date();
     const diff = now - date;
+    
+    // If date is in the future or diff is negative, return formatted date
+    if (diff < 0) {
+        return date.toLocaleDateString();
+    }
+    
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
@@ -1054,6 +1077,24 @@ function trackVisitedPost(postId) {
         console.error('Error tracking visited post:', error);
     }
 }
+
+// Function to handle smart back navigation
+function goBackToReferrer() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const referrer = urlParams.get('referrer');
+    
+    if (referrer) {
+        // Decode and navigate to the referrer page
+        const referrerPath = decodeURIComponent(referrer);
+        window.location.href = referrerPath;
+    } else {
+        // Fallback to browser history
+        window.history.back();
+    }
+}
+
+// Make function globally accessible
+window.goBackToReferrer = goBackToReferrer;
 
 
 

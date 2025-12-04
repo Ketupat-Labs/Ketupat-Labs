@@ -4,7 +4,7 @@ let forumState = {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
-        window.location.href = 'login.html';
+        window.location.href = '../login.html';
         return;
     }
     
@@ -28,7 +28,7 @@ function initEventListeners() {
             sessionStorage.removeItem('userLoggedIn');
             sessionStorage.removeItem('userEmail');
             sessionStorage.removeItem('userId');
-            window.location.href = 'login.html';
+            window.location.href = '../login.html';
         });
     }
 

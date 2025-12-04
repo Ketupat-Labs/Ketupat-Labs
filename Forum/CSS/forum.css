@@ -409,17 +409,18 @@ body {
 
 .reddit-post-card {
     background-color: #ffffff;
-    border-radius: 0;
-    border: none;
-    border-bottom: 1px solid #edeff1;
+    border-radius: 8px;
+    border: 1px solid #edeff1;
     display: flex;
     padding: 16px;
+    margin-bottom: 20px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, box-shadow 0.2s;
 }
 
 .reddit-post-card:hover {
     background-color: #f9fafa;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .post-vote-section {
