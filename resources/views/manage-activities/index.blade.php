@@ -520,23 +520,70 @@
             color: #991b1b;
             border: 1px solid #ef4444;
         }
+        /* Language toggle */
+        .lang-toggle {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 50px;
+            height: 50px;
+            border-radius: 9999px;
+            background: #111827;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.25);
+            cursor: pointer;
+            z-index: 50;
+            transition: transform 0.2s;
+        }
+
+        .lang-toggle:hover {
+            background: #1f2937;
+            transform: scale(1.05);
+        }
+        
+        .notification-badge {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .badge-dot {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
     </style>
 </head>
 <body>
+    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
-            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+            <a href="/dashboard?lang={{ $lang }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
                 <div class="logo">C</div>
                 <div class="logo-text">CompuPlay</div>
             </a>
         </div>
         <div class="nav-links">
-            <a href="/dashboard" class="nav-link">Dashboard</a>
-            <a href="/performance" class="nav-link">Track Student</a>
-            <a href="/progress" class="nav-link">View Progress</a>
-            <a href="/notifications" class="nav-link">Notifications</a>
-            <a href="/manage-activities" class="nav-link active">Manage Activities</a>
+            <a href="/dashboard?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
+            <a href="/performance?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
+            <a href="/progress?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
+            <a href="/manage-activities?lang={{ $lang }}" class="nav-link active">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
+            <a href="/notifications?lang={{ $lang }}" class="nav-link notification-badge">
+                <span style="font-size: 1.25rem;">🔔</span>
+                <span class="badge-dot"></span>
+            </a>
         </div>
         <div class="user-dropdown">
             <span>test</span>
@@ -548,8 +595,8 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 class="page-title">Manage Activities</h1>
-            <p class="page-subtitle">Set due dates for lessons and track student progress</p>
+            <h1 class="page-title">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</h1>
+            <p class="page-subtitle">{{ $lang === 'en' ? 'Set due dates for lessons and track student progress' : 'Tetapkan tarikh akhir untuk pelajaran dan pantau perkembangan pelajar' }}</p>
         </div>
 
         @if(session('success'))
@@ -632,15 +679,15 @@
 
             <!-- Assignment Form -->
             <div class="form-card">
-                <h2 class="form-title">Set Due Date</h2>
+                <h2 class="form-title">{{ $lang === 'en' ? 'Set Due Date' : 'Tetapkan Tarikh Akhir' }}</h2>
                 <form action="{{ route('manage-activities.store') }}" method="POST">
                     @csrf
                     <input type="hidden" name="class" value="{{ $selectedClass }}">
                     
                     <div class="form-group">
-                        <label class="form-label">Select Lesson</label>
+                        <label class="form-label">{{ $lang === 'en' ? 'Select Lesson' : 'Pilih Pelajaran' }}</label>
                         <select name="lesson_id" class="form-select" required>
-                            <option value="">Choose a lesson...</option>
+                            <option value="">{{ $lang === 'en' ? 'Choose a lesson...' : 'Pilih satu pelajaran...' }}</option>
                             @foreach($lessons as $lesson)
                                 <option value="{{ $lesson->id }}">
                                     {{ $lesson->q1 ?? 'Lesson ' . $lesson->id }} ({{ $lesson->class }})
@@ -650,16 +697,16 @@
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Due Date</label>
+                        <label class="form-label">{{ $lang === 'en' ? 'Due Date' : 'Tarikh Akhir' }}</label>
                         <input type="date" name="due_date" class="form-input" id="due_date_input" required>
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Notes (Optional)</label>
-                        <textarea name="notes" class="form-textarea" placeholder="Add reminder notes..."></textarea>
+                        <label class="form-label">{{ $lang === 'en' ? 'Notes (Optional)' : 'Nota (Pilihan)' }}</label>
+                        <textarea name="notes" class="form-textarea" placeholder="{{ $lang === 'en' ? 'Add reminder notes...' : 'Tambah nota peringatan...' }}"></textarea>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">Set Due Date</button>
+                    <button type="submit" class="btn btn-primary">{{ $lang === 'en' ? 'Set Due Date' : 'Tetapkan Tarikh Akhir' }}</button>
                 </form>
 
                 <!-- Current Assignments -->
@@ -700,13 +747,13 @@
         <!-- Student Lesson Status -->
         <div class="status-card">
             <div class="status-header">
-                📊 Student Lesson Status - Class {{ $selectedClass }}
+                📊 {{ $lang === 'en' ? 'Student Lesson Status' : 'Status Pelajaran Pelajar' }} - {{ $lang === 'en' ? 'Class' : 'Kelas' }} {{ $selectedClass }}
             </div>
             <div style="overflow-x: auto;">
                 <table class="status-table">
                     <thead>
                         <tr>
-                            <th>Student Name</th>
+                            <th>{{ $lang === 'en' ? 'Student Name' : 'Nama Pelajar' }}</th>
                             @foreach($lessons as $lesson)
                                 <th>{{ $lesson->q1 ?? 'Lesson ' . $loop->iteration }}</th>
                             @endforeach
@@ -780,6 +827,10 @@
             document.getElementById('due_date_input').value = date;
         }
     </script>
+    <!-- Language Toggle -->
+    <a href="?lang={{ $lang === 'en' ? 'ms' : 'en' }}" class="lang-toggle" title="{{ $lang === 'en' ? 'Switch to Malay' : 'Tukar ke Bahasa Inggeris' }}">
+        {{ $lang === 'en' ? 'BM' : 'EN' }}
+    </a>
 </body>
 </html>
 

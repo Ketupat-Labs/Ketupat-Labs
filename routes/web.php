@@ -16,24 +16,27 @@ Route::get('/add-test-data', function () {
 
     // Create sample students
     $students = [
-        ['name' => 'Ali Ahmad', 'class' => '5A'],
-        ['name' => 'Siti Rahman', 'class' => '5A'],
-        ['name' => 'Wei Chen', 'class' => '5A'],
-        ['name' => 'Raj Kumar', 'class' => '5B'],
-        ['name' => 'Mei Ling', 'class' => '5B'],
+        ['name' => 'Ahmad Albab', 'class' => '5A'],
+        ['name' => 'Siti Nurhaliza', 'class' => '5A'],
+        ['name' => 'Chong Wei', 'class' => '5A'],
+        ['name' => 'Muthusamy', 'class' => '5B'],
+        ['name' => 'Nurul Izzah', 'class' => '5B'],
+        ['name' => 'Adam Haikal', 'class' => '5A'],
+        ['name' => 'Tan Mei Ling', 'class' => '5B'],
+        ['name' => 'Raju', 'class' => '5B'],
     ];
 
     foreach ($students as $student) {
         \App\Models\Student::create($student);
     }
 
-    // Create sample lessons
+    // Create sample lessons (HCI Topics in Malay)
     $lessons = [
-        ['title' => 'Math - Addition', 'class' => '5A', 'total_questions' => 5],
-        ['title' => 'Math - Subtraction', 'class' => '5A', 'total_questions' => 5],
-        ['title' => 'Science - Plants', 'class' => '5A', 'total_questions' => 4],
-        ['title' => 'Math - Addition', 'class' => '5B', 'total_questions' => 5],
-        ['title' => 'Math - Multiplication', 'class' => '5B', 'total_questions' => 5],
+        ['title' => 'Pengenalan kepada HCI', 'class' => '5A', 'total_questions' => 3],
+        ['title' => 'Prinsip Rekabentuk UI', 'class' => '5A', 'total_questions' => 3],
+        ['title' => 'Kebolehgunaan (Usability)', 'class' => '5A', 'total_questions' => 3],
+        ['title' => 'Pengenalan kepada HCI', 'class' => '5B', 'total_questions' => 3],
+        ['title' => 'Prototaip dan Penilaian', 'class' => '5B', 'total_questions' => 3],
     ];
 
     foreach ($lessons as $lesson) {
@@ -50,8 +53,20 @@ Route::get('/add-test-data', function () {
                 $answers = [];
                 $totalMarks = 0;
                 
+                // Simulate marks - some low to trigger notifications
+                // Randomize to get some < 20% (0 or 1 mark out of 3 is <= 33%, wait. 
+                // 0/3 = 0%, 1/3 = 33%. So only 0 marks is <= 20%)
+                
+                // Let's force some students to fail
+                $forceFail = rand(0, 10) > 7; // 30% chance to fail badly
+                
                 for ($i = 1; $i <= $lesson->total_questions; $i++) {
-                    $isCorrect = rand(0, 1);
+                    if ($forceFail) {
+                        $isCorrect = false; // Force wrong
+                    } else {
+                        $isCorrect = rand(0, 10) > 3; // 70% chance correct
+                    }
+                    
                     $answers["q{$i}"] = (bool)$isCorrect;
                     if ($isCorrect) $totalMarks++;
                 }

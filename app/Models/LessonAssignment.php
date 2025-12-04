@@ -21,3 +21,4 @@ class LessonAssignment extends Model
     }
 }
 
+

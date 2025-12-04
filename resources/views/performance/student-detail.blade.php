@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ request('lang', 'en') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $student->name }} - Individual Performance Report</title>
+    <title>{{ request('lang', 'en') === 'en' ? ($student->name . ' - Individual Performance Report') : ($student->name . ' - Laporan Prestasi Individu') }}</title>
     <style>
         * {
             margin: 0;
@@ -316,23 +316,49 @@
         .equal {
             color: #6b7280;
         }
+
+        /* Language toggle */
+        .lang-toggle {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 44px;
+            height: 44px;
+            border-radius: 9999px;
+            background: #111827;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.25);
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        .lang-toggle:hover {
+            background: #1f2937;
+        }
     </style>
 </head>
 <body>
+    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
-            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+            <a href="{{ url('/dashboard') }}?lang={{ $lang }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
                 <div class="logo">C</div>
                 <div class="logo-text">CompuPlay</div>
             </a>
         </div>
         <div class="nav-links">
-            <a href="/dashboard" class="nav-link">Dashboard</a>
-            <a href="/performance" class="nav-link">Track Student</a>
-            <a href="/progress" class="nav-link">View Progress</a>
-            <a href="/notifications" class="nav-link">Notifications</a>
-            <a href="/manage-activities" class="nav-link">Manage Activities</a>
+            <a href="{{ url('/dashboard') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
+            <a href="{{ url('/performance') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
+            <a href="{{ url('/progress') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
+            <a href="{{ url('/notifications') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Notifications' : 'Notifikasi' }}</a>
+            <a href="{{ url('/manage-activities') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
         </div>
         <div class="user-dropdown">
             <span>test</span>
@@ -342,31 +368,36 @@
 
     <!-- Main Container -->
     <div class="container">
-        <a href="{{ route('performance.index') }}" class="back-button">
-            ← Back to Performance Summary
+        <a href="{{ route('performance.index') }}?lang={{ $lang }}" class="back-button">
+            ← {{ $lang === 'en' ? 'Back to Performance Summary' : 'Kembali ke Ringkasan Prestasi' }}
         </a>
 
         <!-- Page Header -->
         <div class="page-header">
-            <h1 class="page-title">{{ $student->name }} - Individual Performance Report</h1>
-            <p class="page-subtitle">Class: {{ $student->class }} | Student ID: {{ $student->student_id }}</p>
+            <h1 class="page-title">
+                {{ $lang === 'en' ? ($student->name . ' - Individual Performance Report') : ($student->name . ' - Laporan Prestasi Individu') }}
+            </h1>
+            <p class="page-subtitle">
+                {{ $lang === 'en' ? 'Class' : 'Kelas' }}: {{ $student->class }} |
+                {{ $lang === 'en' ? 'Student ID' : 'ID Pelajar' }}: {{ $student->student_id }}
+            </p>
         </div>
 
         <!-- Performance Table -->
         <div class="table-card">
             <div class="table-header">
-                📊 Lesson Performance Details
+                📊 {{ $lang === 'en' ? 'Lesson Performance Details' : 'Butiran Prestasi Pelajaran' }}
             </div>
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>Lesson</th>
-                            <th>Question 1</th>
-                            <th>Question 2</th>
-                            <th>Question 3</th>
-                            <th>Total Marks</th>
-                            <th>Class Average</th>
+                            <th>{{ $lang === 'en' ? 'Lesson' : 'Pelajaran' }}</th>
+                            <th>{{ $lang === 'en' ? 'Question 1' : 'Soalan 1' }}</th>
+                            <th>{{ $lang === 'en' ? 'Question 2' : 'Soalan 2' }}</th>
+                            <th>{{ $lang === 'en' ? 'Question 3' : 'Soalan 3' }}</th>
+                            <th>{{ $lang === 'en' ? 'Total Marks' : 'Jumlah Markah' }}</th>
+                            <th>{{ $lang === 'en' ? 'Class Average' : 'Purata Kelas' }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -407,57 +438,57 @@
 
         <!-- Summary Statistics -->
         <div class="summary-card">
-            <h2 class="summary-title">Performance Summary</h2>
+            <h2 class="summary-title">{{ $lang === 'en' ? 'Performance Summary' : 'Ringkasan Prestasi' }}</h2>
             
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-label">Student Total Marks</div>
+                    <div class="stat-label">{{ $lang === 'en' ? 'Student Total Marks' : 'Jumlah Markah Pelajar' }}</div>
                     <div class="stat-value">{{ $student->answers->sum('total_marks') }}</div>
-                    <div class="stat-subtext">across all lessons</div>
+                    <div class="stat-subtext">{{ $lang === 'en' ? 'across all lessons' : 'bagi semua pelajaran' }}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Student Average</div>
+                    <div class="stat-label">{{ $lang === 'en' ? 'Student Average' : 'Purata Pelajar' }}</div>
                     <div class="stat-value">{{ number_format($overallStudentAvg, 2) }}</div>
-                    <div class="stat-subtext">marks per lesson</div>
+                    <div class="stat-subtext">{{ $lang === 'en' ? 'marks per lesson' : 'markah setiap pelajaran' }}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Class Average</div>
+                    <div class="stat-label">{{ $lang === 'en' ? 'Class Average' : 'Purata Kelas' }}</div>
                     <div class="stat-value">{{ number_format($overallClassAvg, 2) }}</div>
-                    <div class="stat-subtext">marks per lesson</div>
+                    <div class="stat-subtext">{{ $lang === 'en' ? 'marks per lesson' : 'markah setiap pelajaran' }}</div>
                 </div>
             </div>
 
             <div class="comparison-section">
-                <h3 class="comparison-title">Performance Comparison</h3>
+                <h3 class="comparison-title">{{ $lang === 'en' ? 'Performance Comparison' : 'Perbandingan Prestasi' }}</h3>
                 <div class="comparison-grid">
                     <div class="comparison-item">
-                        <div class="comparison-label">Student Average</div>
+                        <div class="comparison-label">{{ $lang === 'en' ? 'Student Average' : 'Purata Pelajar' }}</div>
                         <div class="comparison-value">{{ number_format($overallStudentAvg, 2) }}</div>
-                        <div class="stat-subtext">marks per lesson</div>
+                        <div class="stat-subtext">{{ $lang === 'en' ? 'marks per lesson' : 'markah setiap pelajaran' }}</div>
                     </div>
                     <div class="comparison-item">
-                        <div class="comparison-label">Class Average</div>
+                        <div class="comparison-label">{{ $lang === 'en' ? 'Class Average' : 'Purata Kelas' }}</div>
                         <div class="comparison-value">{{ number_format($overallClassAvg, 2) }}</div>
-                        <div class="stat-subtext">marks per lesson</div>
+                        <div class="stat-subtext">{{ $lang === 'en' ? 'marks per lesson' : 'markah setiap pelajaran' }}</div>
                     </div>
                     <div class="comparison-item">
-                        <div class="comparison-label">Performance Status</div>
+                        <div class="comparison-label">{{ $lang === 'en' ? 'Performance Status' : 'Status Prestasi' }}</div>
                         <div class="comparison-value {{ $overallStudentAvg > $overallClassAvg ? 'better' : ($overallStudentAvg < $overallClassAvg ? 'worse' : 'equal') }}">
                             @if($overallStudentAvg > $overallClassAvg)
-                                📈 Above Average
+                                📈 {{ $lang === 'en' ? 'Above Average' : 'Lebih Baik Daripada Purata' }}
                             @elseif($overallStudentAvg < $overallClassAvg)
-                                📉 Below Average
+                                📉 {{ $lang === 'en' ? 'Below Average' : 'Di Bawah Purata' }}
                             @else
-                                📊 At Average
+                                📊 {{ $lang === 'en' ? 'At Average' : 'Pada Paras Purata' }}
                             @endif
                         </div>
                         <div class="stat-subtext">
                             @if($overallStudentAvg > $overallClassAvg)
-                                Performing well
+                                {{ $lang === 'en' ? 'Performing well' : 'Prestasi baik' }}
                             @elseif($overallStudentAvg < $overallClassAvg)
-                                Needs improvement
+                                {{ $lang === 'en' ? 'Needs improvement' : 'Perlu penambahbaikan' }}
                             @else
-                                On track
+                                {{ $lang === 'en' ? 'On track' : 'Di landasan yang betul' }}
                             @endif
                         </div>
                     </div>
@@ -465,5 +496,9 @@
             </div>
         </div>
     </div>
+
+    <a href="{{ request()->fullUrlWithQuery(['lang' => $lang === 'en' ? 'ms' : 'en']) }}" class="lang-toggle">
+        {{ $lang === 'en' ? 'BM' : 'EN' }}
+    </a>
 </body>
 </html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ request('lang', 'en') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -390,9 +390,53 @@
             color: #9ca3af;
             font-size: 18px;
         }
+
+        .lang-toggle {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 50px;
+            height: 50px;
+            border-radius: 9999px;
+            background: #111827;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.25);
+            cursor: pointer;
+            z-index: 50;
+            transition: transform 0.2s;
+        }
+
+        .lang-toggle:hover {
+            background: #1f2937;
+            transform: scale(1.05);
+        }
+        
+        .notification-badge {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .badge-dot {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
     </style>
 </head>
 <body>
+    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
@@ -400,11 +444,15 @@
             <div class="logo-text">CompuPlay</div>
         </div>
         <div class="nav-links">
-            <a href="/dashboard" class="nav-link active">Dashboard</a>
-            <a href="/performance" class="nav-link">Track Student</a>
-            <a href="/progress" class="nav-link">View Progress</a>
-            <a href="/notifications" class="nav-link">Notifications</a>
-            <a href="/manage-activities" class="nav-link">Manage Activities</a>
+            <a href="{{ url('/dashboard') }}?lang={{ $lang }}" class="nav-link active">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
+            <a href="{{ url('/performance') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
+            <a href="{{ url('/progress') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
+            <a href="{{ url('/manage-activities') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
+            <a href="{{ url('/notifications') }}?lang={{ $lang }}" class="nav-link notification-badge">
+                <span style="font-size: 1.25rem;">🔔</span>
+                <!-- We could add a red dot here if there are unread notifications -->
+                <span class="badge-dot"></span>
+            </a>
         </div>
         <div class="user-dropdown">
             <span>{{ $user->name ?? 'test' }}</span>
@@ -416,8 +464,8 @@
     <div class="container">
         <!-- Welcome Section -->
         <div class="welcome-section">
-            <h1 class="welcome-title">Welcome back, {{ $user->name ?? 'test' }}!</h1>
-            <p class="welcome-subtitle">Continue your learning journey.</p>
+            <h1 class="welcome-title">{{ $lang === 'en' ? 'Welcome back' : 'Selamat kembali' }}, {{ $user->name ?? 'test' }}!</h1>
+            <p class="welcome-subtitle">{{ $lang === 'en' ? 'Continue your learning journey.' : 'Teruskan perjalanan pembelajaran anda.' }}</p>
         </div>
 
         <!-- Statistics Cards -->
@@ -425,28 +473,28 @@
             <div class="stat-card">
                 <div class="stat-icon blue">📚</div>
                 <div class="stat-content">
-                    <div class="stat-label">Published Lessons</div>
+                    <div class="stat-label">{{ $lang === 'en' ? 'Published Lessons' : 'Pelajaran Diterbitkan' }}</div>
                     <div class="stat-value">{{ $publishedLessons }}</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon green">📄</div>
                 <div class="stat-content">
-                    <div class="stat-label">Your Lessons</div>
+                    <div class="stat-label">{{ $lang === 'en' ? 'Your Lessons' : 'Pelajaran Anda' }}</div>
                     <div class="stat-value">{{ $userLessons }}</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon orange">📋</div>
                 <div class="stat-content">
-                    <div class="stat-label">Quiz Attempts</div>
+                    <div class="stat-label">{{ $lang === 'en' ? 'Quiz Attempts' : 'Percubaan Kuiz' }}</div>
                     <div class="stat-value">{{ $quizAttempts }}</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon yellow">☁️</div>
                 <div class="stat-content">
-                    <div class="stat-label">Submissions</div>
+                    <div class="stat-label">{{ $lang === 'en' ? 'Submissions' : 'Serahan' }}</div>
                     <div class="stat-value">{{ $submissions }}</div>
                 </div>
             </div>
@@ -454,13 +502,13 @@
 
         <!-- Quick Access Section -->
         <div class="quick-access">
-            <a href="/performance" class="quick-card blue">
+            <a href="{{ url('/performance') }}?lang={{ $lang }}" class="quick-card blue">
                 <div>
                     <div class="quick-card-header">
                         <div class="quick-card-icon">📊</div>
                     </div>
-                    <div class="quick-card-title">Track Student</div>
-                    <div class="quick-card-desc">Monitor and analyze student performance</div>
+                    <div class="quick-card-title">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</div>
+                    <div class="quick-card-desc">{{ $lang === 'en' ? 'Monitor and analyze student performance' : 'Pantau dan analisis prestasi pelajar' }}</div>
                 </div>
                 <div class="quick-card-footer">
                     <div class="quick-card-status">→ View performance data</div>
@@ -500,8 +548,8 @@
             <!-- Recent Lessons -->
             <div class="section-card">
                 <div class="section-header">
-                    <h2 class="section-title">Recent Lessons</h2>
-                    <a href="/performance" class="section-link">View all</a>
+                    <h2 class="section-title">{{ $lang === 'en' ? 'Recent Lessons' : 'Pelajaran Terkini' }}</h2>
+                    <a href="{{ url('/performance') }}?lang={{ $lang }}" class="section-link">{{ $lang === 'en' ? 'View all' : 'Lihat semua' }}</a>
                 </div>
                 @if($recentLessons->count() > 0)
                     @foreach($recentLessons->take(3) as $lesson)
@@ -549,6 +597,10 @@
             </div>
         </div>
     </div>
+    <!-- Language Toggle -->
+    <a href="?lang={{ $lang === 'en' ? 'ms' : 'en' }}" class="lang-toggle" title="{{ $lang === 'en' ? 'Switch to Malay' : 'Tukar ke Bahasa Inggeris' }}">
+        {{ $lang === 'en' ? 'BM' : 'EN' }}
+    </a>
 </body>
 </html>
 

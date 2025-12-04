@@ -310,23 +310,70 @@
             font-weight: 700;
             color: #3b82f6;
         }
+        /* Language toggle */
+        .lang-toggle {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 50px;
+            height: 50px;
+            border-radius: 9999px;
+            background: #111827;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.25);
+            cursor: pointer;
+            z-index: 50;
+            transition: transform 0.2s;
+        }
+
+        .lang-toggle:hover {
+            background: #1f2937;
+            transform: scale(1.05);
+        }
+        
+        .notification-badge {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .badge-dot {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
     </style>
 </head>
 <body>
+    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
-            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+            <a href="/dashboard?lang={{ $lang }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
                 <div class="logo">C</div>
                 <div class="logo-text">CompuPlay</div>
             </a>
         </div>
         <div class="nav-links">
-            <a href="/dashboard" class="nav-link">Dashboard</a>
-            <a href="/performance" class="nav-link">Track Student</a>
-            <a href="/progress" class="nav-link active">View Progress</a>
-            <a href="/notifications" class="nav-link">Notifications</a>
-            <a href="/manage-activities" class="nav-link">Manage Activities</a>
+            <a href="/dashboard?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
+            <a href="/performance?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
+            <a href="/progress?lang={{ $lang }}" class="nav-link active">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
+            <a href="/manage-activities?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
+            <a href="/notifications?lang={{ $lang }}" class="nav-link notification-badge">
+                <span style="font-size: 1.25rem;">🔔</span>
+                <span class="badge-dot"></span>
+            </a>
         </div>
         <div class="user-dropdown">
             <span>test</span>
@@ -338,8 +385,8 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 class="page-title">Lesson Progress Tracking</h1>
-            <p class="page-subtitle">Monitor student completion status across all lessons</p>
+            <h1 class="page-title">{{ $lang === 'en' ? 'Lesson Progress Tracking' : 'Jejak Perkembangan Pelajaran' }}</h1>
+            <p class="page-subtitle">{{ $lang === 'en' ? 'Monitor student completion status across all lessons' : 'Pantau status penyelesaian pelajar merentasi semua pelajaran' }}</p>
         </div>
 
         <!-- Filters Card -->
@@ -361,17 +408,17 @@
         <!-- Progress Table -->
         <div class="table-card">
             <div class="table-header">
-                📊 Lesson Progress Table - Class {{ $selectedClass }}
+                📊 {{ $lang === 'en' ? 'Lesson Progress Table' : 'Jadual Perkembangan Pelajaran' }} - {{ $lang === 'en' ? 'Class' : 'Kelas' }} {{ $selectedClass }}
             </div>
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>Student Name</th>
+                            <th>{{ $lang === 'en' ? 'Student Name' : 'Nama Pelajar' }}</th>
                             @foreach($lessons as $lesson)
-                                <th>Lesson {{ $loop->iteration }}</th>
+                                <th>{{ $lang === 'en' ? 'Lesson' : 'Pelajaran' }} {{ $loop->iteration }}</th>
                             @endforeach
-                            <th>Completion %</th>
+                            <th>{{ $lang === 'en' ? 'Completion %' : 'Peratus Penyelesaian' }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -406,9 +453,17 @@
                                             } elseif($lessonProgress['status'] === 'In Progress') {
                                                 $statusClass = 'status-in-progress';
                                             }
+                                            
+                                            $statusText = $lessonProgress['status'];
+                                            if($lang !== 'en') {
+                                                if($statusText === 'Completed') $statusText = 'Selesai';
+                                                elseif($statusText === 'Completed (Low Score)') $statusText = 'Selesai (Markah Rendah)';
+                                                elseif($statusText === 'In Progress') $statusText = 'Sedang Berjalan';
+                                                elseif($statusText === 'Not Started') $statusText = 'Belum Mula';
+                                            }
                                         @endphp
                                         <span class="status-badge {{ $statusClass }}">
-                                            {{ $lessonProgress['status'] }}
+                                            {{ $statusText }}
                                         </span>
                                     </td>
                                 @endforeach
@@ -447,6 +502,11 @@
             </div>
         </div>
     </div>
+    </div>
+    <!-- Language Toggle -->
+    <a href="?lang={{ $lang === 'en' ? 'ms' : 'en' }}" class="lang-toggle" title="{{ $lang === 'en' ? 'Switch to Malay' : 'Tukar ke Bahasa Inggeris' }}">
+        {{ $lang === 'en' ? 'BM' : 'EN' }}
+    </a>
 </body>
 </html>
 
