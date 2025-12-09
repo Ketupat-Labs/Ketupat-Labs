@@ -1,0 +1,108 @@
+/* Fulfills AC 1: "chat-style window" */
+.chat-window {
+    width: 400px;
+    height: 600px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: #f9f9f9;
+}
+
+.chat-header {
+    background: #007bff;
+    color: white;
+    padding: 15px;
+    text-align: center;
+}
+.chat-header h3 {
+    margin: 0;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message {
+    padding: 10px 15px;
+    border-radius: 18px;
+    max-width: 80%;
+    line-height: 1.5;
+    position: relative;
+}
+
+.message.user {
+    background: #e1e1e1;
+    color: #333;
+    align-self: flex-end;
+}
+
+.message.ai {
+    background: #007bff;
+    color: white;
+    align-self: flex-start;
+}
+
+/* Fulfills AC 4: "Ability to copy" */
+.copy-btn {
+    background: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 3px 6px;
+    position: absolute;
+    bottom: 5px;
+    right: -35px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.message.ai:hover .copy-btn {
+    opacity: 1;
+}
+
+.chat-input-form {
+    display: flex;
+    border-top: 1px solid #ccc;
+}
+.chat-input-form input {
+    flex-grow: 1;
+    border: none;
+    padding: 15px;
+    font-size: 1rem;
+}
+.chat-input-form input:focus {
+    outline: none;
+}
+.chat-input-form button {
+    border: none;
+    background: #007bff;
+    color: white;
+    padding: 0 20px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+.chat-input-form button:disabled {
+    background: #aaa;
+}
+
+/* Loading spinner */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top: 3px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

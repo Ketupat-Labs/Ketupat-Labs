@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ketupats Chatbot</title>
+   
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f7ff; 
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+
+        .main-wrapper {
+            position: relative;
+        }
+
+
+        .chat-container {
+            width: 400px;
+            max-width: 90%;
+            height: 600px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .action-icons {
+            position: absolute;
+            top: 10px; /* A little padding from the top edge */
+            left: 100%; /* Start just outside the wrapper's (and chat's) right edge */
+            margin-left: 15px; /* Add some space */
+
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Space them out vertically */
+        }
+
+        /* --- NEW --- Styling the icons */
+        .action-icons i {
+            font-size: 1.8rem; /* Make them easy to see and click */
+            color: #888; /* A neutral gray */
+            cursor: pointer;
+            transition: color 0.3s ease, transform 0.2s ease;
+        }
+
+        .action-icons i:hover {
+            color: #2575fc; /* Use the chat's theme color on hover */
+            transform: scale(1.1);
+        }
+
+
+        /* Header for the chatbot */
+        .chat-header {
+            background-image: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 20px;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .chat-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        /* --- NEW --- Styling for the Ketupat SVG */
+        .ketupat-icon {
+            /* The header already sets color: white, */
+            /* so we use 'currentColor' for the stroke */
+            width: 24px;
+            height: 24px;
+            stroke-width: 2px;
+        }
+
+        /* The area where messages appear */
+        .chat-messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Styling for each message bubble */
+        .message {
+            padding: 12px 18px;
+            border-radius: 20px;
+            max-width: 75%;
+            line-height: 1.5;
+            /* Animation for new messages */
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* User's message bubble */
+        .message.user {
+            background-color: #f0f0f0;
+            color: #333;
+            align-self: flex-end;
+            border-radius: 20px 20px 5px 20px;
+        }
+
+        /* Bot's message bubble */
+        .message.bot {
+            background-image: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            align-self: flex-start;
+            border-radius: 20px 20px 20px 5px;
+        }
+
+        /* Typing indicator */
+        .message.typing {
+            background: #f0f0f0;
+            color: #888;
+            font-style: italic;
+        }
+
+        /* The input form at the bottom */
+        .chat-input-form {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .chat-input-form input {
+            flex-grow: 1;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 20px;
+            padding: 12px 18px;
+            font-size: 1rem;
+            margin-right: 10px;
+        }
+        .chat-input-form input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #2575fc;
+        }
+
+        .chat-input-form button {
+            border: none;
+            background: transparent;
+            color: #2575fc;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .chat-input-form button:hover {
+            color: #6a11cb;
+        }
+
+        /* Fade-in animation for new messages */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- The HTML structure of the chatbot -->
+    <!-- NEW: Main wrapper added -->
+    <div class="main-wrapper">
+        <div class="chat-container">
+            <div class="chat-header">
+                <!-- <i class="fa-solid fa-robot"></i> --> <!-- Old Icon Removed -->
+                
+                <!-- NEW Ketupat SVG Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="ketupat-icon">
+                    <path d="M12 2l-10 10 10 10 10-10-10-10z"/>
+                    <path d="M16 8l-8 8m0-8l8 8"/>
+                </svg>
+                
+                <h3>Ketupats Chatbot</h3>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <!-- Bot's greeting message -->
+                <div class="message bot">
+                    Hello! How can I help you today?
+                </div>
+            </div>
+            <form class="chat-input-form" id="chat-form">
+                <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off">
+                <button type="submit" aria-label="Send">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Get all the necessary HTML elements
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatMessages = document.getElementById('chat-messages');
+
+        // Listen for when the user submits the form
+        chatForm.addEventListener('submit', function(event) {
+            // Prevent the page from reloading
+            event.preventDefault();
+
+            // Get the user's message
+            const userMessage = chatInput.value.trim();
+
+            // Only proceed if the message isn't empty
+            if (userMessage) {
+                // 1. Add the user's message to the chat
+                addMessage(userMessage, 'user');
+
+                // 2. Clear the input field
+                chatInput.value = '';
+
+                // 3. Show typing indicator
+                showTypingIndicator();
+
+                // 4. Simulate bot thinking and get a response
+                setTimeout(function() {
+                    // 5. Hide typing indicator
+                    hideTypingIndicator();
+
+                    const botResponse = getBotResponse(userMessage);
+                    addMessage(botResponse, 'bot');
+                }, 1500); // 1.5-second delay
+            }
+        });
+
+        /**
+         * Adds a new message to the chat window
+         * @param {string} message - The text of the message
+         * @param {string} sender - 'user' or 'bot'
+         */
+        function addMessage(message, sender) {
+            // Create a new div element for the message
+            const messageElement = document.createElement('div');
+            
+            // Add the 'message' and 'user'/'bot' classes
+            messageElement.classList.add('message');
+            messageElement.classList.add(sender);
+            
+            // Set the text content of the message
+            messageElement.textContent = message;
+            
+            // Add the new message to the chat window
+            chatMessages.appendChild(messageElement);
+            
+            // Automatically scroll to the bottom
+            scrollToBottom();
+        }
+
+        /**
+         * Shows the bot's typing indicator
+         */
+        function showTypingIndicator() {
+            const typingElement = document.createElement('div');
+            typingElement.classList.add('message', 'bot', 'typing');
+            typingElement.textContent = 'Typing...';
+            typingElement.id = 'typing-indicator';
+            chatMessages.appendChild(typingElement);
+            scrollToBottom();
+        }
+
+        /**
+         * Hides the bot's typing indicator
+         */
+        function hideTypingIndicator() {
+            const typingElement = document.getElementById('typing-indicator');
+            if (typingElement) {
+                chatMessages.removeChild(typingElement);
+            }
+        }
+
+        /**
+         * Scrolls the chat messages to the bottom
+         */
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        /**
+         * The "brain" of the chatbot.
+         * It checks for keywords and returns a response.
+         * @param {string} message - The user's message
+         * @returns {string} - The bot's response
+         */
+        function getBotResponse(message) {
+            const lowerCaseMessage = message.toLowerCase();
+
+            if (lowerCaseMessage.includes('hello') || lowerCaseMessage.includes('hi')) {
+                return 'Hi there! How can I help you today?';
+            }
+            
+            if (lowerCaseMessage.includes('how are you')) {
+                return "I'm just a bunch of code, but I'm doing great! What about you?";
+            }
+            
+            if (lowerCaseMessage.includes('name')) {
+                return "I don't have a name. You can just call me Chatbot.";
+            }
+            
+            if (lowerCaseMessage.includes('help')) {
+                return "Sure, I can answer simple questions. Try asking 'what is your name?' or 'how are you?'.";
+            }
+            
+            if (lowerCaseMessage.includes('bye')) {
+                return 'Goodbye! Have a great day!';
+            }
+
+            // Default response if no keywords match
+            return "I'm sorry, I don't understand that. Please try asking something else.";
+        }
+        
+        // --- NEW --- Add functionality to the new icons
+        const helpIcon = document.getElementById('help-icon');
+        const settingsIcon = document.getElementById('settings-icon');
+
+        helpIcon.addEventListener('click', function() {
+            alert('Help button clicked! \n\nThis is where you would show a help modal or a tutorial.');
+        });
+
+        settingsIcon.addEventListener('click', function() {
+            alert('Settings button clicked! \n\nThis is where you would show a settings panel.');
+        });
+
+    </script>
+
+</body>
+</html>
+
+

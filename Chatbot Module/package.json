@@ -1,0 +1,48 @@
+{
+  "name": "ketupats-chatbot-module",
+  "version": "1.0.0",
+  "description": "AI-powered chatbot module for Ketupats Labs educational platform",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "test": "jest",
+    "lint": "eslint backend/**/*.js"
+  },
+  "keywords": [
+    "chatbot",
+    "ai",
+    "education",
+    "gemini",
+    "node",
+    "express",
+    "real-time"
+  ],
+  "author": "Ketupats Labs Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "dotenv": "^16.0.3",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "eslint": "^8.51.0",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-team/chatbot-module.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-team/chatbot-module/issues"
+  },
+  "homepage": "https://github.com/your-team/chatbot-module#readme"
+}
