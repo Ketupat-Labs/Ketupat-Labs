@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ms">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -189,67 +189,23 @@
             text-align: center;
             color: #6b7280;
         }
-        /* Language toggle */
-        .lang-toggle {
-            position: fixed;
-            right: 1.5rem;
-            bottom: 1.5rem;
-            width: 50px;
-            height: 50px;
-            border-radius: 9999px;
-            background: #111827;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            font-weight: 600;
-            text-decoration: none;
-            box-shadow: 0 10px 15px rgba(0,0,0,0.25);
-            cursor: pointer;
-            z-index: 50;
-            transition: transform 0.2s;
-        }
-
-        .lang-toggle:hover {
-            background: #1f2937;
-            transform: scale(1.05);
-        }
-        
-        .notification-badge {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
-        
-        .badge-dot {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 8px;
-            height: 8px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            border: 2px solid white;
-        }
     </style>
 </head>
 <body>
-    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
-            <a href="/dashboard?lang={{ $lang }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
                 <div class="logo">C</div>
                 <div class="logo-text">CompuPlay</div>
             </a>
         </div>
         <div class="nav-links">
-            <a href="/dashboard?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
-            <a href="/performance?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
-            <a href="/progress?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
-            <a href="/manage-activities?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
-            <a href="/notifications?lang={{ $lang }}" class="nav-link active notification-badge">
+            <a href="/dashboard" class="nav-link">Papan Pemuka</a>
+            <a href="/performance" class="nav-link">Lihat Prestasi</a>
+            <a href="/progress" class="nav-link">Lihat Perkembangan</a>
+            <a href="/manage-activities" class="nav-link">Mengendalikan Aktiviti</a>
+            <a href="/notifications" class="nav-link active notification-badge">
                 <span style="font-size: 1.25rem;">🔔</span>
                 <span class="badge-dot"></span>
             </a>
@@ -264,14 +220,14 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 class="page-title">{{ $lang === 'en' ? 'Performance Alerts' : 'Amaran Prestasi' }}</h1>
-            <p class="page-subtitle">{{ $lang === 'en' ? 'Notifications for students scoring 20% and below' : 'Notifikasi untuk pelajar yang mendapat markah 20% dan ke bawah' }}</p>
+            <h1 class="page-title">Amaran Prestasi</h1>
+            <p class="page-subtitle">Notifikasi untuk pelajar yang mendapat markah 20% dan ke bawah</p>
         </div>
 
         <!-- Notifications Card -->
         <div class="notifications-card">
             <div class="notifications-header">
-                🚩 {{ $lang === 'en' ? 'Low Performance Alerts' : 'Amaran Prestasi Rendah' }}
+                🚩 Amaran Prestasi Rendah
             </div>
             
             @if(count($notifications) > 0)
@@ -282,35 +238,31 @@
                             <div class="notification-icon">🚩</div>
                             <div class="notification-content">
                                 <div class="notification-title">
-                                    {{ $notification['student']->name }} - Class {{ $notification['class'] }}
+                                    {{ $notification['student']->name }} - Kelas {{ $notification['class'] }}
                                 </div>
                                 <div class="notification-message">
-                                    Scored {{ $notification['score'] }}/3 ({{ $notification['percentage'] }}%) 
-                                    in {{ $notification['lesson']->q1 ?? 'Lesson ' . $notification['lesson']->id }}
+                                    Markah {{ $notification['score'] }}/3 ({{ $notification['percentage'] }}%) 
+                                    dalam {{ $notification['lesson']->q1 ?? 'Lesson ' . $notification['lesson']->id }}
                                 </div>
                                 <div class="notification-meta">
-                                    {{ $notification['created_at']->format('M d, Y h:i A') }}
+                                    {{ $notification['created_at']->format('d M, Y h:i A') }}
                                 </div>
                             </div>
                             <div class="notification-action">
-                                {{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }} →
+                                Lihat Perkembangan →
                             </div>
                         </div>
                     </a>
                 @endforeach
             @else
                 <div class="no-notifications">
-                    <p>🎉 {{ $lang === 'en' ? 'No low performance alerts at this time.' : 'Tiada amaran prestasi rendah pada masa ini.' }}</p>
-                    <p style="margin-top: 0.5rem; font-size: 0.875rem;">{{ $lang === 'en' ? 'All students are performing above 20%.' : 'Semua pelajar menunjukkan prestasi melebihi 20%.' }}</p>
+                    <p>🎉 Tiada amaran prestasi rendah pada masa ini.</p>
+                    <p style="margin-top: 0.5rem; font-size: 0.875rem;">Semua pelajar menunjukkan prestasi melebihi 20%.</p>
                 </div>
             @endif
         </div>
     </div>
     </div>
-    <!-- Language Toggle -->
-    <a href="?lang={{ $lang === 'en' ? 'ms' : 'en' }}" class="lang-toggle" title="{{ $lang === 'en' ? 'Switch to Malay' : 'Tukar ke Bahasa Inggeris' }}">
-        {{ $lang === 'en' ? 'BM' : 'EN' }}
-    </a>
 </body>
 </html>
 

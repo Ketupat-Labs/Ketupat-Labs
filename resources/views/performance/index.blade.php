@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ms">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -326,67 +326,23 @@
             font-size: 1rem;
             border-bottom: 1px solid #f3f4f6;
         }
-        /* Language toggle */
-        .lang-toggle {
-            position: fixed;
-            right: 1.5rem;
-            bottom: 1.5rem;
-            width: 50px;
-            height: 50px;
-            border-radius: 9999px;
-            background: #111827;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            font-weight: 600;
-            text-decoration: none;
-            box-shadow: 0 10px 15px rgba(0,0,0,0.25);
-            cursor: pointer;
-            z-index: 50;
-            transition: transform 0.2s;
-        }
-
-        .lang-toggle:hover {
-            background: #1f2937;
-            transform: scale(1.05);
-        }
-        
-        .notification-badge {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
-        
-        .badge-dot {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 8px;
-            height: 8px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            border: 2px solid white;
-        }
     </style>
 </head>
 <body>
-    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
-            <a href="/dashboard?lang={{ $lang }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
                 <div class="logo">C</div>
                 <div class="logo-text">CompuPlay</div>
             </a>
         </div>
         <div class="nav-links">
-            <a href="/dashboard?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
-            <a href="/performance?lang={{ $lang }}" class="nav-link active">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
-            <a href="/progress?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
-            <a href="/manage-activities?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
-            <a href="/notifications?lang={{ $lang }}" class="nav-link notification-badge">
+            <a href="/dashboard" class="nav-link">Papan Pemuka</a>
+            <a href="/performance" class="nav-link active">Lihat Prestasi</a>
+            <a href="/progress" class="nav-link">Lihat Perkembangan</a>
+            <a href="/manage-activities" class="nav-link">Mengendalikan Aktiviti</a>
+            <a href="/notifications" class="nav-link notification-badge">
                 <span style="font-size: 1.25rem;">🔔</span>
                 <span class="badge-dot"></span>
             </a>
@@ -401,28 +357,28 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 class="page-title">{{ $lang === 'en' ? 'Student Performance Tracking' : 'Jadual Prestasi Pelajar' }}</h1>
-            <p class="page-subtitle">{{ $lang === 'en' ? 'Monitor and analyze student performance across lessons' : 'Pantau dan analisis prestasi pelajar merentasi pelajaran' }}</p>
+            <h1 class="page-title">Jadual Prestasi Pelajar</h1>
+            <p class="page-subtitle">Pantau dan analisis prestasi pelajar merentasi pelajaran</p>
         </div>
 
         <!-- Filters Card -->
         <div class="filters-card">
             <form method="GET" action="{{ route('performance.index') }}" class="filters">
                 <div class="filter-group">
-                    <label class="filter-label">Class</label>
+                    <label class="filter-label">Kelas</label>
                     <select name="class" class="filter-select" onchange="this.form.submit()">
                         @foreach($classes as $class)
                             <option value="{{ $class }}" {{ $selectedClass == $class ? 'selected' : '' }}>
-                                Class {{ $class }}
+                                Kelas {{ $class }}
                             </option>
                         @endforeach
                     </select>
                 </div>
                 
                 <div class="filter-group">
-                    <label class="filter-label">Lesson</label>
+                    <label class="filter-label">Pelajaran</label>
                     <select name="lesson" class="filter-select" onchange="this.form.submit()">
-                        <option value="">All Lessons</option>
+                        <option value="">Semua Pelajaran</option>
                         @foreach($lessons as $lesson)
                             <option value="{{ $lesson->id }}" {{ $selectedLesson == $lesson->id ? 'selected' : '' }}>
                                 {{ $lesson->q1 ?? 'Lesson ' . $lesson->id }}
@@ -437,14 +393,14 @@
         @if($selectedClass)
         <div class="current-filters">
             <span>📍</span>
-            <span>Viewing: <strong>Class {{ $selectedClass }}</strong></span>
+            <span>Melihat: <strong>Kelas {{ $selectedClass }}</strong></span>
             @if($selectedLesson)
                 @php $selectedLessonObj = $lessons->firstWhere('id', $selectedLesson) @endphp
                 <span>|</span>
                 <span><strong>{{ $selectedLessonObj->q1 ?? 'Selected Lesson' }}</strong></span>
             @else
                 <span>|</span>
-                <span><strong>All Lessons</strong></span>
+                <span><strong>Semua Pelajaran</strong></span>
             @endif
         </div>
         @endif
@@ -462,20 +418,20 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>{{ $lang === 'en' ? 'Student Name' : 'Nama Pelajar' }}</th>
-                            <th>{{ $lang === 'en' ? 'Class' : 'Kelas' }}</th>
+                            <th>Nama Pelajar</th>
+                            <th>Kelas</th>
                             @if($selectedLesson)
                                 <!-- Show individual questions for selected lesson -->
                                 @for($i = 1; $i <= 3; $i++)
-                                    <th>Q{{ $i }}</th>
+                                    <th>S{{ $i }}</th>
                                 @endfor
-                                <th>{{ $lang === 'en' ? 'Total Score' : 'Jumlah Markah' }}</th>
+                                <th>Jumlah Markah</th>
                             @else
                                 <!-- Show lessons when no specific lesson selected -->
                                 @foreach($lessons as $lesson)
                                     <th>{{ $lesson->q1 ?? 'Lesson ' . $lesson->id }}</th>
                                 @endforeach
-                                <th>{{ $lang === 'en' ? 'Overall Avg' : 'Purata Keseluruhan' }}</th>
+                                <th>Purata Keseluruhan</th>
                             @endif
                         </tr>
                     </thead>
@@ -559,7 +515,7 @@
                         @else
                             <tr>
                                 <td colspan="100" class="no-data">
-                                    📝 No student data found for the selected filters.
+                                    📝 Tiada data pelajar ditemui untuk penapis yang dipilih.
                                 </td>
                             </tr>
                         @endif
@@ -572,32 +528,28 @@
         @if($selectedLesson && isset($lessonStats) && $lessonStats)
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">Class Average</div>
+                <div class="stat-label">Purata Kelas</div>
                 <div class="stat-value">{{ number_format($lessonStats->average_marks, 1) }}</div>
-                <div class="stat-subtext">out of 3</div>
+                <div class="stat-subtext">daripada 3</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Highest Score</div>
+                <div class="stat-label">Markah Tertinggi</div>
                 <div class="stat-value">{{ $lessonStats->max_marks }}</div>
-                <div class="stat-subtext">out of 3</div>
+                <div class="stat-subtext">daripada 3</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Lowest Score</div>
+                <div class="stat-label">Markah Terendah</div>
                 <div class="stat-value">{{ $lessonStats->min_marks }}</div>
-                <div class="stat-subtext">out of 3</div>
+                <div class="stat-subtext">daripada 3</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Completion</div>
+                <div class="stat-label">Penyelesaian</div>
                 <div class="stat-value">{{ $lessonStats->total_students }}/{{ count($students) }}</div>
-                <div class="stat-subtext">students</div>
+                <div class="stat-subtext">pelajar</div>
             </div>
         </div>
         @endif
     </div>
     </div>
-    <!-- Language Toggle -->
-    <a href="?lang={{ $lang === 'en' ? 'ms' : 'en' }}" class="lang-toggle" title="{{ $lang === 'en' ? 'Switch to Malay' : 'Tukar ke Bahasa Inggeris' }}">
-        {{ $lang === 'en' ? 'BM' : 'EN' }}
-    </a>
 </body>
 </html>

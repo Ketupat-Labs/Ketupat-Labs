@@ -21,7 +21,6 @@ $data = [
         ['id' => 4, 'title' => 'Pengenalan kepada HCI', 'class' => '5B', 'q1' => 'Pengenalan HCI', 'total_questions' => 3],
         ['id' => 5, 'title' => 'Prototaip dan Penilaian', 'class' => '5B', 'q1' => 'Prototaip', 'total_questions' => 3],
     ],
-    // We will generate answers dynamically if not set in session to keep it persistent for the session
 ];
 
 if (!isset($_SESSION['student_answers'])) {
@@ -62,12 +61,12 @@ $studentAnswers = $_SESSION['student_answers'];
 
 // --- 2. LOGIC & ROUTING ---
 $page = $_GET['page'] ?? 'dashboard';
-$lang = $_GET['lang'] ?? 'en';
+// Removed: $lang = $_GET['lang'] ?? 'en'; 
+// Hardcoded language context is now Malay
 
-// Helper for translations
+// Helper for translations (Deprecated but kept for compatibility if needed, now just returns Malay)
 function t($en, $ms) {
-    global $lang;
-    return $lang === 'en' ? $en : $ms;
+    return $ms;
 }
 
 // Helper to get notifications
@@ -106,7 +105,7 @@ $hasNotifications = count($notifications) > 0;
 // --- 3. VIEW RENDERING ---
 ?>
 <!DOCTYPE html>
-<html lang="<?= $lang ?>">
+<html lang="ms">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -150,9 +149,7 @@ $hasNotifications = count($notifications) > 0;
         .notification-item { padding: 1.5rem; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; gap: 1rem; }
         .notification-icon { width: 48px; height: 48px; background: #fee2e2; color: #991b1b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
         
-        /* Toggle & Badge */
-        .lang-toggle { position: fixed; right: 1.5rem; bottom: 1.5rem; width: 50px; height: 50px; border-radius: 9999px; background: #111827; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 0.875rem; font-weight: 600; text-decoration: none; box-shadow: 0 10px 15px rgba(0,0,0,0.25); cursor: pointer; z-index: 50; transition: transform 0.2s; }
-        .lang-toggle:hover { background: #1f2937; transform: scale(1.05); }
+        /* Badge */
         .notification-badge { position: relative; display: inline-flex; align-items: center; }
         .badge-dot { position: absolute; top: 0; right: 0; width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; border: 2px solid white; }
         
@@ -171,77 +168,77 @@ $hasNotifications = count($notifications) > 0;
 <body>
     <nav class="navbar">
         <div class="logo-container">
-            <a href="?page=dashboard&lang=<?= $lang ?>" style="text-decoration:none; display:flex; gap:0.75rem; align-items:center;">
+            <a href="?page=dashboard" style="text-decoration:none; display:flex; gap:0.75rem; align-items:center;">
                 <div class="logo">C</div>
                 <div class="logo-text">CompuPlay</div>
             </a>
         </div>
         <div class="nav-links">
-            <a href="?page=dashboard&lang=<?= $lang ?>" class="nav-link <?= $page === 'dashboard' ? 'active' : '' ?>"><?= t('Dashboard', 'Papan Pemuka') ?></a>
-            <a href="?page=performance&lang=<?= $lang ?>" class="nav-link <?= $page === 'performance' ? 'active' : '' ?>"><?= t('Track Student', 'Lihat Prestasi') ?></a>
-            <a href="?page=progress&lang=<?= $lang ?>" class="nav-link <?= $page === 'progress' ? 'active' : '' ?>"><?= t('View Progress', 'Lihat Perkembangan') ?></a>
-            <a href="?page=manage&lang=<?= $lang ?>" class="nav-link <?= $page === 'manage' ? 'active' : '' ?>"><?= t('Manage Activities', 'Mengendalikan Aktiviti') ?></a>
-            <a href="?page=notifications&lang=<?= $lang ?>" class="nav-link notification-badge <?= $page === 'notifications' ? 'active' : '' ?>">
+            <a href="?page=dashboard" class="nav-link <?= $page === 'dashboard' ? 'active' : '' ?>">Papan Pemuka</a>
+            <a href="?page=performance" class="nav-link <?= $page === 'performance' ? 'active' : '' ?>">Lihat Prestasi</a>
+            <a href="?page=progress" class="nav-link <?= $page === 'progress' ? 'active' : '' ?>">Lihat Perkembangan</a>
+            <a href="?page=manage" class="nav-link <?= $page === 'manage' ? 'active' : '' ?>">Mengendalikan Aktiviti</a>
+            <a href="?page=notifications" class="nav-link notification-badge <?= $page === 'notifications' ? 'active' : '' ?>">
                 <span style="font-size: 1.25rem;">🔔</span>
                 <?php if($hasNotifications): ?><span class="badge-dot"></span><?php endif; ?>
             </a>
         </div>
-        <div>Test User ▼</div>
+        <div>Pengguna Ujian ▼</div>
     </nav>
 
     <div class="container">
         <?php if ($page === 'dashboard'): ?>
             <div style="margin-bottom: 2rem;">
-                <h1 style="font-size: 2rem; font-weight: 700;"><?= t('Welcome back', 'Selamat kembali') ?>, Test User!</h1>
-                <p style="color: #6b7280;"><?= t('Continue your learning journey.', 'Teruskan perjalanan pembelajaran anda.') ?></p>
+                <h1 style="font-size: 2rem; font-weight: 700;">Selamat kembali, Pengguna Ujian!</h1>
+                <p style="color: #6b7280;">Teruskan perjalanan pembelajaran anda.</p>
             </div>
             
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon blue">📚</div>
                     <div class="stat-content">
-                        <div class="stat-label"><?= t('Published Lessons', 'Pelajaran Diterbitkan') ?></div>
+                        <div class="stat-label">Pelajaran Diterbitkan</div>
                         <div class="stat-value">5</div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon green">📄</div>
                     <div class="stat-content">
-                        <div class="stat-label"><?= t('Your Lessons', 'Pelajaran Anda') ?></div>
+                        <div class="stat-label">Pelajaran Anda</div>
                         <div class="stat-value">3</div>
                     </div>
                 </div>
             </div>
             
             <div class="quick-access">
-                <a href="?page=performance&lang=<?= $lang ?>" class="quick-card blue">
-                    <div><h3 style="font-size:1.5rem; margin-bottom:0.5rem;"><?= t('Track Student', 'Lihat Prestasi') ?></h3><p><?= t('Monitor and analyze student performance', 'Pantau dan analisis prestasi pelajar') ?></p></div>
+                <a href="?page=performance" class="quick-card blue">
+                    <div><h3 style="font-size:1.5rem; margin-bottom:0.5rem;">Lihat Prestasi</h3><p>Pantau dan analisis prestasi pelajar</p></div>
                     <div style="margin-top:1rem;">→</div>
                 </a>
                 <div class="quick-card green">
-                    <div><h3 style="font-size:1.5rem; margin-bottom:0.5rem;">Manage Lessons</h3><p>Create and manage content</p></div>
+                    <div><h3 style="font-size:1.5rem; margin-bottom:0.5rem;">Urus Pelajaran</h3><p>Cipta dan urus kandungan</p></div>
                     <div style="margin-top:1rem;">→</div>
                 </div>
             </div>
 
         <?php elseif ($page === 'performance'): ?>
             <div style="margin-bottom: 2rem;">
-                <h1 style="font-size: 2rem; font-weight: 700;"><?= t('Student Performance Tracking', 'Jadual Prestasi Pelajar') ?></h1>
-                <p style="color: #6b7280;"><?= t('Monitor and analyze student performance across lessons', 'Pantau dan analisis prestasi pelajar merentasi pelajaran') ?></p>
+                <h1 style="font-size: 2rem; font-weight: 700;">Jadual Prestasi Pelajar</h1>
+                <p style="color: #6b7280;">Pantau dan analisis prestasi pelajar merentasi pelajaran</p>
             </div>
             
             <div class="table-card">
-                <div class="table-header"><?= t('Performance Table', 'Jadual Prestasi') ?></div>
+                <div class="table-header">Jadual Prestasi</div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
-                                <th><?= t('Student Name', 'Nama Pelajar') ?></th>
-                                <th><?= t('Class', 'Kelas') ?></th>
+                                <th>Nama Pelajar</th>
+                                <th>Kelas</th>
                                 <?php foreach($data['lessons'] as $l): ?>
                                     <th><?= $l['q1'] ?></th>
                                 <?php endforeach; ?>
-                                <th><?= t('Overall Avg', 'Purata Keseluruhan') ?></th>
+                                <th>Purata Keseluruhan</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -257,7 +254,7 @@ $hasNotifications = count($notifications) > 0;
                                                     $hasLow = true; break;
                                                 }
                                             }
-                                            if($hasLow) echo '<span class="flag-icon" title="Below 20%">🚩</span>';
+                                            if($hasLow) echo '<span class="flag-icon" title="Bawah 20%">🚩</span>';
                                         ?>
                                     </td>
                                     <td><?= $student['class'] ?></td>
@@ -289,28 +286,28 @@ $hasNotifications = count($notifications) > 0;
 
         <?php elseif ($page === 'notifications'): ?>
             <div style="margin-bottom: 2rem;">
-                <h1 style="font-size: 2rem; font-weight: 700;"><?= t('Performance Alerts', 'Amaran Prestasi') ?></h1>
-                <p style="color: #6b7280;"><?= t('Notifications for students scoring 20% and below', 'Notifikasi untuk pelajar yang mendapat markah 20% dan ke bawah') ?></p>
+                <h1 style="font-size: 2rem; font-weight: 700;">Amaran Prestasi</h1>
+                <p style="color: #6b7280;">Notifikasi untuk pelajar yang mendapat markah 20% dan ke bawah</p>
             </div>
             
             <div class="table-card">
-                <div class="table-header">🚩 <?= t('Low Performance Alerts', 'Amaran Prestasi Rendah') ?></div>
+                <div class="table-header">🚩 Amaran Prestasi Rendah</div>
                 <?php if(empty($notifications)): ?>
                     <div style="padding:3rem; text-align:center; color:#6b7280;">
-                        <p>🎉 <?= t('No low performance alerts at this time.', 'Tiada amaran prestasi rendah pada masa ini.') ?></p>
-                        <p><?= t('All students are performing above 20%.', 'Semua pelajar menunjukkan prestasi melebihi 20%.') ?></p>
+                        <p>🎉 Tiada amaran prestasi rendah pada masa ini.</p>
+                        <p>Semua pelajar menunjukkan prestasi melebihi 20%.</p>
                     </div>
                 <?php else: ?>
                     <?php foreach($notifications as $notif): ?>
                         <div class="notification-item">
                             <div class="notification-icon">🚩</div>
                             <div style="flex:1;">
-                                <div style="font-weight:600;"><?= $notif['student']['name'] ?> - Class <?= $notif['student']['class'] ?></div>
-                                <div style="color:#6b7280;">Scored <?= $notif['score'] ?>/3 (<?= $notif['percentage'] ?>%) in <?= $notif['lesson']['title'] ?></div>
+                                <div style="font-weight:600;"><?= $notif['student']['name'] ?> - Kelas <?= $notif['student']['class'] ?></div>
+                                <div style="color:#6b7280;">Markah <?= $notif['score'] ?>/3 (<?= $notif['percentage'] ?>%) dalam <?= $notif['lesson']['title'] ?></div>
                                 <div style="font-size:0.75rem; color:#9ca3af;"><?= $notif['created_at'] ?></div>
                             </div>
-                            <a href="?page=progress&lang=<?= $lang ?>" style="color:#3b82f6; text-decoration:none; font-weight:500;">
-                                <?= t('View Progress', 'Lihat Perkembangan') ?> →
+                            <a href="?page=progress" style="color:#3b82f6; text-decoration:none; font-weight:500;">
+                                Lihat Perkembangan →
                             </a>
                         </div>
                     <?php endforeach; ?>
@@ -319,21 +316,21 @@ $hasNotifications = count($notifications) > 0;
             
         <?php elseif ($page === 'progress'): ?>
              <div style="margin-bottom: 2rem;">
-                <h1 style="font-size: 2rem; font-weight: 700;"><?= t('Lesson Progress Tracking', 'Jejak Perkembangan Pelajaran') ?></h1>
-                <p style="color: #6b7280;"><?= t('Monitor student completion status across all lessons', 'Pantau status penyelesaian pelajar merentasi semua pelajaran') ?></p>
+                <h1 style="font-size: 2rem; font-weight: 700;">Jejak Perkembangan Pelajaran</h1>
+                <p style="color: #6b7280;">Pantau status penyelesaian pelajar merentasi semua pelajaran</p>
             </div>
             
             <div class="table-card">
-                <div class="table-header">📊 <?= t('Lesson Progress Table', 'Jadual Perkembangan Pelajaran') ?></div>
+                <div class="table-header">📊 Jadual Perkembangan Pelajaran</div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
-                                <th><?= t('Student Name', 'Nama Pelajar') ?></th>
+                                <th>Nama Pelajar</th>
                                 <?php foreach($data['lessons'] as $l): ?>
                                     <th><?= $l['q1'] ?></th>
                                 <?php endforeach; ?>
-                                <th><?= t('Completion %', 'Peratus Penyelesaian') ?></th>
+                                <th>Peratus Penyelesaian</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -350,7 +347,7 @@ $hasNotifications = count($notifications) > 0;
                                                     $hasLow = true; break;
                                                 }
                                             }
-                                            if($hasLow) echo '<span class="flag-icon" title="Below 20%">🚩</span>';
+                                            if($hasLow) echo '<span class="flag-icon" title="Bawah 20%">🚩</span>';
                                         ?>
                                     </td>
                                     <?php foreach($data['lessons'] as $lesson): 
@@ -362,24 +359,17 @@ $hasNotifications = count($notifications) > 0;
                                         }
                                         if($myAns) $completedCount++;
                                         
-                                        $status = 'Not Started';
+                                        $status = 'Belum Mula';
                                         $color = '#f3f4f6'; $textColor = '#6b7280';
                                         
                                         if($myAns) {
                                             if(($myAns['total_marks']/3)*100 <= 20) {
-                                                $status = 'Completed (Low Score)';
+                                                $status = 'Selesai (Markah Rendah)';
                                                 $color = '#fee2e2'; $textColor = '#991b1b';
                                             } else {
-                                                $status = 'Completed';
+                                                $status = 'Selesai';
                                                 $color = '#d1fae5'; $textColor = '#065f46';
                                             }
-                                        }
-                                        
-                                        // Translate status
-                                        if($lang !== 'en') {
-                                            if($status === 'Completed') $status = 'Selesai';
-                                            elseif($status === 'Completed (Low Score)') $status = 'Selesai (Markah Rendah)';
-                                            elseif($status === 'Not Started') $status = 'Belum Mula';
                                         }
                                     ?>
                                         <td>
@@ -398,14 +388,22 @@ $hasNotifications = count($notifications) > 0;
                 </div>
             </div>
 
+        <?php elseif ($page === 'manage'): ?>
+            <div style="margin-bottom: 2rem;">
+                <h1 style="font-size: 2rem; font-weight: 700;">Mengendalikan Aktiviti</h1>
+                <p style="color: #6b7280;">Uruskan tugasan dan aktiviti pelajar</p>
+            </div>
+            <div class="table-card">
+                 <div class="table-header">Senarai Aktiviti (Placeholder)</div>
+                 <div style="padding: 2rem; text-align: center;">
+                     <p>Halaman ini akan datang.</p>
+                 </div>
+            </div>
+
         <?php else: ?>
-            <h1>Page not found</h1>
+            <h1>Halaman tidak ditemui</h1>
         <?php endif; ?>
     </div>
-
-    <!-- Language Toggle -->
-    <a href="?page=<?= $page ?>&lang=<?= $lang === 'en' ? 'ms' : 'en' ?>" class="lang-toggle">
-        <?= $lang === 'en' ? 'BM' : 'EN' ?>
-    </a>
 </body>
 </html>
+

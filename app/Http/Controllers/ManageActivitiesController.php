@@ -259,9 +259,20 @@ class ManageActivitiesController extends Controller
             $calendar[] = $week;
         }
         
+        $monthName = $date->format('F');
+        $year = $date->format('Y');
+        
+        $malayMonths = [
+            'January' => 'Januari', 'February' => 'Februari', 'March' => 'Mac', 'April' => 'April',
+            'May' => 'Mei', 'June' => 'Jun', 'July' => 'Julai', 'August' => 'Ogos',
+            'September' => 'September', 'October' => 'Oktober', 'November' => 'November', 'December' => 'Disember'
+        ];
+        
+        $malayMonth = $malayMonths[$monthName] ?? $monthName;
+
         return [
             'weeks' => $calendar,
-            'month' => $date->format('F Y'),
+            'month' => $malayMonth . ' ' . $year,
             'prevMonth' => $date->copy()->subMonth()->format('Y-m'),
             'nextMonth' => $date->copy()->addMonth()->format('Y-m')
         ];

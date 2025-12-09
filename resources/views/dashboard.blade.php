@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ request('lang', 'en') }}">
+<html lang="ms">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -436,26 +436,27 @@
     </style>
 </head>
 <body>
-    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
-            <div class="logo">C</div>
-            <div class="logo-text">CompuPlay</div>
+            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+                <div class="logo">C</div>
+                <div class="logo-text">CompuPlay</div>
+            </a>
         </div>
         <div class="nav-links">
-            <a href="{{ url('/dashboard') }}?lang={{ $lang }}" class="nav-link active">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
-            <a href="{{ url('/performance') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
-            <a href="{{ url('/progress') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
-            <a href="{{ url('/manage-activities') }}?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
-            <a href="{{ url('/notifications') }}?lang={{ $lang }}" class="nav-link notification-badge">
+            <a href="/dashboard" class="nav-link active">Papan Pemuka</a>
+            <a href="/performance" class="nav-link">Lihat Prestasi</a>
+            <a href="/progress" class="nav-link">Lihat Perkembangan</a>
+            <a href="/manage-activities" class="nav-link">Mengendalikan Aktiviti</a>
+            <a href="/notifications" class="nav-link notification-badge">
                 <span style="font-size: 1.25rem;">🔔</span>
                 <!-- We could add a red dot here if there are unread notifications -->
                 <span class="badge-dot"></span>
             </a>
         </div>
         <div class="user-dropdown">
-            <span>{{ $user->name ?? 'test' }}</span>
+            <span>test</span>
             <span>▼</span>
         </div>
     </nav>
@@ -464,54 +465,46 @@
     <div class="container">
         <!-- Welcome Section -->
         <div class="welcome-section">
-            <h1 class="welcome-title">{{ $lang === 'en' ? 'Welcome back' : 'Selamat kembali' }}, {{ $user->name ?? 'test' }}!</h1>
-            <p class="welcome-subtitle">{{ $lang === 'en' ? 'Continue your learning journey.' : 'Teruskan perjalanan pembelajaran anda.' }}</p>
+            <h1 class="welcome-title">Selamat Kembali, Cikgu!</h1>
+            <p class="welcome-subtitle">Berikut adalah perkembangan pelajar anda hari ini.</p>
         </div>
 
         <!-- Statistics Cards -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon blue">📚</div>
-                <div class="stat-content">
-                    <div class="stat-label">{{ $lang === 'en' ? 'Published Lessons' : 'Pelajaran Diterbitkan' }}</div>
-                    <div class="stat-value">{{ $publishedLessons }}</div>
-                </div>
+                <div class="stat-title">Jumlah Pelajar</div>
+                <div class="stat-value">{{ $totalStudents }}</div>
+                <div class="stat-change">Aktif di Kelas 5A & 5B</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon green">📄</div>
-                <div class="stat-content">
-                    <div class="stat-label">{{ $lang === 'en' ? 'Your Lessons' : 'Pelajaran Anda' }}</div>
-                    <div class="stat-value">{{ $userLessons }}</div>
-                </div>
+                <div class="stat-title">Pelajaran Selesai</div>
+                <div class="stat-value">{{ $completedLessons }}</div>
+                <div class="stat-change positive">↑ 12% dari minggu lepas</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon orange">📋</div>
-                <div class="stat-content">
-                    <div class="stat-label">{{ $lang === 'en' ? 'Quiz Attempts' : 'Percubaan Kuiz' }}</div>
-                    <div class="stat-value">{{ $quizAttempts }}</div>
-                </div>
+                <div class="stat-title">Purata Kelas</div>
+                <div class="stat-value">78%</div>
+                <div class="stat-change positive">↑ 5% peningkatan</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon yellow">☁️</div>
-                <div class="stat-content">
-                    <div class="stat-label">{{ $lang === 'en' ? 'Submissions' : 'Serahan' }}</div>
-                    <div class="stat-value">{{ $submissions }}</div>
-                </div>
+                <div class="stat-title">Perlukan Perhatian</div>
+                <div class="stat-value">{{ $needsAttention }}</div>
+                <div class="stat-change negative">Pelajar markah rendah</div>
             </div>
         </div>
 
         <!-- Quick Access Section -->
         <div class="quick-access">
-            <a href="{{ url('/performance') }}?lang={{ $lang }}" class="quick-card blue">
+            <a href="{{ url('/performance') }}" class="quick-card blue">
                 <div>
                     <div class="quick-card-header">
                         <div class="quick-card-icon">📊</div>
                     </div>
-                    <div class="quick-card-title">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</div>
-                    <div class="quick-card-desc">{{ $lang === 'en' ? 'Monitor and analyze student performance' : 'Pantau dan analisis prestasi pelajar' }}</div>
+                    <div class="quick-card-title">Lihat Prestasi</div>
+                    <div class="quick-card-desc">Pantau dan analisis prestasi pelajar</div>
                 </div>
                 <div class="quick-card-footer">
-                    <div class="quick-card-status">→ View performance data</div>
+                    <div class="quick-card-status">→ Lihat data prestasi</div>
                     <div class="quick-card-arrow">→</div>
                 </div>
             </a>
@@ -520,11 +513,11 @@
                     <div class="quick-card-header">
                         <div class="quick-card-icon">📝</div>
                     </div>
-                    <div class="quick-card-title">Manage Lessons</div>
-                    <div class="quick-card-desc">Create and manage your lesson content</div>
+                    <div class="quick-card-title">Urus Pelajaran</div>
+                    <div class="quick-card-desc">Cipta dan urus kandungan pelajaran anda</div>
                 </div>
                 <div class="quick-card-footer">
-                    <div class="quick-card-status">→ {{ $userLessons }} lessons created</div>
+                    <div class="quick-card-status">→ {{ $userLessons }} pelajaran dicipta</div>
                     <div class="quick-card-arrow">→</div>
                 </div>
             </div>
@@ -533,11 +526,11 @@
                     <div class="quick-card-header">
                         <div class="quick-card-icon">☁️</div>
                     </div>
-                    <div class="quick-card-title">Submit Assignment</div>
-                    <div class="quick-card-desc">Upload your practical work</div>
+                    <div class="quick-card-title">Hantar Tugasan</div>
+                    <div class="quick-card-desc">Muat naik kerja praktikal anda</div>
                 </div>
                 <div class="quick-card-footer">
-                    <div class="quick-card-status">→ 0 pending</div>
+                    <div class="quick-card-status">→ 0 menunggu</div>
                     <div class="quick-card-arrow">→</div>
                 </div>
             </div>
@@ -548,16 +541,16 @@
             <!-- Recent Lessons -->
             <div class="section-card">
                 <div class="section-header">
-                    <h2 class="section-title">{{ $lang === 'en' ? 'Recent Lessons' : 'Pelajaran Terkini' }}</h2>
-                    <a href="{{ url('/performance') }}?lang={{ $lang }}" class="section-link">{{ $lang === 'en' ? 'View all' : 'Lihat semua' }}</a>
+                    <h2 class="section-title">Pelajaran Terkini</h2>
+                    <a href="{{ url('/performance') }}" class="section-link">Lihat semua</a>
                 </div>
                 @if($recentLessons->count() > 0)
                     @foreach($recentLessons->take(3) as $lesson)
                         <div class="lesson-item">
                             <div class="lesson-icon">📖</div>
                             <div class="lesson-content">
-                                <div class="lesson-title">{{ $lesson->title ?? 'Introduction to Interaction Design' }}</div>
-                                <div class="lesson-meta">{{ $lesson->category ?? 'HCI' }} • {{ $lesson->duration ?? '12 mins' }}</div>
+                                <div class="lesson-title">{{ $lesson->title ?? 'Pengenalan kepada Reka Bentuk Interaksi' }}</div>
+                                <div class="lesson-meta">{{ $lesson->category ?? 'HCI' }} • {{ $lesson->duration ?? '12 min' }}</div>
                             </div>
                             <div class="lesson-arrow">→</div>
                         </div>
@@ -566,8 +559,8 @@
                     <div class="lesson-item">
                         <div class="lesson-icon">📖</div>
                         <div class="lesson-content">
-                            <div class="lesson-title">Introduction to Interaction Design</div>
-                            <div class="lesson-meta">HCI • 12 mins</div>
+                            <div class="lesson-title">Pengenalan kepada Reka Bentuk Interaksi</div>
+                            <div class="lesson-meta">HCI • 12 min</div>
                         </div>
                         <div class="lesson-arrow">→</div>
                     </div>
@@ -577,30 +570,25 @@
             <!-- Quick Actions -->
             <div class="section-card">
                 <div class="section-header">
-                    <h2 class="section-title">Quick Actions</h2>
+                    <h2 class="section-title">Tindakan Pantas</h2>
                 </div>
                 <a href="/performance" class="action-button">
                     <div class="action-icon green">+</div>
-                    <div class="action-text">Create New Lesson</div>
+                    <div class="action-text">Cipta Pelajaran Baharu</div>
                     <div class="action-arrow">→</div>
                 </a>
                 <a href="/performance" class="action-button">
                     <div class="action-icon orange">📋</div>
-                    <div class="action-text">Take a Quiz</div>
+                    <div class="action-text">Ambil Kuiz</div>
                     <div class="action-arrow">→</div>
                 </a>
                 <a href="/performance" class="action-button">
                     <div class="action-icon yellow">☁️</div>
-                    <div class="action-text">Submit Assignment</div>
+                    <div class="action-text">Hantar Tugasan</div>
                     <div class="action-arrow">→</div>
                 </a>
             </div>
         </div>
     </div>
-    <!-- Language Toggle -->
-    <a href="?lang={{ $lang === 'en' ? 'ms' : 'en' }}" class="lang-toggle" title="{{ $lang === 'en' ? 'Switch to Malay' : 'Tukar ke Bahasa Inggeris' }}">
-        {{ $lang === 'en' ? 'BM' : 'EN' }}
-    </a>
 </body>
 </html>
-

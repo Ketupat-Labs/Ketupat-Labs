@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ms">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -520,67 +520,23 @@
             color: #991b1b;
             border: 1px solid #ef4444;
         }
-        /* Language toggle */
-        .lang-toggle {
-            position: fixed;
-            right: 1.5rem;
-            bottom: 1.5rem;
-            width: 50px;
-            height: 50px;
-            border-radius: 9999px;
-            background: #111827;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            font-weight: 600;
-            text-decoration: none;
-            box-shadow: 0 10px 15px rgba(0,0,0,0.25);
-            cursor: pointer;
-            z-index: 50;
-            transition: transform 0.2s;
-        }
-
-        .lang-toggle:hover {
-            background: #1f2937;
-            transform: scale(1.05);
-        }
-        
-        .notification-badge {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
-        
-        .badge-dot {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 8px;
-            height: 8px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            border: 2px solid white;
-        }
     </style>
 </head>
 <body>
-    @php $lang = request('lang', 'en'); @endphp
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="logo-container">
-            <a href="/dashboard?lang={{ $lang }}" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
+            <a href="/dashboard" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none;">
                 <div class="logo">C</div>
                 <div class="logo-text">CompuPlay</div>
             </a>
         </div>
         <div class="nav-links">
-            <a href="/dashboard?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Dashboard' : 'Papan Pemuka' }}</a>
-            <a href="/performance?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'Track Student' : 'Lihat Prestasi' }}</a>
-            <a href="/progress?lang={{ $lang }}" class="nav-link">{{ $lang === 'en' ? 'View Progress' : 'Lihat Perkembangan' }}</a>
-            <a href="/manage-activities?lang={{ $lang }}" class="nav-link active">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</a>
-            <a href="/notifications?lang={{ $lang }}" class="nav-link notification-badge">
+            <a href="/dashboard" class="nav-link">Papan Pemuka</a>
+            <a href="/performance" class="nav-link">Lihat Prestasi</a>
+            <a href="/progress" class="nav-link">Lihat Perkembangan</a>
+            <a href="/manage-activities" class="nav-link active">Mengendalikan Aktiviti</a>
+            <a href="/notifications" class="nav-link notification-badge">
                 <span style="font-size: 1.25rem;">🔔</span>
                 <span class="badge-dot"></span>
             </a>
@@ -595,8 +551,8 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 class="page-title">{{ $lang === 'en' ? 'Manage Activities' : 'Mengendalikan Aktiviti' }}</h1>
-            <p class="page-subtitle">{{ $lang === 'en' ? 'Set due dates for lessons and track student progress' : 'Tetapkan tarikh akhir untuk pelajaran dan pantau perkembangan pelajar' }}</p>
+            <h1 class="page-title">Mengendalikan Aktiviti</h1>
+            <p class="page-subtitle">Tetapkan tarikh akhir untuk pelajaran dan pantau perkembangan pelajar</p>
         </div>
 
         @if(session('success'))
@@ -615,11 +571,11 @@
         <div class="filters-card">
             <form method="GET" action="{{ route('manage-activities.index') }}" class="filters">
                 <div class="filter-group">
-                    <label class="filter-label">Class</label>
+                    <label class="filter-label">Kelas</label>
                     <select name="class" class="filter-select" onchange="this.form.submit()">
                         @foreach($classes as $class)
                             <option value="{{ $class }}" {{ $selectedClass == $class ? 'selected' : '' }}>
-                                Class {{ $class }}
+                                Kelas {{ $class }}
                             </option>
                         @endforeach
                     </select>
@@ -635,22 +591,22 @@
                     <div class="calendar-title">📅 {{ $calendarData['month'] }}</div>
                     <div class="calendar-nav">
                         <a href="{{ route('manage-activities.index', ['class' => $selectedClass, 'month' => $calendarData['prevMonth']]) }}" 
-                           class="calendar-nav-btn">← Prev</a>
+                           class="calendar-nav-btn">← Sebelum</a>
                         <a href="{{ route('manage-activities.index', ['class' => $selectedClass, 'month' => date('Y-m')]) }}" 
-                           class="calendar-nav-btn">Today</a>
+                           class="calendar-nav-btn">Hari Ini</a>
                         <a href="{{ route('manage-activities.index', ['class' => $selectedClass, 'month' => $calendarData['nextMonth']]) }}" 
-                           class="calendar-nav-btn">Next →</a>
+                           class="calendar-nav-btn">Seterusnya →</a>
                     </div>
                 </div>
                 <div class="calendar-body">
                     <div class="calendar-weekdays">
-                        <div class="calendar-weekday">Sun</div>
-                        <div class="calendar-weekday">Mon</div>
-                        <div class="calendar-weekday">Tue</div>
-                        <div class="calendar-weekday">Wed</div>
-                        <div class="calendar-weekday">Thu</div>
-                        <div class="calendar-weekday">Fri</div>
-                        <div class="calendar-weekday">Sat</div>
+                        <div class="calendar-weekday">Ahad</div>
+                        <div class="calendar-weekday">Isnin</div>
+                        <div class="calendar-weekday">Selasa</div>
+                        <div class="calendar-weekday">Rabu</div>
+                        <div class="calendar-weekday">Khamis</div>
+                        <div class="calendar-weekday">Jumaat</div>
+                        <div class="calendar-weekday">Sabtu</div>
                     </div>
                     @foreach($calendarData['weeks'] as $week)
                         <div class="calendar-week">
@@ -679,15 +635,15 @@
 
             <!-- Assignment Form -->
             <div class="form-card">
-                <h2 class="form-title">{{ $lang === 'en' ? 'Set Due Date' : 'Tetapkan Tarikh Akhir' }}</h2>
+                <h2 class="form-title">Tetapkan Tarikh Akhir</h2>
                 <form action="{{ route('manage-activities.store') }}" method="POST">
                     @csrf
                     <input type="hidden" name="class" value="{{ $selectedClass }}">
                     
                     <div class="form-group">
-                        <label class="form-label">{{ $lang === 'en' ? 'Select Lesson' : 'Pilih Pelajaran' }}</label>
+                        <label class="form-label">Pilih Pelajaran</label>
                         <select name="lesson_id" class="form-select" required>
-                            <option value="">{{ $lang === 'en' ? 'Choose a lesson...' : 'Pilih satu pelajaran...' }}</option>
+                            <option value="">Pilih satu pelajaran...</option>
                             @foreach($lessons as $lesson)
                                 <option value="{{ $lesson->id }}">
                                     {{ $lesson->q1 ?? 'Lesson ' . $lesson->id }} ({{ $lesson->class }})
@@ -697,22 +653,22 @@
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">{{ $lang === 'en' ? 'Due Date' : 'Tarikh Akhir' }}</label>
+                        <label class="form-label">Tarikh Akhir</label>
                         <input type="date" name="due_date" class="form-input" id="due_date_input" required>
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">{{ $lang === 'en' ? 'Notes (Optional)' : 'Nota (Pilihan)' }}</label>
-                        <textarea name="notes" class="form-textarea" placeholder="{{ $lang === 'en' ? 'Add reminder notes...' : 'Tambah nota peringatan...' }}"></textarea>
+                        <label class="form-label">Nota (Pilihan)</label>
+                        <textarea name="notes" class="form-textarea" placeholder="Tambah nota peringatan..."></textarea>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">{{ $lang === 'en' ? 'Set Due Date' : 'Tetapkan Tarikh Akhir' }}</button>
+                    <button type="submit" class="btn btn-primary">Tetapkan Tarikh Akhir</button>
                 </form>
 
                 <!-- Current Assignments -->
                 @if($assignments->count() > 0)
                     <div style="margin-top: 2rem;">
-                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #1a1a1a;">Current Assignments</h3>
+                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #1a1a1a;">Pelajaran Terkini</h3>
                         <div class="assignments-list">
                             @foreach($assignments as $assignment)
                                 <div class="assignment-item">
@@ -725,16 +681,21 @@
                                             $isOverdue = $dueDate < now();
                                         @endphp
                                         <div class="assignment-date {{ $isOverdue ? 'overdue' : '' }}">
-                                            Due: {{ $dueDate->format('M d, Y') }}
+                                            Tarikh Akhir: {{ $dueDate->format('d M Y') }}
                                             @if($isOverdue)
-                                                (Overdue)
+                                                (Lewat)
                                             @endif
                                         </div>
+                                        @if($assignment->notes)
+                                            <div style="font-size: 0.8rem; color: #6b7280; margin-top: 0.25rem; font-style: italic;">
+                                                📝 {{ $assignment->notes }}
+                                            </div>
+                                        @endif
                                     </div>
                                     <form action="{{ route('manage-activities.delete', $assignment->id) }}" method="POST" style="display: inline;">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.75rem;">Remove</button>
+                                        <button type="submit" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.75rem;">Padam</button>
                                     </form>
                                 </div>
                             @endforeach
@@ -747,13 +708,13 @@
         <!-- Student Lesson Status -->
         <div class="status-card">
             <div class="status-header">
-                📊 {{ $lang === 'en' ? 'Student Lesson Status' : 'Status Pelajaran Pelajar' }} - {{ $lang === 'en' ? 'Class' : 'Kelas' }} {{ $selectedClass }}
+                📊 Status Pelajaran Pelajar - Kelas {{ $selectedClass }}
             </div>
             <div style="overflow-x: auto;">
                 <table class="status-table">
                     <thead>
                         <tr>
-                            <th>{{ $lang === 'en' ? 'Student Name' : 'Nama Pelajar' }}</th>
+                            <th>Nama Pelajar</th>
                             @foreach($lessons as $lesson)
                                 <th>{{ $lesson->q1 ?? 'Lesson ' . $loop->iteration }}</th>
                             @endforeach
@@ -781,11 +742,18 @@
                                             } elseif($lessonStatus['status'] === 'Overdue') {
                                                 $statusClass = 'status-overdue';
                                             }
+                                            
+                                            $statusText = $lessonStatus['status'];
+                                            if($statusText === 'Completed') $statusText = 'Selesai';
+                                            elseif($statusText === 'Completed (Low Score)') $statusText = 'Selesai (Markah Rendah)';
+                                            elseif($statusText === 'In Progress') $statusText = 'Sedang Berjalan';
+                                            elseif($statusText === 'Not Started') $statusText = 'Belum Mula';
+                                            elseif($statusText === 'Overdue') $statusText = 'Lewat';
                                         @endphp
                                         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                                             <div>
                                                 <span class="status-badge {{ $statusClass }}">
-                                                    {{ $lessonStatus['status'] }}
+                                                    {{ $statusText }}
                                                 </span>
                                                 @if(isset($lessonStatus['percentage']) && $lessonStatus['percentage'] > 0)
                                                     <span style="font-size: 0.75rem; color: #6b7280; margin-left: 0.5rem;">
@@ -800,15 +768,15 @@
                                                     <input type="hidden" name="student_id" value="{{ $status['student']->student_id }}">
                                                     <input type="hidden" name="lesson_id" value="{{ $lessonStatus['lesson']->id }}">
                                                     <button type="submit" class="btn btn-warning btn-small" 
-                                                            onclick="return confirm('Resend this lesson to {{ $status['student']->name }}? They will be able to retake it.')">
-                                                        🔄 Resend Lesson
+                                                            onclick="return confirm('Hantar semula pelajaran ini kepada {{ $status['student']->name }}? Mereka akan dapat mengambil semula.')">
+                                                        🔄 Hantar Semula
                                                     </button>
                                                 </form>
                                             @endif
                                             
                                             @if($lessonStatus['due_date'])
                                                 <div style="font-size: 0.75rem; color: #6b7280;">
-                                                    Due: {{ \Carbon\Carbon::parse($lessonStatus['due_date'])->format('M d') }}
+                                                    Akhir: {{ \Carbon\Carbon::parse($lessonStatus['due_date'])->format('d M') }}
                                                 </div>
                                             @endif
                                         </div>
@@ -827,10 +795,6 @@
             document.getElementById('due_date_input').value = date;
         }
     </script>
-    <!-- Language Toggle -->
-    <a href="?lang={{ $lang === 'en' ? 'ms' : 'en' }}" class="lang-toggle" title="{{ $lang === 'en' ? 'Switch to Malay' : 'Tukar ke Bahasa Inggeris' }}">
-        {{ $lang === 'en' ? 'BM' : 'EN' }}
-    </a>
 </body>
 </html>
 
