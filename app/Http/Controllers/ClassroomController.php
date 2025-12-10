@@ -21,7 +21,7 @@ class ClassroomController extends Controller
                 ->get();
         } else {
             $classrooms = Classroom::whereHas('students', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
+                $q->where('user.id', $user->id);
             })
                 ->orderByDesc('created_at')
                 ->get();
@@ -83,7 +83,7 @@ class ClassroomController extends Controller
 
         // Authorization: Teacher of the class OR Enrolled Student
         $isTeacher = $user->role === 'teacher' && $classroom->teacher_id === $user->id;
-        $isStudent = $user->role === 'student' && $classroom->students()->where('users.id', $user->id)->exists();
+        $isStudent = $user->role === 'student' && $classroom->students()->where('user.id', $user->id)->exists();
 
         if (!$isTeacher && !$isStudent) {
             abort(403);
@@ -108,7 +108,7 @@ class ClassroomController extends Controller
         if ($isTeacher) {
             $availableStudents = \App\Models\User::where('role', 'student')
                 ->whereDoesntHave('enrolledClassrooms', function ($q) use ($classroom) {
-                    $q->where('classrooms.id', $classroom->id);
+                    $q->where('classes.id', $classroom->id);
                 })
                 ->orderBy('full_name')
                 ->get();
@@ -124,7 +124,7 @@ class ClassroomController extends Controller
             abort(403);
 
         $validated = $request->validate([
-            'student_id' => ['required', 'exists:users,id'],
+            'student_id' => ['required', 'exists:user,id'],
         ]);
 
         $student = \App\Models\User::find($validated['student_id']);
@@ -133,11 +133,14 @@ class ClassroomController extends Controller
             return back()->with('error', 'User is not a student.');
         }
 
-        if ($classroom->students()->where('users.id', $student->id)->exists()) {
+        if ($classroom->students()->where('user.id', $student->id)->exists()) {
             return back()->with('error', 'Student is already enrolled.');
         }
 
-        $classroom->students()->attach($student->id, ['enrolled_at' => now()]);
+        $classroom->students()->attach($student->id, [
+            'enrolled_at' => now(),
+            'class_id' => $classroom->id
+        ]);
 
         // Backfill existing assignments for this student (US002-05 / US006-01)
         $assignments = $classroom->assignments; // Uses the new relationship

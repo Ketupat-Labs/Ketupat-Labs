@@ -19,7 +19,7 @@
                             @foreach($classrooms as $classroom)
                                 <option value="{{ $classroom->id }}" class="text-gray-900 bg-white"
                                     style="color: #000000 !important; background-color: #ffffff !important;" {{ ($selectedClass && $selectedClass->id == $classroom->id) ? 'selected' : '' }}>
-                                    {{ $classroom->title }}
+                                    {{ $classroom->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -33,7 +33,7 @@
                     <!-- Header Blue Bar -->
                     <div class="bg-blue-600 px-6 py-4 border-b border-blue-600">
                         <h3 class="text-lg font-medium text-white flex items-center gap-2">
-                            📊 Jadual Perkembangan Pelajaran - {{ $selectedClass->title }}
+                            📊 Jadual Perkembangan Pelajaran - {{ $selectedClass->name }}
                         </h3>
                     </div>
 

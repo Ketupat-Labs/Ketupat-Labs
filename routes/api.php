@@ -5,6 +5,7 @@ use App\Http\Controllers\UploadController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ChatbotController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -99,5 +100,16 @@ Route::middleware('auth:web')->group(function () {
     
     // Classroom routes
     Route::get('/classrooms', [\App\Http\Controllers\ClassroomController::class, 'index']);
+    
+    // Chatbot routes
+    Route::prefix('chatbot')->group(function () {
+        Route::post('/chat', [ChatbotController::class, 'chat']);
+    });
+    
+    // AI Generator routes
+    Route::prefix('ai-generator')->group(function () {
+        Route::post('/slides', [\App\Http\Controllers\AIGeneratorController::class, 'generateSlides']);
+        Route::post('/quiz', [\App\Http\Controllers\AIGeneratorController::class, 'generateQuiz']);
+    });
 });
 

@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -104,7 +105,10 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            if (!Hash::check($request->password, $user->password)) {
+            // Get raw password from database (bypass hidden attribute)
+            $hashedPassword = $user->getAttributes()['password'] ?? $user->getOriginal('password');
+            
+            if (!Hash::check($request->password, $hashedPassword)) {
                 return response()->json([
                     'status' => 401,
                     'message' => 'Kata laluan tidak betul. Sila cuba lagi.',
@@ -150,6 +154,12 @@ class AuthController extends Controller
                 ],
             ], 200);
         } catch (\Exception $e) {
+            // Log the error for debugging
+            Log::error('Login error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'status' => 500,
                 'message' => 'Ralat pelayan. Sila cuba lagi kemudian.',

@@ -14,19 +14,16 @@ class UserBadge extends Model
 
     protected $fillable = [
         'user_id',
-        'badge_name',
-        'badge_type',
-        'description',
-        'icon_url',
-        'earned_at',
-    ];
-
-    protected $casts = [
-        'earned_at' => 'datetime',
+        'badge_code',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function badge(): BelongsTo
+    {
+        return $this->belongsTo(Badge::class, 'badge_code', 'code');
     }
 }

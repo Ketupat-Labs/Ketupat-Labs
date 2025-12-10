@@ -8,6 +8,7 @@ use App\Models\ForumPost;
 use App\Models\Forum;
 use App\Models\Friend;
 use App\Models\SavedPost;
+use App\Models\Badge;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -73,8 +74,19 @@ class ProfileController extends Controller
             ->limit(20)
             ->get();
 
-        // Get badges
-        $badges = $profileUser->badges()->orderBy('earned_at', 'desc')->get();
+        // Get all badges with category information
+        $allBadges = \App\Models\Badge::with('category')
+            ->orderBy('name', 'asc')
+            ->get();
+        
+        // Get user's earned badge codes
+        $earnedBadgeCodes = $profileUser->badges()->pluck('code')->toArray();
+        
+        // Mark which badges are earned
+        $badges = $allBadges->map(function ($badge) use ($earnedBadgeCodes) {
+            $badge->is_earned = in_array($badge->code, $earnedBadgeCodes);
+            return $badge;
+        });
 
         // Get friend count
         $friendCount = Friend::where(function ($q) use ($profileUserId) {

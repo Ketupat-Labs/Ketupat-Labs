@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Classroom;
 use App\Models\Lesson;
 use App\Models\StudentAnswer;
+use App\Models\QuizAttempt;
+use App\Models\Submission;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -30,16 +32,12 @@ class PerformanceController extends Controller
             ]);
         }
 
-        // Get Lessons (Assuming lessons match class name or just all lessons for now)
-        // Ideally we use Lesson assignments, but following previous pattern:
-        $lessons = Lesson::where('class', $selectedClass->name)->get();
-        if ($lessons->isEmpty()) {
-            $lessons = Lesson::where('teacher_id', $selectedClass->teacher_id)->get();
-        }
+        // Get lessons assigned to this classroom through lesson_assignments pivot table
+        $lessons = $selectedClass->lessons;
 
         // Get Students
         $students = User::whereHas('enrolledClassrooms', function ($query) use ($selectedClassId) {
-            $query->where('classrooms.id', $selectedClassId);
+            $query->where('classes.id', $selectedClassId);
         })->get();
 
         $data = [];
@@ -57,20 +55,22 @@ class PerformanceController extends Controller
                 ];
 
                 foreach ($lessons as $lesson) {
-                    $answer = StudentAnswer::where('user_id', $student->id)
+                    // Use QuizAttempt which uses user_id (matches our User model)
+                    $quizAttempt = QuizAttempt::where('user_id', $student->id)
                         ->where('lesson_id', $lesson->id)
+                        ->where('submitted', true)
                         ->first();
 
-                    $score = $answer ? $answer->total_marks : 0;
-                    $max = 3; // Assuming 3 questions per lesson
+                    $score = $quizAttempt ? $quizAttempt->score : 0;
+                    $max = $quizAttempt ? $quizAttempt->total_questions : 0;
 
                     $studentRow['grades'][$lesson->id] = [
                         'score' => $score,
                         'max' => $max,
-                        'display' => $answer ? "$score/$max" : '-'
+                        'display' => $quizAttempt ? "$score/$max" : '-'
                     ];
 
-                    if ($answer) {
+                    if ($quizAttempt) {
                         $studentRow['total_score'] += $score;
                         $studentRow['max_score'] += $max;
                     }
@@ -97,17 +97,32 @@ class PerformanceController extends Controller
             // If lesson doesn't exist in filtered list, fallback to all? Or empty?
             if ($selectedLesson) {
                 foreach ($students as $student) {
-                    $answer = StudentAnswer::where('user_id', $student->id)
+                    // Use QuizAttempt which uses user_id (matches our User model)
+                    $quizAttempt = QuizAttempt::where('user_id', $student->id)
+                        ->where('lesson_id', $selectedLesson->id)
+                        ->where('submitted', true)
+                        ->first();
+
+                    // Check for teacher grade from Submission
+                    $submission = Submission::where('user_id', $student->id)
                         ->where('lesson_id', $selectedLesson->id)
                         ->first();
+                    $teacherGrade = $submission && $submission->grade !== null ? $submission->grade : '-';
+
+                    // Extract answers from quizAttempt if available
+                    $answers = $quizAttempt && $quizAttempt->answers ? json_decode($quizAttempt->answers, true) : [];
+                    $s1 = isset($answers['q0']) && $answers['q0'] ? '✓' : ($quizAttempt ? '✗' : '-');
+                    $s2 = isset($answers['q1']) && $answers['q1'] ? '✓' : ($quizAttempt ? '✗' : '-');
+                    $s3 = isset($answers['q2']) && $answers['q2'] ? '✓' : ($quizAttempt ? '✗' : '-');
 
                     $data[] = [
                         'student' => $student,
-                        's1' => $answer ? ($answer->q1_answer ? '✓' : '✗') : '-',
-                        's2' => $answer ? ($answer->q2_answer ? '✓' : '✗') : '-',
-                        's3' => $answer ? ($answer->q3_answer ? '✓' : '✗') : '-', // Using boolean logic from DB
-                        'total_marks' => $answer ? $answer->total_marks : 0,
-                        'max' => 3
+                        's1' => $s1,
+                        's2' => $s2,
+                        's3' => $s3,
+                        'teacher_grade' => $teacherGrade,
+                        'total_marks' => $quizAttempt ? $quizAttempt->score : 0,
+                        'max' => $quizAttempt ? $quizAttempt->total_questions : 0
                     ];
                 }
             } else {

@@ -261,13 +261,21 @@ class ForumController extends Controller
         
         DB::beginTransaction();
         try {
+            // Map post_type to match database enum values
+            $postTypeMap = [
+                'post' => 'discussion',
+                'link' => 'discussion',
+                'poll' => 'discussion',
+            ];
+            $dbPostType = $postTypeMap[$request->post_type] ?? 'discussion';
+            
             $post = ForumPost::create([
                 'forum_id' => $request->forum_id,
                 'author_id' => $user->id,
                 'title' => $request->title,
                 'content' => $request->content ?? '',
                 'category' => $request->category,
-                'post_type' => $request->post_type,
+                'post_type' => $dbPostType,
             ]);
             
             // Add tags
@@ -385,7 +393,6 @@ class ForumController extends Controller
             
             $query = ForumPost::with(['author:id,username,full_name,avatar_url', 'forum:id,title', 'attachments', 'tags'])
                 ->where('is_deleted', false)
-                ->where('is_hidden', false)
                 ->whereIn('forum_id', $allowedForumIds);
         }
         
@@ -528,7 +535,6 @@ class ForumController extends Controller
                     }),
                     'tags' => $post->tags->pluck('tag_name')->toArray(),
                     'report_count' => $post->reports()->where('status', 'pending')->count(),
-                    'is_hidden' => $post->is_hidden ?? false,
                     'is_forum_member' => $userForumRole !== null, // User is a member if they have a role
                     'reaction_count' => Reaction::where('target_type', 'post')
                         ->where('target_id', $post->id)
@@ -599,8 +605,8 @@ class ForumController extends Controller
         // Check authorization
         $isAuthor = $post->author_id === $user->id;
         $isModerator = $post->forum->members()
-            ->where('user_id', $user->id)
-            ->whereIn('role', ['admin', 'moderator'])
+            ->where('user.id', $user->id)
+            ->whereIn('forum_member.role', ['admin', 'moderator'])
             ->exists();
         
         if (!$isAuthor && !$isModerator) {
@@ -1204,10 +1210,6 @@ class ForumController extends Controller
             $postTags = PostTag::select('post_tags.tag_name', DB::raw('COUNT(*) as count'))
                 ->join('forum_post', 'post_tags.post_id', '=', 'forum_post.id')
                 ->where('forum_post.is_deleted', false)
-                ->where(function ($query) {
-                    $query->where('forum_post.is_hidden', false)
-                          ->orWhereNull('forum_post.is_hidden');
-                })
                 ->groupBy('post_tags.tag_name')
                 ->orderBy('count', 'desc')
                 ->orderBy('post_tags.tag_name', 'asc')
@@ -1313,7 +1315,7 @@ class ForumController extends Controller
 
             // Notify all forum admins and moderators immediately
             $adminsAndModerators = $forum->members()
-                ->whereIn('role', ['admin', 'moderator'])
+                ->whereIn('forum_member.role', ['admin', 'moderator'])
                 ->get();
 
             foreach ($adminsAndModerators as $admin) {
@@ -1396,10 +1398,9 @@ class ForumController extends Controller
         ]);
 
         if ($request->hide) {
+            // Note: is_hidden column doesn't exist in database, so we'll just mark as deleted instead
             $post->update([
-                'is_hidden' => true,
-                'hidden_at' => now(),
-                'hidden_by' => $user->id,
+                'is_deleted' => true,
             ]);
             $message = 'Post hidden successfully';
             
@@ -1416,9 +1417,7 @@ class ForumController extends Controller
             }
         } else {
             $post->update([
-                'is_hidden' => false,
-                'hidden_at' => null,
-                'hidden_by' => null,
+                'is_deleted' => false,
             ]);
             $message = 'Post unhidden successfully';
             

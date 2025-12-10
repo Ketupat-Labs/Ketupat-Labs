@@ -1692,6 +1692,176 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Report Post Functions
+async function openReportModal(postId, postTitle) {
+    // Close post options menu
+    document.querySelectorAll('.post-options-menu').forEach(menu => {
+        menu.classList.add('hidden');
+    });
+    
+    // Create or get report modal
+    let modal = document.getElementById('reportPostModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'reportPostModal';
+        modal.className = 'report-modal';
+        modal.innerHTML = `
+            <div class="report-modal-overlay" onclick="closeReportModal()"></div>
+            <div class="report-modal-content">
+                <div class="report-modal-header">
+                    <h3>Report Post</h3>
+                    <button class="report-modal-close" onclick="closeReportModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="report-modal-body">
+                    <div class="report-post-preview">
+                        <div class="report-post-title">${escapeHtml(postTitle)}</div>
+                    </div>
+                    <div class="report-reason-section">
+                        <label class="report-label">Why are you reporting this post?</label>
+                        <div class="report-reasons">
+                            <label class="report-reason-option">
+                                <input type="radio" name="reportReason" value="spam" required>
+                                <span>Spam</span>
+                            </label>
+                            <label class="report-reason-option">
+                                <input type="radio" name="reportReason" value="harassment" required>
+                                <span>Harassment or Bullying</span>
+                            </label>
+                            <label class="report-reason-option">
+                                <input type="radio" name="reportReason" value="inappropriate" required>
+                                <span>Inappropriate Content</span>
+                            </label>
+                            <label class="report-reason-option">
+                                <input type="radio" name="reportReason" value="misinformation" required>
+                                <span>Misinformation</span>
+                            </label>
+                            <label class="report-reason-option">
+                                <input type="radio" name="reportReason" value="other" required>
+                                <span>Other</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="report-details-section">
+                        <label class="report-label" for="reportDetails">Additional details (optional)</label>
+                        <textarea id="reportDetails" class="report-details-input" placeholder="Provide more information about why you're reporting this post..." maxlength="500"></textarea>
+                        <div class="report-char-count"><span id="reportCharCount">0</span>/500</div>
+                    </div>
+                    <div id="reportError" class="report-error" style="display: none;"></div>
+                </div>
+                <div class="report-modal-footer">
+                    <button class="report-cancel-btn" onclick="closeReportModal()">Cancel</button>
+                    <button class="report-submit-btn" onclick="submitReport()">Submit Report</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Add character counter
+        const detailsInput = document.getElementById('reportDetails');
+        const charCount = document.getElementById('reportCharCount');
+        if (detailsInput && charCount) {
+            detailsInput.addEventListener('input', () => {
+                charCount.textContent = detailsInput.value.length;
+            });
+        }
+    }
+    
+    // Update modal with current post info
+    const titleElement = modal.querySelector('.report-post-title');
+    if (titleElement) {
+        titleElement.textContent = postTitle;
+    }
+    modal.dataset.postId = postId;
+    
+    // Reset form
+    const form = modal.querySelector('form');
+    if (form) form.reset();
+    const detailsInput = document.getElementById('reportDetails');
+    if (detailsInput) {
+        detailsInput.value = '';
+        const charCount = document.getElementById('reportCharCount');
+        if (charCount) charCount.textContent = '0';
+    }
+    const errorDiv = document.getElementById('reportError');
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+    }
+    
+    // Show modal
+    modal.classList.add('active');
+}
+
+function closeReportModal() {
+    const modal = document.getElementById('reportPostModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+async function submitReport() {
+    const modal = document.getElementById('reportPostModal');
+    if (!modal) return;
+    
+    const postId = modal.dataset.postId;
+    const selectedReason = modal.querySelector('input[name="reportReason"]:checked');
+    const detailsInput = document.getElementById('reportDetails');
+    const errorDiv = document.getElementById('reportError');
+    
+    if (!selectedReason) {
+        if (errorDiv) {
+            errorDiv.textContent = 'Please select a reason for reporting';
+            errorDiv.style.display = 'block';
+        }
+        return;
+    }
+    
+    const reason = selectedReason.value;
+    const details = detailsInput ? detailsInput.value.trim() : '';
+    
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch('/api/forum/post/report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                post_id: parseInt(postId),
+                reason: reason,
+                details: details
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 200) {
+            closeReportModal();
+            alert('Post reported successfully. Thank you for helping keep our community safe.');
+            
+            // Reload posts to update report count display
+            loadAllPosts();
+        } else {
+            if (errorDiv) {
+                errorDiv.textContent = data.message || 'Failed to submit report';
+                errorDiv.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error submitting report:', error);
+        if (errorDiv) {
+            errorDiv.textContent = 'Failed to submit report. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    }
+}
+
 window.filterByForum = filterByForum;
 window.openPost = openPost;
 window.toggleReaction = toggleReaction;

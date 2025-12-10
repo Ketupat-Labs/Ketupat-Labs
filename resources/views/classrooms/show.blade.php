@@ -159,7 +159,7 @@
                                                     <a href="{{ route('lesson.show', $lesson) }}">{{ $lesson->title }}</a>
                                                 </h4>
                                                 <p class="text-sm text-gray-500 mb-2">{{ $lesson->topic }} &bull; Posted
-                                                    {{ $lesson->created_at->format('M d, Y') }}</p>
+                                                    {{ $lesson->created_at ? $lesson->created_at->format('M d, Y') : 'N/A' }}</p>
                                                 <p class="text-gray-600 text-sm mb-4">
                                                     {{ Str::limit($lesson->content, 120) }}</p>
                                             </div>

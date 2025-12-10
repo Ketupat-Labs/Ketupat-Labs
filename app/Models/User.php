@@ -126,9 +126,15 @@ class User extends Authenticatable
     }
 
     // Badge relationships
-    public function badges()
+    public function userBadges()
     {
         return $this->hasMany(UserBadge::class, 'user_id');
+    }
+
+    public function badges()
+    {
+        return $this->belongsToMany(Badge::class, 'user_badges', 'user_id', 'badge_code', 'id', 'code')
+            ->withTimestamps();
     }
 }
 

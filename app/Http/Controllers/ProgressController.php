@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Student;
 use App\Models\Lesson;
 use App\Models\StudentAnswer;
+use App\Models\QuizAttempt;
 use Illuminate\Http\Request;
 
 class ProgressController extends Controller
@@ -20,7 +21,7 @@ class ProgressController extends Controller
 
         if (!$selectedClass) {
             return view('progress.index', [
-                'classes' => $classrooms,
+                'classrooms' => $classrooms,
                 'selectedClass' => null,
                 'progressData' => [],
                 'lessons' => [],
@@ -30,20 +31,11 @@ class ProgressController extends Controller
 
         // Get students enrolled in the selected classroom
         $students = \App\Models\User::whereHas('enrolledClassrooms', function ($query) use ($selectedClassId) {
-            $query->where('classrooms.id', $selectedClassId);
+            $query->where('classes.id', $selectedClassId);
         })->get();
 
-        // Get lessons assigned to this classroom (or filtering by the string 'class' column if that's the legacy design, 
-        // but ideally we check LessonAssignments or similar. For now, we'll try to match the class name if lessons.class exists, 
-        // OR just show all lessons, OR show lessons created by the teacher of the classroom? 
-        // Let's assume lessons have a 'class' string that matches the classroom name, as per the tracking module design).
-        $lessons = Lesson::where('class', $selectedClass->name)->get();
-
-        // Fallback: If no lessons found by name, maybe show all lessons (dev choice) or empty.
-        // Let's try to query by teacher_id if available or just show all for now if count is 0.
-        if ($lessons->isEmpty()) {
-            $lessons = Lesson::where('teacher_id', $selectedClass->teacher_id)->get();
-        }
+        // Get lessons assigned to this classroom through lesson_assignments pivot table
+        $lessons = $selectedClass->lessons;
 
         // Build progress data
         $progressData = [];
@@ -58,13 +50,16 @@ class ProgressController extends Controller
             ];
 
             foreach ($lessons as $lesson) {
-                // Use user_id instead of student_id
-                $answer = StudentAnswer::where('user_id', $student->id)
+                // Use QuizAttempt which uses user_id (matches our User model)
+                $quizAttempt = QuizAttempt::where('user_id', $student->id)
                     ->where('lesson_id', $lesson->id)
+                    ->where('submitted', true)
                     ->first();
 
-                if ($answer) {
-                    $percentage = ($answer->total_marks / 3) * 100;
+                if ($quizAttempt) {
+                    $percentage = $quizAttempt->total_questions > 0 
+                        ? ($quizAttempt->score / $quizAttempt->total_questions) * 100 
+                        : 0;
                     $status = 'Completed';
                     if ($percentage <= 20) {
                         $status = 'Completed (Low Score)';
@@ -72,13 +67,14 @@ class ProgressController extends Controller
                     $studentProgress['completedCount']++;
                 } else {
                     $status = 'Not Started';
+                    $percentage = 0;
                 }
 
                 $studentProgress['lessons'][] = [
                     'lesson' => $lesson,
                     'status' => $status,
-                    'answer' => $answer,
-                    'percentage' => $answer ? ($answer->total_marks / 3) * 100 : 0
+                    'quizAttempt' => $quizAttempt,
+                    'percentage' => $percentage
                 ];
             }
 
@@ -101,8 +97,10 @@ class ProgressController extends Controller
         ];
 
         foreach ($lessons as $lesson) {
-            $completedCount = StudentAnswer::where('lesson_id', $lesson->id)
+            // Use QuizAttempt which uses user_id (matches our User model)
+            $completedCount = QuizAttempt::where('lesson_id', $lesson->id)
                 ->whereIn('user_id', $students->pluck('id'))
+                ->where('submitted', true)
                 ->count();
 
             $summary['lessonCompletion'][$lesson->id] = [

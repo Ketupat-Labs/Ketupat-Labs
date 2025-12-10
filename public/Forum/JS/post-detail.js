@@ -1304,9 +1304,9 @@ async function confirmDeletePost(postId) {
         if (data.status === 200) {
             // Redirect back to forum or forum detail page
             if (postState.post && postState.post.forum_id) {
-                window.location.href = `forum-detail.html?id=${postState.post.forum_id}`;
+                window.location.href = `/forum/${postState.post.forum_id}`;
             } else {
-                window.location.href = 'forum.html';
+                window.location.href = '/forum';
             }
         } else {
             alert(data.message || 'Failed to delete post');

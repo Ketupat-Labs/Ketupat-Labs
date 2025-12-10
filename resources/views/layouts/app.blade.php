@@ -51,6 +51,9 @@
             </main>
         </div>
         
+        <!-- Ketupat Chatbot Widget -->
+        @include('components.chatbot-widget')
+        
         <!-- Navigation JavaScript -->
         <script>
             document.addEventListener('DOMContentLoaded', () => {

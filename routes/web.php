@@ -191,5 +191,14 @@ Route::middleware('auth')->group(function () {
     Route::resource('classrooms', \App\Http\Controllers\ClassroomController::class);
     Route::post('/classrooms/{classroom}/students', [\App\Http\Controllers\ClassroomController::class, 'addStudent'])->name('classrooms.students.add');
     Route::delete('/classrooms/{classroom}/students/{student}', [\App\Http\Controllers\ClassroomController::class, 'removeStudent'])->name('classrooms.students.remove');
+    
+    // AI Generator routes
+    Route::get('/ai-generator', [\App\Http\Controllers\AIGeneratorController::class, 'index'])->name('ai-generator.index');
+    Route::get('/ai-generator/slides', function () {
+        return view('ai-generator.slides');
+    })->name('ai-generator.slides');
+    Route::get('/ai-generator/quiz', function () {
+        return view('ai-generator.quiz');
+    })->name('ai-generator.quiz');
 });
 

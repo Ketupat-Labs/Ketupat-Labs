@@ -11,7 +11,33 @@ class LessonAssignmentController extends Controller
      */
     public function index()
     {
-        //
+        $userId = session('user_id');
+        if (!$userId) {
+            return redirect()->route('login');
+        }
+
+        $user = \App\Models\User::find($userId);
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        if ($user->role === 'teacher') {
+            // Teacher: Show all assignments for their classrooms
+            $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->pluck('id');
+            $assignments = \App\Models\LessonAssignment::whereIn('classroom_id', $classrooms)
+                ->with(['classroom', 'lesson'])
+                ->latest('assigned_at')
+                ->get();
+        } else {
+            // Student: Show assignments for enrolled classrooms
+            $classroomIds = $user->enrolledClassrooms()->pluck('id');
+            $assignments = \App\Models\LessonAssignment::whereIn('classroom_id', $classroomIds)
+                ->with(['classroom', 'lesson'])
+                ->latest('assigned_at')
+                ->get();
+        }
+
+        return view('assignments.index', compact('assignments', 'user'));
     }
 
     /**
@@ -30,7 +56,7 @@ class LessonAssignmentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'classroom_id' => 'required|exists:classrooms,id',
+            'classroom_id' => 'required|exists:classes,id',
             'lessons' => 'required|array',
             'lessons.*' => 'exists:lessons,id',
         ]);

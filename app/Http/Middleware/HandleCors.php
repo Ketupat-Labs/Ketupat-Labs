@@ -28,11 +28,22 @@ class HandleCors
         $response = $next($request);
 
         // Add CORS headers to the response
-        return $response
-            ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
-            ->header('Access-Control-Allow-Credentials', 'true');
+        // Check if response supports header() method (Laravel Response/JsonResponse)
+        if (method_exists($response, 'header')) {
+            return $response
+                ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+                ->header('Access-Control-Allow-Credentials', 'true');
+        }
+        
+        // For StreamedResponse and other response types, set headers directly
+        $response->headers->set('Access-Control-Allow-Origin', $this->getAllowedOrigin($request));
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        $response->headers->set('Access-Control-Allow-Credentials', 'true');
+        
+        return $response;
     }
 
     /**

@@ -22,7 +22,7 @@
                                 </option>
                                 @foreach($classrooms as $classroom)
                                     <option value="{{ $classroom->id }}" class="text-gray-900 bg-white" {{ ($selectedClass && $selectedClass->id == $classroom->id) ? 'selected' : '' }}>
-                                        {{ $classroom->title }}
+                                        {{ $classroom->name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -52,9 +52,9 @@
                 <div class="bg-blue-600 rounded-t-lg px-6 py-4">
                     <h3 class="text-lg font-medium text-white flex items-center gap-2">
                         @if($mode === 'all')
-                            📊 Melihat: {{ $selectedClass->title }} | Semua Pelajaran
+                            📊 Melihat: {{ $selectedClass->name }} | Semua Pelajaran
                         @else
-                            📊 Melihat: {{ $selectedClass->title }} |
+                            📊 Melihat: {{ $selectedClass->name }} |
                             {{ $lessons->find($selectedLessonId)->title ?? 'Pelajaran Terpilih' }}
                         @endif
                     </h3>
@@ -114,7 +114,7 @@
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $selectedClass->title }}
+                                                {{ $selectedClass->name }}
                                             </td>
 
                                             @if($mode === 'all')

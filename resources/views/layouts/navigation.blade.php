@@ -22,6 +22,37 @@
                         {{ __('Forum') }}
                     </a>
 
+                    <div class="hidden sm:flex sm:items-center">
+                        <x-dropdown align="left" width="48">
+                            <x-slot name="trigger">
+                                <button
+                                    class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                                    <div>{{ __('AI') }}</div>
+                                    <div class="ms-1">
+                                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg"
+                                            viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </button>
+                            </x-slot>
+
+                            <x-slot name="content">
+                                <x-dropdown-link :href="route('ai-generator.index')">
+                                    {{ __('AI Generator') }}
+                                </x-dropdown-link>
+                                <x-dropdown-link :href="route('ai-generator.slides')">
+                                    {{ __('Generate Slides') }}
+                                </x-dropdown-link>
+                                <x-dropdown-link :href="route('ai-generator.quiz')">
+                                    {{ __('Generate Quiz') }}
+                                </x-dropdown-link>
+                            </x-slot>
+                        </x-dropdown>
+                    </div>
+
                     @if($currentUser && $currentUser->role === 'teacher')
                         <div class="hidden sm:flex sm:items-center">
                             <x-dropdown align="left" width="48">
@@ -212,6 +243,24 @@
                 class="block px-4 py-2 text-base font-medium {{ request()->routeIs('forum.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
                 {{ __('Forum') }}
             </a>
+
+            <div class="pt-2 pb-1 border-t border-gray-200">
+                <div class="px-4 text-xs text-gray-500 uppercase font-semibold">
+                    {{ __('AI') }}
+                </div>
+                <a href="{{ route('ai-generator.index') }}"
+                    class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
+                    {{ __('AI Generator') }}
+                </a>
+                <a href="{{ route('ai-generator.slides') }}"
+                    class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.slides') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
+                    {{ __('Generate Slides') }}
+                </a>
+                <a href="{{ route('ai-generator.quiz') }}"
+                    class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.quiz') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
+                    {{ __('Generate Quiz') }}
+                </a>
+            </div>
 
             @if($currentUser && $currentUser->role === 'teacher')
                 <div class="pt-2 pb-1 border-t border-gray-200">

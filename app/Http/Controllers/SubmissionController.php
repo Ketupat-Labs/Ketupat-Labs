@@ -37,7 +37,7 @@ class SubmissionController extends Controller
             $classroom = \App\Models\Classroom::find($request->classroom_id);
             if ($classroom) {
                 // Filter submissions from users enrolled in this classroom
-                $studentIds = $classroom->students()->pluck('users.id');
+                $studentIds = $classroom->students()->pluck('user.id');
                 $query->whereIn('user_id', $studentIds);
             }
         }
