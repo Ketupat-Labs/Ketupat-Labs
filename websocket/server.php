@@ -3,7 +3,7 @@
 use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
-use App\MessageHandler;
+use App\WebSocket\MessageHandler;
 
 require __DIR__ . '/../vendor/autoload.php';
 

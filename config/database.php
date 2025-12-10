@@ -1,51 +1,52 @@
 <?php
-function getDatabaseConnection() {
-    static $db = null;
-    
-    if ($db === null) {
-        $host = $_ENV['DB_HOST'] ?? 'localhost';
-        $dbname = $_ENV['DB_NAME'] ?? 'compuplay';
-        $username = $_ENV['DB_USERNAME'] ?? 'root';
-        $password = $_ENV['DB_PASSWORD'] ?? '';
-        
-        try {
-            $db = new PDO(
-                "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
-                $username,
-                $password,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false
-                ]
-            );
-        } catch (PDOException $e) {
-            $errorMsg = $e->getMessage();
-            error_log("Database connection failed: " . $errorMsg);
-            error_log("PDO error code: " . $e->getCode());
-            // Include the actual error message for debugging
-            throw new Exception("Database connection failed: " . $errorMsg);
-        }
-    }
-    
-    return $db;
-}
 
-if (session_status() === PHP_SESSION_NONE) {
-    // Configure session cookie settings to work across all directories
-    // IMPORTANT: This MUST be called BEFORE session_start()
-    session_set_cookie_params([
-        'lifetime' => 0, // Until browser closes (or use remember_me cookie)
-        'path' => '/', // Available for entire domain (works for localhost/Material)
-        'domain' => '', // Current domain (localhost)
-        'secure' => false, // Set to true in production with HTTPS
-        'httponly' => true, // Prevent JavaScript access
-        'samesite' => 'Lax' // Allow cross-site GET requests
-    ]);
-    session_start();
-    
-    // Debug: Log session cookie params
-    error_log("Session started - ID: " . session_id());
-    error_log("Session cookie params: " . print_r(session_get_cookie_params(), true));
-}
+use Illuminate\Support\Str;
 
+return [
+    'default' => env('DB_CONNECTION', 'mysql'),
+    'connections' => [
+        'mysql' => [
+            'driver' => 'mysql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_DATABASE', 'compuplay'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+    ],
+    'migrations' => 'migrations',
+    'redis' => [
+        'client' => env('REDIS_CLIENT', 'phpredis'),
+        'options' => [
+            'cluster' => env('REDIS_CLUSTER', 'redis'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+        ],
+        'default' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_DB', '0'),
+        ],
+        'cache' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_CACHE_DB', '1'),
+        ],
+    ],
+];
