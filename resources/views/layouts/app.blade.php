@@ -1,321 +1,280 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'Ketupat Labs')</title>
-    
-    <!-- Fonts & Icons -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <style>
-        :root {
-            --primary: #4F46E5;
-            --primary-dark: #4338CA;
-            --secondary: #6B7280;
-            --success: #10B981;
-            --warning: #F59E0B;
-            --danger: #EF4444;
-            --light: #F9FAFB;
-            --dark: #111827;
-            --border: #E5E7EB;
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-        }
-        
-        * {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-        
-        body {
-            background-color: #f8fafc;
-            color: #374151;
-            line-height: 1.6;
-        }
-        
-        /* Color utility classes */
-        .bg-blue-light { background-color: #DBEAFE !important; }
-        .bg-purple-light { background-color: #EDE9FE !important; }
-        .bg-green-light { background-color: #D1FAE5 !important; }
-        .bg-orange-light { background-color: #FEF3C7 !important; }
-        .bg-yellow-light { background-color: #FEF3C7 !important; }
-        .bg-gray-light { background-color: #F3F4F6 !important; }
+        <title>{{ config('app.name', 'Laravel') }}</title>
 
-.text-blue { color: #3B82F6 !important; }
-.text-purple { color: #8B5CF6 !important; }
-.text-green { color: #10B981 !important; }
-.text-orange { color: #F59E0B !important; }
-.text-yellow { color: #FBBF24 !important; }
-.text-gray { color: #6B7280 !important; }
-        /* Navigation */
-        .navbar {
-            background: white;
-            border-bottom: 1px solid var(--border);
-            box-shadow: var(--shadow);
-            padding: 0.75rem 0;
-        }
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" href="{{ asset('assets/images/LOGOCompuPlay.png') }}">
+        <link rel="shortcut icon" type="image/png" href="{{ asset('assets/images/LOGOCompuPlay.png') }}">
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
         
-        .navbar-brand {
-            font-weight: 700;
-            color: var(--primary);
-            font-size: 1.25rem;
-        }
+        <!-- Font Awesome Icons -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         
-        .nav-link {
-            font-weight: 500;
-            color: #6B7280;
-            padding: 0.5rem 1rem !important;
-            border-radius: 8px;
-            transition: all 0.2s;
-            margin: 0 0.125rem;
-        }
+        <!-- Tailwind CSS CDN (fallback if Vite not available) -->
+        <script src="https://cdn.tailwindcss.com"></script>
         
-        .nav-link:hover {
-            color: var(--primary);
-            background: #f3f4f6;
-        }
+        <!-- Alpine.js for interactive components -->
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
         
-        .nav-link.active {
-            color: var(--primary);
-            background: rgba(79, 70, 229, 0.1);
-            font-weight: 600;
-        }
+        <!-- Scripts -->
+        @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
+            @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @endif
+    </head>
+    <body class="font-sans antialiased bg-gray-50">
+        <div class="min-h-screen bg-gray-50">
+            @php
+                $currentUser = session('user_id') ? \App\Models\User::find(session('user_id')) : \Illuminate\Support\Facades\Auth::user();
+            @endphp
+            @include('layouts.navigation', ['currentUser' => $currentUser])
+
+            <!-- Page Heading -->
+            @isset($header)
+                <header class="bg-white border-b border-gray-200">
+                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                        {{ $header }}
+                    </div>
+                </header>
+            @endisset
+
+            <!-- Page Content -->
+            <main>
+                {{ $slot }}
+            </main>
+        </div>
         
-        /* Cards */
-        .card {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            transition: transform 0.2s, box-shadow 0.2s;
-            background: white;
-        }
+        <!-- Ketupat Chatbot Widget -->
+        @include('components.chatbot-widget')
         
-        .card:hover {
-            box-shadow: var(--shadow-lg);
-            transform: translateY(-2px);
-        }
-        
-        .card-header {
-            background: white;
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 1.25rem;
-            font-weight: 600;
-        }
-        
-        .card-body {
-            padding: 1.25rem;
-        }
-        
-        /* Buttons */
-        .btn {
-            border-radius: 8px;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            transition: all 0.2s;
-        }
-        
-        .btn-primary {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-        
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            border-color: var(--primary-dark);
-            transform: translateY(-1px);
-        }
-        
-        .btn-outline-primary {
-            color: var(--primary);
-            border-color: var(--primary);
-        }
-        
-        .btn-outline-primary:hover {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-        
-        /* Badges */
-        .badge {
-            border-radius: 20px;
-            padding: 0.35rem 0.75rem;
-            font-weight: 500;
-            font-size: 0.75rem;
-        }
-        
-        /* Forms */
-        .form-control, .form-select {
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
-        }
-        
-        .form-control:focus, .form-select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-        
-        /* Tables */
-        .table {
-            --bs-table-bg: transparent;
-            --bs-table-striped-bg: #f9fafb;
-        }
-        
-        .table th {
-            font-weight: 600;
-            color: #6B7280;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-top: none;
-        }
-        
-        .table td {
-            padding: 1rem 0.75rem;
-            border-color: var(--border);
-            vertical-align: middle;
-        }
-        
-        /* Progress bars */
-        .progress {
-            background-color: #f3f4f6;
-            border-radius: 10px;
-            height: 8px;
-        }
-        
-        .progress-bar {
-            border-radius: 10px;
-        }
-        
-        /* Container */
-        .container-fluid {
-            max-width: 1400px;
-        }
-        
-        /* Footer */
-        footer {
-            background: white;
-            border-top: 1px solid var(--border);
-            margin-top: auto;
-        }
-        
-        /* Custom utilities */
-        .rounded-xl {
-            border-radius: 12px;
-        }
-        
-        .text-muted {
-            color: #9CA3AF !important;
-        }
-        
-        .bg-light {
-            background-color: #f9fafb !important;
-        }
-        
-        .hover-lift:hover {
-            transform: translateY(-2px);
-        }
-        
-        .transition-all {
-            transition: all 0.2s ease;
-        }
-    </style>
-    
-    @stack('styles')
-</head>
-<body class="d-flex flex-column min-vh-100">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-                <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" 
-                     style="width: 32px; height: 32px;">
-                    <i class="fas fa-certificate text-white" style="font-size: 0.875rem;"></i>
-                </div>
-                <span>Ketupat Labs</span>
-            </a>
-            
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <i class="fas fa-bars"></i>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <div class="navbar-nav ms-auto">
-                    <a class="nav-link {{ request()->is('/') ? 'active' : '' }}" href="/">
-                        <i class="fas fa-home me-1"></i> Laman Utama
-                    </a>
-                    <a class="nav-link {{ request()->is('badges*') ? 'active' : '' }}" href="/badges">
-                        <i class="fas fa-award me-1"></i> Lencana
-                    </a>
-                    <a class="nav-link {{ request()->is('students*') ? 'active' : '' }}" href="/students">
-                        <i class="fas fa-users me-1"></i> Pelajar
-                    </a>
-                    <a class="nav-link {{ request()->is('categories*') ? 'active' : '' }}" href="/categories">
-                        <i class="fas fa-layer-group me-1"></i> Kategori
-                    </a>
-                </div>
+        <!-- Navigation JavaScript -->
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                // Notification button toggle
+                const notificationBtn = document.getElementById('notificationBtn');
+                const notificationMenu = document.getElementById('notificationMenu');
                 
-                <!-- Search -->
-                <form class="d-flex ms-3" action="/badges" method="GET" style="max-width: 240px;">
-                    <div class="input-group input-group-sm">
-                        <input type="text" class="form-control" 
-                               name="search" placeholder="Search badges..." 
-                               value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </nav>
-    
-    <!-- Main Content -->
-    <main class="flex-grow-1 py-4">
-        @yield('content')
-    </main>
-    
-    <!-- Footer -->
-    <footer class="py-4">
-        <div class="container-fluid">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" 
-                             style="width: 24px; height: 24px;">
-                            <i class="fas fa-certificate text-white" style="font-size: 0.75rem;"></i>
-                        </div>
-                        <span class="text-muted">Ketupat Labs</span>
-                    </div>
-                </div>
-                <div class="col-md-6 text-end">
-                    <small class="text-muted">
-                        Ketupat Labs' Project • {{ date('Y') }}
-                    </small>
-                </div>
-            </div>
-        </div>
-    </footer>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Add active state to current page
-        document.addEventListener('DOMContentLoaded', function() {
-            const currentPath = window.location.pathname;
-            document.querySelectorAll('.nav-link').forEach(link => {
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
+                if (notificationBtn && notificationMenu) {
+                    notificationBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        notificationMenu.classList.toggle('hidden');
+                        if (!notificationMenu.classList.contains('hidden')) {
+                            loadNotifications();
+                        }
+                    });
+                    
+                    // Close notification menu when clicking outside
+                    document.addEventListener('click', (e) => {
+                        if (!notificationMenu.contains(e.target) && !notificationBtn.contains(e.target)) {
+                            notificationMenu.classList.add('hidden');
+                        }
+                    });
                 }
+                
+                // Load notifications on page load
+                loadNotifications();
+                // Refresh notifications every 30 seconds
+                setInterval(loadNotifications, 30000);
             });
-        });
-    </script>
-    @stack('scripts')
-</body>
+
+            async function loadNotifications() {
+                try {
+                    const response = await fetch('/api/notifications?unread_only=true&limit=10', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include'
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data = await response.json();
+                    
+                    if (data.status === 200) {
+                        const notifications = data.data.notifications || [];
+                        const unreadCount = data.data.unread_count || 0;
+                        
+                        // Update badge
+                        const badge = document.getElementById('notificationBadge');
+                        if (badge) {
+                            if (unreadCount > 0) {
+                                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                                badge.classList.remove('hidden');
+                            } else {
+                                badge.classList.add('hidden');
+                            }
+                        }
+                        
+                        // Render notifications
+                        renderNotifications(notifications);
+                    }
+                } catch (error) {
+                    console.error('Error loading notifications:', error);
+                }
+            }
+
+            function renderNotifications(notifications) {
+                const container = document.getElementById('notificationList');
+                if (!container) return;
+
+                if (notifications.length === 0) {
+                    container.innerHTML = '<div class="px-4 py-3 text-sm text-gray-500 text-center">No notifications</div>';
+                    return;
+                }
+
+                container.innerHTML = notifications.map(notif => {
+                    const timeAgo = formatTimeAgo(notif.created_at);
+                    let actionButtons = '';
+                    
+                    // Add action buttons for friend requests
+                    if (notif.type === 'friend_request' && !notif.is_read) {
+                        // Extract user_id from notification message or use related_id
+                        // The related_id is the friend request ID, we'll fetch it to get user_id
+                        actionButtons = `
+                            <div class="mt-2 flex space-x-2">
+                                <button onclick="handleFriendRequestFromNotification(${notif.related_id}, 'accept', ${notif.id})" 
+                                        class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
+                                    Accept
+                                </button>
+                                <button onclick="handleFriendRequestFromNotification(${notif.related_id}, 'decline', ${notif.id})" 
+                                        class="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                                    Decline
+                                </button>
+                            </div>
+                        `;
+                    }
+                    
+                    return `
+                        <div class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 ${!notif.is_read ? 'bg-blue-50' : ''}" 
+                             onclick="${notif.type === 'friend_request' ? '' : 'markNotificationRead(' + notif.id + ')'}">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">${escapeHtml(notif.title)}</p>
+                                    <p class="text-sm text-gray-600 mt-1">${escapeHtml(notif.message)}</p>
+                                    <p class="text-xs text-gray-400 mt-1">${timeAgo}</p>
+                                    ${actionButtons}
+                                </div>
+                                ${!notif.is_read ? '<div class="ml-2 h-2 w-2 bg-blue-600 rounded-full"></div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            async function handleFriendRequestFromNotification(friendRequestId, action, notificationId) {
+                try {
+                    // Get the friend request details to find the user_id (the sender)
+                    const friendRequestResponse = await fetch(`/api/friends/request/${friendRequestId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include'
+                    });
+
+                    let friendId = null;
+                    if (friendRequestResponse.ok) {
+                        const friendData = await friendRequestResponse.json();
+                        if (friendData.status === 200 && friendData.data) {
+                            // user_id is the one who sent the request
+                            friendId = friendData.data.user_id;
+                        }
+                    }
+
+                    if (!friendId) {
+                        alert('Could not find friend request details');
+                        return;
+                    }
+
+                    // Call the appropriate endpoint
+                    const endpoint = action === 'accept' ? '/api/friends/accept' : '/api/friends/remove';
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ 
+                            friend_id: friendId
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.status === 200) {
+                        // Mark notification as read
+                        await markNotificationRead(notificationId);
+                        // Reload notifications
+                        loadNotifications();
+                        if (action === 'accept') {
+                            alert('Friend request accepted!');
+                        } else {
+                            alert('Friend request declined');
+                        }
+                    } else {
+                        alert(data.message || 'Failed to ' + action + ' friend request');
+                    }
+                } catch (error) {
+                    console.error('Error handling friend request:', error);
+                    alert('Failed to ' + action + ' friend request');
+                }
+            }
+
+            async function markNotificationRead(notificationId) {
+                try {
+                    await fetch(`/api/notifications/${notificationId}/read`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        credentials: 'include'
+                    });
+                } catch (error) {
+                    console.error('Error marking notification as read:', error);
+                }
+            }
+
+            function formatTimeAgo(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                const now = new Date();
+                const diff = now - date;
+                const seconds = Math.floor(diff / 1000);
+                const minutes = Math.floor(seconds / 60);
+                const hours = Math.floor(minutes / 60);
+                const days = Math.floor(hours / 24);
+
+                if (days > 0) return days + 'd ago';
+                if (hours > 0) return hours + 'h ago';
+                if (minutes > 0) return minutes + 'm ago';
+                return 'Just now';
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        </script>
+    </body>
 </html>

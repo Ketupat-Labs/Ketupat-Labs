@@ -2,59 +2,28 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserBadge extends Model
 {
-    protected $table = 'user_badges';
-    
-    
-    public $timestamps = true;
-    
-
     use HasFactory;
 
+    protected $table = 'user_badges';
+
     protected $fillable = [
-        'user_id', 
-        'badge_id', 
-        'progress', 
-        'status', 
-        'redeemed', 
-        'earned_at', 
-        'redeemed_at'
+        'user_id',
+        'badge_code',
     ];
 
-    protected $casts = [
-        'redeemed' => 'boolean',
-        'earned_at' => 'datetime',
-        'redeemed_at' => 'datetime',
-    ];
-
-    public function user()
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function badge()
+    public function badge(): BelongsTo
     {
-        return $this->belongsTo(Badge::class);
+        return $this->belongsTo(Badge::class, 'badge_code', 'code');
     }
-
-    public function isRedeemable()
-    {
-        return $this->status === 'earned' && !$this->redeemed;
-    }
-    
-    public function isLocked()
-    {
-        return $this->status === 'locked';
-    }
-    
-    public function isRedeemed()
-    {
-        return $this->status === 'redeemed' && $this->redeemed;
-    }
-
 }
