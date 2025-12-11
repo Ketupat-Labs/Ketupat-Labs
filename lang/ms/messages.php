@@ -105,5 +105,20 @@ return [
     'No content' => 'Tiada kandungan',
     'No options available' => 'Tiada pilihan tersedia',
     'No question text' => 'Tiada teks soalan',
+    
+    // Document Upload
+    'Upload Document (Optional)' => 'Muat Naik Dokumen (Pilihan)',
+    'Upload a document (PDF, DOCX, TXT) and AI will read it to generate slides based on its content.' => 'Muat naik dokumen (PDF, DOCX, TXT) dan AI akan membacanya untuk menjana slaid berdasarkan kandungannya.',
+    'Upload a document (PDF, DOCX, TXT) and AI will read it to generate quiz questions based on its content.' => 'Muat naik dokumen (PDF, DOCX, TXT) dan AI akan membacanya untuk menjana soalan kuiz berdasarkan kandungannya.',
+    'Choose File' => 'Pilih Fail',
+    'No file chosen' => 'Tiada fail dipilih',
+    'Ready' => 'Bersedia',
+    'File size must be less than 10MB' => 'Saiz fail mestilah kurang daripada 10MB',
+    'Only PDF, DOCX, and TXT files are allowed' => 'Hanya fail PDF, DOCX, dan TXT dibenarkan',
+    'Optional - AI will extract from document' => 'Pilihan - AI akan mengekstrak dari dokumen',
+    'If you upload a document, the AI will use its content. Otherwise, provide a topic.' => 'Jika anda memuat naik dokumen, AI akan menggunakan kandungannya. Jika tidak, berikan topik.',
+    'e.g., Introduction to Machine Learning (or leave empty if uploading document)' => 'cth., Pengenalan kepada Pembelajaran Mesin (atau biarkan kosong jika memuat naik dokumen)',
+    'e.g., Python Programming Basics (or leave empty if uploading document)' => 'cth., Asas Pengaturcaraan Python (atau biarkan kosong jika memuat naik dokumen)',
 ];
+
 

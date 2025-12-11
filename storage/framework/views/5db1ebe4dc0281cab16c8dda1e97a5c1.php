@@ -19,8 +19,8 @@
                     <i class="fas fa-robot text-[#F26430] text-sm"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-base">{{ __('Ask Ketupat') }}</h3>
-                    <p class="text-xs text-white/90">{{ __('AI Assistant') }}</p>
+                    <h3 class="font-bold text-base"><?php echo e(__('Ask Ketupat')); ?></h3>
+                    <p class="text-xs text-white/90"><?php echo e(__('AI Assistant')); ?></p>
                 </div>
             </div>
             <button onclick="toggleChatbot()" 
@@ -39,10 +39,11 @@
                 <div class="flex-1">
                     <div class="bg-white rounded-lg p-2.5 shadow-sm border border-gray-200">
                         <p class="text-xs text-gray-800">
-                            {{ __('Hai! Saya Ketupat, pembantu AI anda. 👋 Anda boleh pilih mana-mana teks di halaman ini dan tanya saya soalan tentangnya!') }}
+                            <?php echo e(__('Hai! Saya Ketupat, pembantu AI anda. 👋 Anda boleh pilih mana-mana teks di halaman ini dan tanya saya soalan tentangnya!')); ?>
+
                         </p>
                     </div>
-                    <p class="text-xs text-gray-500 mt-1 ml-1">{{ __('Baru sahaja') }}</p>
+                    <p class="text-xs text-gray-500 mt-1 ml-1"><?php echo e(__('Baru sahaja')); ?></p>
                 </div>
             </div>
         </div>
@@ -52,7 +53,7 @@
             <form id="chatbot-form" onsubmit="sendChatbotMessage(event)" class="flex space-x-2">
                 <input type="text" 
                        id="chatbot-input" 
-                       placeholder="{{ __('Taip mesej anda...') }}" 
+                       placeholder="<?php echo e(__('Taip mesej anda...')); ?>" 
                        class="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F26430] focus:border-transparent"
                        autocomplete="off"
                        style="pointer-events: auto !important; z-index: 1;">
@@ -75,7 +76,7 @@
             onclick="askKetupatFromHighlight()"
             class="bg-gradient-to-r from-[#F26430] to-[#FF8C42] text-white px-3 py-1.5 rounded-md text-sm font-medium hover:shadow-md transition-all flex items-center space-x-2">
         <i class="fas fa-robot text-xs"></i>
-        <span>{{ __('Ask Ketupat') }}</span>
+        <span><?php echo e(__('Ask Ketupat')); ?></span>
     </button>
     <button onclick="clearHighlight()" 
             class="text-gray-500 hover:text-gray-700 p-1">
@@ -247,12 +248,12 @@
                 // Clear context after using it
                 selectedTextContext = '';
             } else {
-                addMessage('{{ __('Maaf, saya menghadapi ralat. Sila cuba lagi.') }}', 'bot', true);
+                addMessage('<?php echo e(__('Maaf, saya menghadapi ralat. Sila cuba lagi.')); ?>', 'bot', true);
             }
         } catch (error) {
             console.error('Chatbot error:', error);
             removeTypingIndicator(typingId);
-            addMessage('{{ __('Maaf, saya menghadapi masalah menyambung. Sila semak sambungan internet anda dan cuba lagi.') }}', 'bot', true);
+            addMessage('<?php echo e(__('Maaf, saya menghadapi masalah menyambung. Sila semak sambungan internet anda dan cuba lagi.')); ?>', 'bot', true);
         } finally {
             // Always re-enable input, even if there was an error
             const input = document.getElementById('chatbot-input');
@@ -374,7 +375,7 @@
             
             // Add highlighted text as context and ask about it
             const input = document.getElementById('chatbot-input');
-            input.value = `{{ __('Can you explain this') }}: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"?`;
+            input.value = `<?php echo e(__('Can you explain this')); ?>: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"?`;
             input.focus();
             
             // Store context
@@ -441,3 +442,4 @@
     });
 </script>
 
+<?php /**PATH C:\Users\HP\OneDrive\文档\GitHub\Ketupat-Labs\resources\views/components/chatbot-widget.blade.php ENDPATH**/ ?>

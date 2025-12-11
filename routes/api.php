@@ -108,15 +108,26 @@ Route::middleware('auth:web')->group(function () {
     // Classroom routes
     Route::get('/classrooms', [\App\Http\Controllers\ClassroomController::class, 'index']);
     
+    
     // Chatbot routes
     Route::prefix('chatbot')->group(function () {
         Route::post('/chat', [ChatbotController::class, 'chat']);
     });
     
-    // AI Generator routes
+    // AI Generator routes (Legacy)
     Route::prefix('ai-generator')->group(function () {
         Route::post('/slides', [\App\Http\Controllers\AIGeneratorController::class, 'generateSlides']);
         Route::post('/quiz', [\App\Http\Controllers\AIGeneratorController::class, 'generateQuiz']);
     });
+    
+    // AI Content routes (New Document Analyzer)
+    Route::prefix('ai-content')->group(function () {
+        Route::post('/analyze', [\App\Http\Controllers\AiContentController::class, 'analyze']);
+        Route::get('/', [\App\Http\Controllers\AiContentController::class, 'index']);
+        Route::get('/{id}', [\App\Http\Controllers\AiContentController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\AiContentController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\AiContentController::class, 'destroy']);
+    });
 });
+
 

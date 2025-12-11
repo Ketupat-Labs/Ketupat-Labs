@@ -49,7 +49,7 @@ class ChatbotController extends Controller
 
             return response()->json([
                 'status' => 500,
-                'message' => 'Error processing your request. Please try again.',
+                'message' => 'Ralat memproses permintaan anda. Sila cuba lagi.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -73,10 +73,11 @@ class ChatbotController extends Controller
         }
         
         try {
-            // Build the system message
-            $systemMessage = "You are Ketupat, a helpful AI assistant for an educational platform. " .
-                            "You help students understand content, answer questions, and provide explanations. " .
-                            "Be concise, friendly, and educational in your responses.";
+            // Build the system message in Bahasa Melayu
+            $systemMessage = "Anda adalah Ketupat, pembantu AI yang membantu untuk platform pendidikan. " .
+                            "Anda membantu pelajar memahami kandungan, menjawab soalan, dan memberikan penjelasan. " .
+                            "Sila bersikap ringkas, mesra, dan mendidik dalam respons anda. " .
+                            "PENTING: Sentiasa jawab dalam Bahasa Melayu sahaja.";
             
             // Build messages array
             $messages = [
@@ -90,7 +91,7 @@ class ChatbotController extends Controller
             if ($context) {
                 $messages[] = [
                     'role' => 'user',
-                    'content' => "Context from highlighted text: " . $context . "\n\nUser question: " . $prompt
+                    'content' => "Konteks dari teks yang dipilih: " . $context . "\n\nSoalan pengguna: " . $prompt
                 ];
             } else {
                 $messages[] = [
@@ -128,7 +129,7 @@ class ChatbotController extends Controller
             
             if ($curlError) {
                 Log::error('OpenAI API cURL error: ' . $curlError);
-                return "I'm having trouble connecting to the AI service. Please check your internet connection and try again.";
+                return "Saya menghadapi masalah menyambung ke perkhidmatan AI. Sila semak sambungan internet anda dan cuba lagi.";
             }
             
             if ($httpCode === 200 && $response) {
@@ -150,11 +151,11 @@ class ChatbotController extends Controller
                 
                 // Return user-friendly error message
                 if ($httpCode === 401) {
-                    return "I'm having trouble authenticating with the AI service. Please check the API configuration.";
+                    return "Saya menghadapi masalah pengesahan dengan perkhidmatan AI. Sila semak konfigurasi API.";
                 } elseif ($httpCode === 429) {
-                    return "I'm receiving too many requests right now. Please try again in a moment.";
+                    return "Saya menerima terlalu banyak permintaan sekarang. Sila cuba sebentar lagi.";
                 } elseif ($httpCode === 500) {
-                    return "The AI service is experiencing issues. Please try again later.";
+                    return "Perkhidmatan AI mengalami masalah. Sila cuba lagi kemudian.";
                 } else {
                     return $this->getFallbackResponse($prompt, $context);
                 }
@@ -183,29 +184,34 @@ class ChatbotController extends Controller
         
         if (strpos($lowerPrompt, 'hello') !== false || 
             strpos($lowerPrompt, 'hi') !== false || 
-            strpos($lowerPrompt, 'hey') !== false) {
-            return "Hello! I'm Ketupat, your AI assistant. How can I help you today?";
+            strpos($lowerPrompt, 'hey') !== false ||
+            strpos($lowerPrompt, 'hai') !== false ||
+            strpos($lowerPrompt, 'helo') !== false) {
+            return "Hai! Saya Ketupat, pembantu AI anda. Bagaimana saya boleh membantu anda hari ini?";
         }
         
-        if (strpos($lowerPrompt, 'help') !== false) {
-            return "I'm here to help! You can ask me questions about the content, get explanations, or request assistance with your studies. What would you like to know?";
+        if (strpos($lowerPrompt, 'help') !== false || 
+            strpos($lowerPrompt, 'tolong') !== false ||
+            strpos($lowerPrompt, 'bantu') !== false) {
+            return "Saya di sini untuk membantu! Anda boleh bertanya soalan tentang kandungan, mendapat penjelasan, atau meminta bantuan dengan pembelajaran anda. Apa yang anda ingin tahu?";
         }
         
-        if (strpos($lowerPrompt, 'thank') !== false) {
-            return "You're welcome! Is there anything else I can help you with?";
+        if (strpos($lowerPrompt, 'thank') !== false || 
+            strpos($lowerPrompt, 'terima kasih') !== false) {
+            return "Sama-sama! Adakah ada apa-apa lagi yang boleh saya bantu?";
         }
         
         // If context is provided, acknowledge it
         if ($context) {
-            return "Based on the text you highlighted: \"" . substr($context, 0, 100) . "...\", " . 
-                   "I understand you're asking about this. " .
-                   "However, I'm currently unable to provide detailed AI-powered responses. " .
-                   "Please ensure the OpenAI API key is properly configured in the .env file.";
+            return "Berdasarkan teks yang anda pilih: \"" . substr($context, 0, 100) . "...\", " . 
+                   "Saya faham anda bertanya tentang ini. " .
+                   "Walau bagaimanapun, saya tidak dapat memberikan respons AI terperinci buat masa ini. " .
+                   "Sila pastikan kunci API OpenAI dikonfigurasikan dengan betul dalam fail .env.";
         }
         
         // Default response
-        return "I understand your question. However, I'm currently unable to provide detailed AI-powered responses. " .
-               "Please ensure the OpenAI API key is properly configured. " .
-               "For now, I can help you with general questions. What would you like to know?";
+        return "Saya faham soalan anda. Walau bagaimanapun, saya tidak dapat memberikan respons AI terperinci buat masa ini. " .
+               "Sila pastikan kunci API OpenAI dikonfigurasikan dengan betul. " .
+               "Buat masa ini, saya boleh membantu anda dengan soalan umum. Apa yang anda ingin tahu?";
     }
 }
