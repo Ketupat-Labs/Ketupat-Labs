@@ -71,29 +71,54 @@ async function loadForumData() {
     forumState.forumId = forumId;
     
     try {
-        // Load forum details and members
+        // Load forum details and members in parallel
         const [forumResponse, membersResponse] = await Promise.all([
-            fetch(`../api/forum_endpoints.php?action=get_forum_details&forum_id=${forumId}`, {
-                credentials: 'include'
+            fetch(`/api/forum/${forumId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                credentials: 'include',
             }),
-            fetch(`../api/forum_endpoints.php?action=get_forum_members&forum_id=${forumId}`, {
-                credentials: 'include'
+            fetch(`/api/forum/${forumId}/members`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                credentials: 'include',
             })
         ]);
         
-        const forumData = await forumResponse.json();
-        const membersData = await membersResponse.json();
-        
-        if (forumData.status === 200) {
-            renderForumSettings(forumData.data.forum);
+        if (!forumResponse.ok) {
+            throw new Error(`HTTP error! status: ${forumResponse.status}`);
         }
         
-        if (membersData.status === 200) {
-            renderMembers(membersData.data.members);
+        const forumData = await forumResponse.json();
+        
+        if (forumData.status === 200 && forumData.data && forumData.data.forum) {
+            renderForumSettings(forumData.data.forum);
+        } else {
+            showError(forumData.message || 'Failed to load forum');
+        }
+        
+        // Load members if request was successful
+        if (membersResponse.ok) {
+            const membersData = await membersResponse.json();
+            if (membersData.status === 200 && membersData.data && membersData.data.members) {
+                const creatorId = forumData.data && forumData.data.forum ? forumData.data.forum.created_by : null;
+                renderMembers(membersData.data.members, creatorId);
+            }
+        } else if (membersResponse.status === 403) {
+            // User doesn't have permission to view members, show empty state
+            renderMembers([], null);
         }
     } catch (error) {
         console.error('Error loading forum data:', error);
-        showError('Failed to load forum data');
+        showError('Failed to load forum');
     }
 }
 
@@ -102,7 +127,7 @@ function renderForumSettings(forum) {
     document.getElementById('forumDescription').value = forum.description || '';
 }
 
-function renderMembers(members) {
+function renderMembers(members, creatorId) {
     const container = document.getElementById('membersList');
     
     if (!members || members.length === 0) {
@@ -116,35 +141,51 @@ function renderMembers(members) {
     }
     
     const currentUserId = parseInt(sessionStorage.getItem('userId')) || 0;
+    const isCreator = currentUserId === parseInt(creatorId);
     
-    container.innerHTML = members.map(member => `
+    container.innerHTML = members.map(member => {
+        const isMemberCreator = member.user_id === parseInt(creatorId);
+        const isCurrentUser = member.user_id === currentUserId;
+        const canPromote = isCreator && !isMemberCreator && member.role !== 'admin';
+        const canRemove = isCreator && !isMemberCreator && !isCurrentUser;
+        
+        let roleLabel = member.role.toUpperCase();
+        if (isMemberCreator) {
+            roleLabel = 'CREATOR';
+        }
+        
+        return `
         <div class="member-item">
             <div class="member-info">
                 <div class="member-avatar">
                     ${getAvatarInitials(member.full_name || member.username)}
                 </div>
                 <div class="member-details">
-                    <h4>${escapeHtml(member.full_name || member.username)}</h4>
-                    <p>${escapeHtml(member.username)}</p>
+                    <div>
+                        <h4>${escapeHtml(member.full_name || member.username)}</h4>
+                        <p>${escapeHtml(member.username)}</p>
+                    </div>
+                    <div class="member-role ${member.role} ${isMemberCreator ? 'creator' : ''}">
+                        ${roleLabel}
+                    </div>
                 </div>
             </div>
-            <div class="member-role ${member.role}">
-                ${member.role.toUpperCase()}
-            </div>
             <div class="member-actions">
-                ${member.user_id !== currentUserId ? `
-                    ${member.role !== 'admin' ? `
-                        <button class="btn-action-sm primary" onclick="promoteToAdmin(${member.user_id})">
-                            <i class="fas fa-crown"></i> Make Admin
-                        </button>
-                    ` : ''}
+                ${isCurrentUser ? '<span style="font-size: 12px; color: #878a8c;">You</span>' : ''}
+                ${canPromote ? `
+                    <button class="btn-action-sm primary" onclick="promoteToAdmin(${member.user_id})">
+                        <i class="fas fa-crown"></i> Make Admin
+                    </button>
+                ` : ''}
+                ${canRemove ? `
                     <button class="btn-action-sm danger" onclick="removeMember(${member.user_id})">
                         <i class="fas fa-user-times"></i> Remove
                     </button>
-                ` : '<span style="font-size: 12px; color: #878a8c;">You</span>'}
+                ` : ''}
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function getAvatarInitials(name) {
@@ -162,12 +203,17 @@ async function promoteToAdmin(userId) {
     }
     
     try {
-        const response = await fetch('../api/forum_endpoints.php?action=promote_member', {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch(`/api/forum/${forumState.forumId}/members/promote`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
             credentials: 'include',
             body: JSON.stringify({
-                forum_id: forumState.forumId,
                 user_id: userId
             })
         });
@@ -192,12 +238,17 @@ async function removeMember(userId) {
     }
     
     try {
-        const response = await fetch('../api/forum_endpoints.php?action=remove_member', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch(`/api/forum/${forumState.forumId}/members`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
             credentials: 'include',
             body: JSON.stringify({
-                forum_id: forumState.forumId,
                 user_id: userId
             })
         });
@@ -223,12 +274,17 @@ async function saveSettings(e) {
     const description = document.getElementById('forumDescription').value.trim();
     
     try {
-        const response = await fetch('../api/forum_endpoints.php?action=update_forum', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch(`/api/forum/${forumState.forumId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
             credentials: 'include',
             body: JSON.stringify({
-                forum_id: forumState.forumId,
                 title,
                 description
             })
@@ -264,20 +320,23 @@ function showDeleteConfirm() {
 
 async function deleteForum() {
     try {
-        const response = await fetch('../api/forum_endpoints.php?action=delete_forum', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch(`/api/forum/${forumState.forumId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
             credentials: 'include',
-            body: JSON.stringify({
-                forum_id: forumState.forumId
-            })
         });
         
         const data = await response.json();
         
         if (data.status === 200) {
             alert('Forum deleted successfully');
-            window.location.href = 'forum.html';
+            window.location.href = '/forums';
         } else {
             showError(data.message || 'Failed to delete forum');
         }

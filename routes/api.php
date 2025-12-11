@@ -56,6 +56,13 @@ Route::middleware('auth:web')->group(function () {
         Route::get('/{forumId}/reports', [ForumController::class, 'getForumReports']);
         Route::put('/report/{reportId}/status', [ForumController::class, 'updateReportStatus']);
         
+        // Forum management routes - must come before /{id} route
+        Route::get('/{id}/members', [ForumController::class, 'getForumMembers']);
+        Route::post('/{id}/members/promote', [ForumController::class, 'promoteMemberToAdmin']);
+        Route::delete('/{id}/members', [ForumController::class, 'removeMember']);
+        Route::put('/{id}', [ForumController::class, 'updateForum']);
+        Route::delete('/{id}', [ForumController::class, 'deleteForum']);
+        
         // This must be last to avoid catching other routes
         Route::get('/{id}', [ForumController::class, 'getForum']);
     });

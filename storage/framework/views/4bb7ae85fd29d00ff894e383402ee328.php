@@ -31,7 +31,7 @@
                                 </option>
                                 <?php $__currentLoopData = $classrooms; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $classroom): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <option value="<?php echo e($classroom->id); ?>" class="text-gray-900 bg-white" <?php echo e(($selectedClass && $selectedClass->id == $classroom->id) ? 'selected' : ''); ?>>
-                                        <?php echo e($classroom->title); ?>
+                                        <?php echo e($classroom->name); ?>
 
                                     </option>
                                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
@@ -63,9 +63,9 @@
                 <div class="bg-blue-600 rounded-t-lg px-6 py-4">
                     <h3 class="text-lg font-medium text-white flex items-center gap-2">
                         <?php if($mode === 'all'): ?>
-                            📊 Melihat: <?php echo e($selectedClass->title); ?> | Semua Pelajaran
+                            📊 Melihat: <?php echo e($selectedClass->name); ?> | Semua Pelajaran
                         <?php else: ?>
-                            📊 Melihat: <?php echo e($selectedClass->title); ?> |
+                            📊 Melihat: <?php echo e($selectedClass->name); ?> |
                             <?php echo e($lessons->find($selectedLessonId)->title ?? 'Pelajaran Terpilih'); ?>
 
                         <?php endif; ?>
@@ -128,7 +128,7 @@
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                <?php echo e($selectedClass->title); ?>
+                                                <?php echo e($selectedClass->name); ?>
 
                                             </td>
 

@@ -660,7 +660,7 @@ async function toggleFavorite() {
 }
 
 async function manageForum() {
-    window.location.href = `manage-forum.html?id=${forumState.forumId}`;
+    window.location.href = `/forum/manage/${forumState.forumId}`;
 }
 
 async function leaveForum() {

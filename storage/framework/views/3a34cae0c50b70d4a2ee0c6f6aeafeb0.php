@@ -172,7 +172,7 @@
                                                     <a href="<?php echo e(route('lesson.show', $lesson)); ?>"><?php echo e($lesson->title); ?></a>
                                                 </h4>
                                                 <p class="text-sm text-gray-500 mb-2"><?php echo e($lesson->topic); ?> &bull; Posted
-                                                    <?php echo e($lesson->created_at->format('M d, Y')); ?></p>
+                                                    <?php echo e($lesson->created_at ? $lesson->created_at->format('M d, Y') : 'N/A'); ?></p>
                                                 <p class="text-gray-600 text-sm mb-4">
                                                     <?php echo e(Str::limit($lesson->content, 120)); ?></p>
                                             </div>

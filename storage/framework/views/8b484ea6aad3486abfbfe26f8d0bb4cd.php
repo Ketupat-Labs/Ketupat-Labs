@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
-    <title>Create Post - Material Forum</title>
+    <title>Cipta Post - Forum Material</title>
     <link rel="stylesheet" href="<?php echo e(asset('Forum/CSS/forum.css')); ?>">
     <link rel="stylesheet" href="<?php echo e(asset('Forum/CSS/create-post.css')); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -27,13 +27,13 @@
                     <!-- Navigation Links -->
                     <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                         <a href="<?php echo e(route('dashboard')); ?>" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Dashboard
+                            Papan Pemuka
                         </a>
                         <a href="<?php echo e(route('forum.index')); ?>" class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
                             Forum
                         </a>
                         <a href="#" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Classroom
+                            Bilik Darjah
                         </a>
                     </div>
                 </div>
@@ -48,8 +48,8 @@
                             </svg>
                         </button>
                         <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
-                            <a href="<?php echo e(route('logout')); ?>" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Out</a>
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil</a>
+                            <a href="<?php echo e(route('logout')); ?>" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Keluar</a>
                         </div>
                     </div>
                 </div>
@@ -69,13 +69,13 @@
         <div id="mobileMenu" class="hidden sm:hidden">
             <div class="pt-2 pb-3 space-y-1">
                 <a href="<?php echo e(route('dashboard')); ?>" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Dashboard
+                    Papan Pemuka
                 </a>
                 <a href="<?php echo e(route('forum.index')); ?>" class="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-blue-700 bg-blue-50 focus:outline-none focus:text-blue-800 focus:bg-blue-100 focus:border-blue-700 transition duration-150 ease-in-out">
                     Forum
                 </a>
                 <a href="#" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Classroom
+                    Bilik Darjah
                 </a>
             </div>
         </div>
@@ -85,7 +85,7 @@
         <div class="header-left">
             <button class="back-btn" onclick="window.history.back()">
                 <i class="fas fa-arrow-left"></i>
-                Back
+                Kembali
             </button>
         </div>
     </div>
@@ -93,114 +93,114 @@
     <div class="create-post-container">
         <div class="create-post-card">
             <div class="card-header">
-                <h2>Create New Post</h2>
-                <p>Share your thoughts, ask questions, or start a discussion</p>
+                <h2>Cipta Post Baharu</h2>
+                <p>Kongsi pendapat anda, tanya soalan, atau mulakan perbincangan</p>
             </div>
 
             <div class="success-message" id="successMessage">
-                <i class="fas fa-check-circle"></i> Post created successfully!
+                <i class="fas fa-check-circle"></i> Post berjaya dicipta!
             </div>
 
             <div class="error-message" id="errorMessage"></div>
 
             <form id="createPostForm" autocomplete="off">
                 <div class="form-section">
-                    <div class="form-section-title">Select Forum</div>
+                    <div class="form-section-title">Pilih Forum</div>
                     <div class="form-group">
                         <label for="forumSelect">
                             Forum <span class="required">*</span>
                         </label>
                         <select id="forumSelect" name="forumSelect" class="form-control" required autocomplete="off">
-                            <option value="">Choose a forum...</option>
+                            <option value="">Pilih forum...</option>
                         </select>
-                        <small>Select the forum where you want to create this post</small>
+                        <small>Pilih forum di mana anda ingin mencipta post ini</small>
                     </div>
                 </div>
 
                 <div class="form-section">
-                    <div class="form-section-title">Post Type</div>
+                    <div class="form-section-title">Jenis Post</div>
                     <div class="category-grid">
                         <label class="category-option" id="postTypePost">
                             <input type="radio" name="postType" value="post" checked>
-                            <span>Text Post</span>
+                            <span>Post Teks</span>
                         </label>
                         <label class="category-option" id="postTypeLink">
                             <input type="radio" name="postType" value="link">
-                            <span>Link</span>
+                            <span>Pautan</span>
                         </label>
                         <label class="category-option" id="postTypePoll">
                             <input type="radio" name="postType" value="poll">
-                            <span>Poll</span>
+                            <span>Undian</span>
                         </label>
                     </div>
                 </div>
 
                 <div class="form-section" id="postDetailsSection">
-                    <div class="form-section-title">Post Details</div>
+                    <div class="form-section-title">Butiran Post</div>
                     
                     <div class="form-group">
                         <label for="postTitle">
-                            Post Title <span class="required">*</span>
+                            Tajuk Post <span class="required">*</span>
                         </label>
-                        <input type="text" id="postTitle" name="postTitle" class="form-control" placeholder="Enter a clear and descriptive title" required autocomplete="off">
-                        <small>Be specific about what you're asking or discussing</small>
+                        <input type="text" id="postTitle" name="postTitle" class="form-control" placeholder="Masukkan tajuk yang jelas dan deskriptif" required autocomplete="off">
+                        <small>Jelas tentang apa yang anda tanya atau bincangkan</small>
                     </div>
 
                     <div class="form-group" id="contentGroup">
                         <label for="postContent">
-                            Content <span class="required">*</span>
+                            Kandungan <span class="required">*</span>
                         </label>
-                        <textarea id="postContent" name="postContent" class="form-control" rows="8" placeholder="Write your post content here..." required minlength="10" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="resize: vertical; min-height: 120px; max-height: 500px; height: 120px; overflow-y: auto;"></textarea>
-                        <small>Minimum 10 characters. Be clear and detailed in your explanation.</small>
+                        <textarea id="postContent" name="postContent" class="form-control" rows="8" placeholder="Tulis kandungan post anda di sini..." required minlength="10" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="resize: vertical; min-height: 120px; max-height: 500px; height: 120px; overflow-y: auto;"></textarea>
+                        <small>Minimum 10 aksara. Jelas dan terperinci dalam penjelasan anda.</small>
                     </div>
 
                     <div class="form-group" id="linkGroup" style="display: none;">
                         <label for="postLink">
-                            URL Link <span class="required">*</span>
+                            Pautan URL <span class="required">*</span>
                         </label>
                         <input type="url" id="postLink" name="postLink" class="form-control" placeholder="https://example.com" autocomplete="off">
-                        <small>Enter the full URL you want to share</small>
+                        <small>Masukkan URL penuh yang anda ingin kongsi</small>
                     </div>
 
                     <div class="form-group" id="pollGroup" style="display: none;">
                         <label>
-                            Poll Options <span class="required">*</span>
+                            Pilihan Undian <span class="required">*</span>
                         </label>
                         <div id="pollOptionsContainer"></div>
                         <button type="button" id="addPollOption" class="btn-secondary">
-                            <i class="fas fa-plus"></i> Add Option
+                            <i class="fas fa-plus"></i> Tambah Pilihan
                         </button>
-                        <small>Add at least 2 options for your poll</small>
+                        <small>Tambah sekurang-kurangnya 2 pilihan untuk undian anda</small>
                     </div>
                 </div>
 
                 <div class="form-section" id="attachmentSection">
-                    <div class="form-section-title">Attachments (Optional)</div>
+                    <div class="form-section-title">Lampiran (Pilihan)</div>
                     
                     <div class="form-group">
                         <input type="file" id="attachmentInput" multiple accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx">
                         <div id="attachmentsPreview" class="attachments-preview"></div>
-                        <small>Upload images or files. Maximum file size: 50MB each.</small>
+                        <small>Muat naik imej atau fail. Saiz fail maksimum: 50MB setiap satu.</small>
                     </div>
                 </div>
 
                 <div class="form-section">
-                    <div class="form-section-title">Tags (Optional)</div>
+                    <div class="form-section-title">Tag (Pilihan)</div>
                     
                     <div class="form-group">
-                        <label for="tagsInput">Tags</label>
-                        <input type="text" id="tagsInput" name="tagsInput" class="form-control" placeholder="Add tags (press Enter)" autocomplete="off">
+                        <label for="tagsInput">Tag</label>
+                        <input type="text" id="tagsInput" name="tagsInput" class="form-control" placeholder="Tambah tag (tekan Enter)" autocomplete="off">
                         <div class="tag-input-container" id="tagsContainer"></div>
-                        <small>Press Enter to add a tag. Click the X to remove.</small>
+                        <small>Tekan Enter untuk menambah tag. Klik X untuk membuang.</small>
                     </div>
                 </div>
 
                 <div class="action-buttons">
                     <button type="button" class="btn-cancel" onclick="window.history.back()">
-                        Cancel
+                        Batal
                     </button>
                     <button type="submit" class="btn-primary">
-                        <i class="fas fa-check"></i> Create Post
+                        <i class="fas fa-check"></i> Cipta Post
                     </button>
                 </div>
             </form>

@@ -394,6 +394,14 @@ body {
     flex: 1;
 }
 
+.member-details {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex: 1;
+}
+
 .member-avatar {
     width: 40px;
     height: 40px;
@@ -405,6 +413,10 @@ body {
     color: white;
     font-weight: 600;
     font-size: 16px;
+}
+
+.member-details > div:first-child {
+    flex: 1;
 }
 
 .member-details h4 {
@@ -440,6 +452,11 @@ body {
 .member-role.member {
     background-color: #edeff1;
     color: #1c1c1c;
+}
+
+.member-role.creator {
+    background-color: #ff9800;
+    color: white;
 }
 
 .member-actions {

@@ -199,6 +199,7 @@ class ForumController extends Controller
                     'category' => $forum->category,
                     'visibility' => $forum->visibility,
                     'status' => $forum->status,
+                    'created_by' => $forum->created_by,
                     'member_count' => $forum->member_count,
                     'post_count' => $forum->post_count,
                     'created_at' => $forum->created_at ? ($forum->created_at instanceof \Carbon\Carbon ? $forum->created_at->toDateTimeString() : (string) $forum->created_at) : null,
@@ -269,12 +270,19 @@ class ForumController extends Controller
             ];
             $dbPostType = $postTypeMap[$request->post_type] ?? 'discussion';
             
+            // Ensure post_type matches the ENUM values exactly
+            $validPostTypes = ['discussion', 'question', 'announcement'];
+            if (!in_array($dbPostType, $validPostTypes)) {
+                $dbPostType = 'discussion';
+            }
+            $dbPostType = trim($dbPostType);
+            
             $post = ForumPost::create([
                 'forum_id' => $request->forum_id,
                 'author_id' => $user->id,
-                'title' => $request->title,
+                'title' => trim($request->title),
                 'content' => $request->content ?? '',
-                'category' => $request->category,
+                'category' => $request->category ? trim($request->category) : null,
                 'post_type' => $dbPostType,
             ]);
             
@@ -1622,6 +1630,243 @@ class ForumController extends Controller
             'status' => 200,
             'message' => 'Report status updated successfully',
             'data' => $report,
+        ]);
+    }
+
+    public function deleteForum($id)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $forum = Forum::findOrFail($id);
+
+        // Only creator can delete the forum
+        if ($forum->created_by !== $user->id) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Only the forum creator can delete the forum',
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Delete all related data
+            $forum->members()->detach();
+            $forum->tags()->delete();
+            
+            // Delete all posts and their related data
+            foreach ($forum->posts as $post) {
+                $post->attachments()->delete();
+                $post->tags()->delete();
+                $post->comments()->delete();
+                $post->reactions()->delete();
+                DB::table('poll_option')->where('post_id', $post->id)->delete();
+                DB::table('poll_vote')->where('post_id', $post->id)->delete();
+            }
+            
+            $forum->posts()->delete();
+            $forum->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Forum deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to delete forum: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getForumMembers($id)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $forum = Forum::findOrFail($id);
+
+        // Check if user is creator or admin
+        $isCreator = $forum->created_by === $user->id;
+        $member = $forum->members()->where('user_id', $user->id)->first();
+        $isAdmin = $member && in_array($member->pivot->role, ['admin']);
+
+        if (!$isCreator && !$isAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Only forum creator and admins can view members',
+            ], 403);
+        }
+
+        $members = $forum->members()
+            ->select('user.id', 'user.username', 'user.full_name', 'user.avatar_url', 'forum_member.role')
+            ->orderBy('forum_member.created_at', 'asc')
+            ->get()
+            ->map(function ($member) use ($forum) {
+                return [
+                    'user_id' => $member->id,
+                    'username' => $member->username,
+                    'full_name' => $member->full_name,
+                    'avatar_url' => $member->avatar_url,
+                    'role' => $member->pivot->role,
+                    'is_creator' => $forum->created_by === $member->id,
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
+            'data' => ['members' => $members],
+        ]);
+    }
+
+    public function promoteMemberToAdmin(Request $request, $forumId)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer|exists:user,id',
+        ]);
+
+        $forum = Forum::findOrFail($forumId);
+
+        // Only creator can promote members to admin
+        if ($forum->created_by !== $user->id) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Only the forum creator can promote members to admin',
+            ], 403);
+        }
+
+        // Cannot promote the creator (they're already the creator)
+        if ($forum->created_by === $request->user_id) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'The forum creator is already the owner',
+            ], 400);
+        }
+
+        // Check if user is a member
+        $member = $forum->members()->where('user_id', $request->user_id)->first();
+        if (!$member) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'User is not a member of this forum',
+            ], 404);
+        }
+
+        // Update role to admin
+        $forum->members()->updateExistingPivot($request->user_id, ['role' => 'admin']);
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Member promoted to admin successfully',
+        ]);
+    }
+
+    public function removeMember(Request $request, $forumId)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer|exists:user,id',
+        ]);
+
+        $forum = Forum::findOrFail($forumId);
+
+        // Check if user is creator or admin
+        $isCreator = $forum->created_by === $user->id;
+        $member = $forum->members()->where('user_id', $user->id)->first();
+        $isAdmin = $member && in_array($member->pivot->role, ['admin']);
+
+        if (!$isCreator && !$isAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Only forum creator and admins can remove members',
+            ], 403);
+        }
+
+        // Cannot remove the creator
+        if ($forum->created_by === $request->user_id) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'Cannot remove the forum creator',
+            ], 400);
+        }
+
+        // Cannot remove if trying to remove yourself (use leave forum instead)
+        if ($user->id === $request->user_id && !$isCreator) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'Use "Leave Forum" to remove yourself from the forum',
+            ], 400);
+        }
+
+        // Check if user is a member
+        if (!$forum->members()->where('user_id', $request->user_id)->exists()) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'User is not a member of this forum',
+            ], 404);
+        }
+
+        // Remove member
+        $forum->members()->detach($request->user_id);
+        $forum->decrement('member_count');
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Member removed successfully',
+        ]);
+    }
+
+    public function updateForum(Request $request, $id)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        $forum = Forum::findOrFail($id);
+
+        // Check if user is creator or admin
+        $isCreator = $forum->created_by === $user->id;
+        $member = $forum->members()->where('user_id', $user->id)->first();
+        $isAdmin = $member && in_array($member->pivot->role, ['admin']);
+
+        if (!$isCreator && !$isAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Only forum creator and admins can update forum settings',
+            ], 403);
+        }
+
+        $forum->update([
+            'title' => $request->title,
+            'description' => $request->description,
+        ]);
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Forum settings updated successfully',
+            'data' => ['forum' => $forum],
         ]);
     }
 

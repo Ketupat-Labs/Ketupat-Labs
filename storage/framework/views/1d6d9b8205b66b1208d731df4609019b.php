@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
-    <title>Forum - Material Learning Platform</title>
+    <title>Forum - Platform Pembelajaran Material</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="<?php echo e(asset('assets/images/LOGOCompuPlay.png')); ?>">
     <link rel="shortcut icon" type="image/png" href="<?php echo e(asset('assets/images/LOGOCompuPlay.png')); ?>">
@@ -33,7 +33,7 @@
                     <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                         <a href="<?php echo e(route('dashboard')); ?>"
                             class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Dashboard
+                            Papan Pemuka
                         </a>
                         <a href="<?php echo e(route('forum.index')); ?>"
                             class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
@@ -41,7 +41,7 @@
                         </a>
                         <a href="#"
                             class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Classroom
+                            Bilik Darjah
                         </a>
                     </div>
                 </div>
@@ -51,7 +51,7 @@
                     <div class="w-full max-w-2xl">
                         <div class="search-container">
                             <i class="fas fa-search"></i>
-                            <input type="text" id="searchForums" placeholder="Search forums...">
+                            <input type="text" id="searchForums" placeholder="Cari forum...">
                         </div>
                     </div>
                 </div>
@@ -69,10 +69,10 @@
                         <div id="notificationMenu"
                             class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 max-h-96 overflow-y-auto">
                             <div class="px-4 py-2 border-b border-gray-200">
-                                <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
+                                <h3 class="text-sm font-semibold text-gray-900">Notifikasi</h3>
                             </div>
                             <div id="notificationList" class="py-1">
-                                <div class="px-4 py-3 text-sm text-gray-500 text-center">No notifications</div>
+                                <div class="px-4 py-3 text-sm text-gray-500 text-center">Tiada notifikasi</div>
                             </div>
                         </div>
                     </div>
@@ -90,7 +90,7 @@
                     <!-- Add Post Button -->
                     <a href="<?php echo e(route('forum.post.create')); ?>"
                         class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition ease-in-out duration-150">
-                        <i class="fas fa-plus mr-2"></i> Add Post
+                        <i class="fas fa-plus mr-2"></i> Tambah Post
                     </a>
 
                     <!-- Profile Dropdown -->
@@ -107,9 +107,9 @@
                         </button>
                         <div id="userMenu"
                             class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil</a>
                             <a href="<?php echo e(route('logout')); ?>" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log
-                                Out</a>
+                                Keluar</a>
                         </div>
                     </div>
                 </div>
@@ -133,14 +133,14 @@
             <div class="px-4 py-3 border-b border-gray-200">
                 <div class="search-container">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="searchForumsMobile" placeholder="Search forums...">
+                    <input type="text" id="searchForumsMobile" placeholder="Cari forum...">
                 </div>
             </div>
 
             <div class="pt-2 pb-3 space-y-1">
                 <a href="<?php echo e(route('dashboard')); ?>"
                     class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Dashboard
+                    Papan Pemuka
                 </a>
                 <a href="<?php echo e(route('forum.index')); ?>"
                     class="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-blue-700 bg-blue-50 focus:outline-none focus:text-blue-800 focus:bg-blue-100 focus:border-blue-700 transition duration-150 ease-in-out">
@@ -148,7 +148,7 @@
                 </a>
                 <a href="#"
                     class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Classroom
+                    Bilik Darjah
                 </a>
             </div>
 
@@ -161,11 +161,11 @@
                 <div class="mt-3 space-y-1">
                     <a href="#"
                         class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:text-gray-800 focus:bg-gray-100 transition duration-150 ease-in-out">
-                        Profile
+                        Profil
                     </a>
                     <a href="<?php echo e(route('logout')); ?>"
                         class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:text-gray-800 focus:bg-gray-100 transition duration-150 ease-in-out">
-                        Log Out
+                        Log Keluar
                     </a>
                 </div>
             </div>
@@ -177,29 +177,29 @@
             <aside class="reddit-sidebar">
                 <div class="sidebar-section">
                     <button class="btn-create-forum" id="btnCreateForum">
-                        <i class="fas fa-plus-circle"></i> Create Forum
+                        <i class="fas fa-plus-circle"></i> Cipta Forum
                     </button>
                 </div>
 
                 <div class="sidebar-section">
-                    <h3 class="sidebar-title">My Forums</h3>
+                    <h3 class="sidebar-title">Forum Saya</h3>
                     <div class="filter-list" id="forumsList">
                         <!-- Forums will be loaded here -->
                     </div>
                 </div>
 
                 <div class="sidebar-section">
-                    <h3 class="sidebar-title">Popular Tags</h3>
+                    <h3 class="sidebar-title">Tag Popular</h3>
                     <div class="tag-cloud" id="tagCloud">
                     </div>
                 </div>
 
                 <div class="sidebar-section">
                     <div class="sort-controls">
-                        <label for="sortPosts" class="sort-label">Sort by:</label>
+                        <label for="sortPosts" class="sort-label">Susun mengikut:</label>
                         <select id="sortPosts" class="sort-select">
-                            <option value="recent">Most Recent</option>
-                            <option value="popular">Most Popular</option>
+                            <option value="recent">Terbaru</option>
+                            <option value="popular">Paling Popular</option>
                         </select>
                     </div>
                 </div>
@@ -211,13 +211,13 @@
             <aside class="reddit-sidebar-right">
                 <div class="sidebar-section">
                     <div class="sidebar-header">
-                        <h3 class="sidebar-title">Recent Posts</h3>
-                        <button class="btn-clear-recent" onclick="clearRecentPosts()" title="Clear">
-                            Clear
+                        <h3 class="sidebar-title">Post Terkini</h3>
+                        <button class="btn-clear-recent" onclick="clearRecentPosts()" title="Kosongkan">
+                            Kosongkan
                         </button>
                     </div>
                     <div class="recent-posts-list" id="recentPostsList">
-                        <p style="padding: 16px; color: #878a8c; font-size: 12px; text-align: center;">No recent posts
+                        <p style="padding: 16px; color: #878a8c; font-size: 12px; text-align: center;">Tiada post terkini
                         </p>
                     </div>
                 </div>
@@ -228,7 +228,7 @@
     <div class="modal" id="createForumModal">
         <div class="modal-content large">
             <div class="modal-header">
-                <h2>Create New Forum</h2>
+                <h2>Cipta Forum Baharu</h2>
                 <button class="modal-close" id="closeForumModal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -236,45 +236,45 @@
             <div class="modal-body">
                 <form id="createForumForm">
                     <div class="form-group">
-                        <label for="forumTitle">Forum Title <span class="required">*</span></label>
+                        <label for="forumTitle">Tajuk Forum <span class="required">*</span></label>
                         <input type="text" id="forumTitle" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="forumDescription">Description <span class="required">*</span></label>
+                        <label for="forumDescription">Penerangan <span class="required">*</span></label>
                         <textarea id="forumDescription" rows="4" required
-                            placeholder="Minimum 20 characters"></textarea>
+                            placeholder="Minimum 20 aksara"></textarea>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="forumTags">Tags</label>
-                            <input type="text" id="forumTags" placeholder="Separate with commas">
+                            <label for="forumTags">Tag</label>
+                            <input type="text" id="forumTags" placeholder="Pisahkan dengan koma">
                         </div>
                         <div class="form-group">
-                            <label for="forumVisibility">Visibility</label>
+                            <label for="forumVisibility">Keterlihatan</label>
                             <select id="forumVisibility">
-                                <option value="public">Public</option>
-                                <option value="class">Class Only</option>
-                                <option value="specific">Specific Members</option>
+                                <option value="public">Awam</option>
+                                <option value="class">Kelas Sahaja</option>
+                                <option value="specific">Ahli Tertentu</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="forumStartDate">Start Date (Optional)</label>
+                            <label for="forumStartDate">Tarikh Mula (Pilihan)</label>
                             <input type="datetime-local" id="forumStartDate">
                         </div>
                         <div class="form-group">
-                            <label for="forumEndDate">End Date (Optional)</label>
+                            <label for="forumEndDate">Tarikh Tamat (Pilihan)</label>
                             <input type="datetime-local" id="forumEndDate">
                         </div>
                     </div>
 
                     <div class="modal-actions">
-                        <button type="button" class="btn-cancel" id="cancelForumModal">Cancel</button>
-                        <button type="submit" class="btn-primary">Create Forum</button>
+                        <button type="button" class="btn-cancel" id="cancelForumModal">Batal</button>
+                        <button type="submit" class="btn-primary">Cipta Forum</button>
                     </div>
                 </form>
             </div>

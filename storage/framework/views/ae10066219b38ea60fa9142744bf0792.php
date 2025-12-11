@@ -29,7 +29,7 @@
                             <?php $__currentLoopData = $classrooms; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $classroom): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                 <option value="<?php echo e($classroom->id); ?>" class="text-gray-900 bg-white"
                                     style="color: #000000 !important; background-color: #ffffff !important;" <?php echo e(($selectedClass && $selectedClass->id == $classroom->id) ? 'selected' : ''); ?>>
-                                    <?php echo e($classroom->title); ?>
+                                    <?php echo e($classroom->name); ?>
 
                                 </option>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
@@ -44,7 +44,7 @@
                     <!-- Header Blue Bar -->
                     <div class="bg-blue-600 px-6 py-4 border-b border-blue-600">
                         <h3 class="text-lg font-medium text-white flex items-center gap-2">
-                            📊 Jadual Perkembangan Pelajaran - <?php echo e($selectedClass->title); ?>
+                            📊 Jadual Perkembangan Pelajaran - <?php echo e($selectedClass->name); ?>
 
                         </h3>
                     </div>

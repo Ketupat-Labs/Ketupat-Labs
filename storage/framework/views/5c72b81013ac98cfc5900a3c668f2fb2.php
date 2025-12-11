@@ -188,27 +188,78 @@
                 <!-- Badges Section -->
                 <div id="section-badges" class="section-content hidden p-6">
                     <?php if($badges->count() > 0): ?>
+                        <div class="mb-4">
+                            <p class="text-sm text-gray-600">
+                                <?php echo e(__('Showing all :count badges.', ['count' => $badges->count()])); ?> 
+                                <span class="font-semibold text-blue-600"><?php echo e($badges->where('is_earned', true)->count()); ?> <?php echo e(__('earned')); ?></span>
+                            </p>
+                        </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             <?php $__currentLoopData = $badges; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $badge): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
-                                    <?php if($badge->icon_url): ?>
-                                        <img src="<?php echo e(asset($badge->icon_url)); ?>" alt="<?php echo e($badge->badge_name); ?>" class="w-10 h-10">
-                                    <?php else: ?>
-                                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                                            <i class="fas fa-trophy text-white"></i>
+                                <div class="relative p-4 rounded-lg border transition-all duration-200 <?php echo e($badge->is_earned ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-75'); ?>">
+                                    <div class="flex flex-col items-center text-center">
+                                        <!-- Badge Icon -->
+                                        <div class="mb-3 relative">
+                                            <?php if($badge->icon): ?>
+                                                <div class="w-16 h-16 rounded-full flex items-center justify-center text-3xl transition-all duration-200 <?php echo e($badge->is_earned ? '' : 'grayscale brightness-75'); ?>" 
+                                                     style="background: <?php echo e($badge->is_earned ? ($badge->color ?? '#3B82F6') : '#9CA3AF'); ?>20; color: <?php echo e($badge->is_earned ? ($badge->color ?? '#3B82F6') : '#6B7280'); ?>;">
+                                                    <i class="<?php echo e($badge->icon); ?>"></i>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="w-16 h-16 rounded-full flex items-center justify-center text-3xl transition-all duration-200 <?php echo e($badge->is_earned ? 'bg-blue-500 text-white' : 'bg-gray-400 text-gray-200'); ?>">
+                                                    <i class="fas fa-trophy"></i>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if($badge->is_earned): ?>
+                                                <div class="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                                    <i class="fas fa-check text-white text-xs"></i>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
-                                    <?php endif; ?>
-                                    <div class="flex-1">
-                                        <p class="font-semibold text-gray-900"><?php echo e($badge->badge_name); ?></p>
+                                        
+                                        <!-- Badge Name -->
+                                        <h3 class="font-semibold mb-1 text-sm <?php echo e($badge->is_earned ? 'text-gray-900' : 'text-gray-500'); ?>"><?php echo e($badge->name); ?></h3>
+                                        
+                                        <!-- Badge Description -->
                                         <?php if($badge->description): ?>
-                                            <p class="text-sm text-gray-600"><?php echo e($badge->description); ?></p>
+                                            <p class="text-xs mb-2 line-clamp-2 <?php echo e($badge->is_earned ? 'text-gray-600' : 'text-gray-400'); ?>"><?php echo e(Str::limit($badge->description, 60)); ?></p>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Badge Category -->
+                                        <?php if($badge->category): ?>
+                                            <span class="inline-block px-2 py-1 text-xs rounded-full transition-all duration-200 <?php echo e($badge->is_earned ? '' : 'opacity-50'); ?>" 
+                                                  style="background: <?php echo e($badge->is_earned ? ($badge->category->color ?? '#E5E7EB') : '#E5E7EB'); ?>20; color: <?php echo e($badge->is_earned ? ($badge->category->color ?? '#6B7280') : '#9CA3AF'); ?>;">
+                                                <?php echo e($badge->category->name); ?>
+
+                                            </span>
+                                        <?php endif; ?>
+                                        
+                                        <!-- XP Reward -->
+                                        <?php if($badge->xp_reward > 0): ?>
+                                            <div class="mt-2 text-xs <?php echo e($badge->is_earned ? 'text-gray-500' : 'text-gray-400'); ?>">
+                                                <i class="fas fa-star <?php echo e($badge->is_earned ? 'text-yellow-500' : 'text-gray-400'); ?>"></i> +<?php echo e($badge->xp_reward); ?> XP
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Locked/Unearned Indicator -->
+                                        <?php if(!$badge->is_earned): ?>
+                                            <div class="mt-2 text-xs text-gray-400 italic">
+                                                <i class="fas fa-lock"></i> <?php echo e(__('Not earned')); ?>
+
+                                            </div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </div>
                     <?php else: ?>
-                        <p class="text-gray-500 text-center py-8">No badges yet</p>
+                        <div class="text-center py-12">
+                            <div class="inline-block p-4 bg-gray-100 rounded-full mb-4">
+                                <i class="fas fa-trophy text-gray-400 text-4xl"></i>
+                            </div>
+                            <p class="text-gray-500 text-lg font-medium"><?php echo e(__('No badges available')); ?></p>
+                            <p class="text-gray-400 text-sm mt-2"><?php echo e(__('Badges will appear here once they are added to the system.')); ?></p>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>

@@ -20,7 +20,7 @@
                     <!-- Logo -->
                     <div class="shrink-0 flex items-center">
                         <a href="../Dashboard/dashboard.php" class="flex items-center space-x-3">
-                            <img src="{{ asset('assets/images/LOGOCompuPlay.png" alt="Logo" class="h-10 w-auto">
+                            <img src="{{ asset('assets/images/LOGOCompuPlay.png') }}" alt="Logo" class="h-10 w-auto">
                         </a>
                     </div>
 
@@ -29,7 +29,7 @@
                         <a href="../Dashboard/dashboard.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             Dashboard
                         </a>
-                        <a href="{{ route(')')'forum.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
+                        <a href="{{ route('forum.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
                             Forum
                         </a>
                         <a href="../Classroom/index.php" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
@@ -183,10 +183,10 @@
         </div>
     </div>
 
-    <script src="{{ asset('Forum/JS/manage-forum.js')></script>
+    <script src="{{ asset('Forum/JS/manage-forum.js') }}"></script>
     <script>
         // Navigation functionality
-        document.addEventListener(')')'DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', () => {
             // Load user info from sessionStorage
             const userName = sessionStorage.getItem('userName') || sessionStorage.getItem('userEmail') || 'User';
             const userEmail = sessionStorage.getItem('userEmail') || '';
