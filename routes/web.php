@@ -164,6 +164,16 @@ Route::middleware('auth')->group(function () {
         return view('lessons.create-new');
     })->name('lessons.create-blocks');
     
+    // Test routes for redesigned lesson pages (v2) - MUST be before resource routes
+    Route::get('/lessons/create-v2', function () {
+        return view('lessons.create-new-v2');
+    })->name('lessons.create-v2');
+    
+    Route::get('/lessons/{lesson}/edit-v2', function ($lessonId) {
+        $lesson = \App\Models\Lesson::findOrFail($lessonId);
+        return view('lessons.edit-v2', compact('lesson'));
+    })->name('lessons.edit-v2');
+    
     // Resource routes (this creates /lessons/create, /lessons/{id}, etc.)
     Route::resource('lessons', \App\Http\Controllers\LessonController::class);
     

@@ -118,7 +118,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                 };
 
                 return (
-                    <div className="game-config">
+                    <div className="game-config" style={{ paddingBottom: '20px' }}>
                         {/* Mode Selector */}
                         <div style={{ marginBottom: '15px' }}>
                             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Mode:</label>
@@ -183,7 +183,14 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                     </button>
                                 </div>
 
-                                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '4px', padding: '10px' }}>
+                                <div style={{
+                                    height: gameConfig.customPairs.length >= 2 ? '150px' : 'auto',
+                                    maxHeight: '200px',
+                                    overflowY: gameConfig.customPairs.length >= 2 ? 'auto' : 'visible',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '4px',
+                                    padding: '10px'
+                                }}>
                                     {gameConfig.customPairs.length === 0 ? (
                                         <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
                                             <p>No pairs yet. Click "+ Add Pair" to create matching cards.</p>
@@ -243,7 +250,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                     )}
                                 </div>
 
-                                <p style={{ marginTop: '10px', fontSize: '11px', color: '#666' }}>
+                                <p style={{ marginTop: '10px', marginBottom: '15px', fontSize: '11px', color: '#666' }}>
                                     💡 Tip: Each row creates a matching pair. Students will need to find both cards.
                                 </p>
                             </div>
