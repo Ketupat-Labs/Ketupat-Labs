@@ -1,6 +1,6 @@
 {
   "resources/css/block-editor.css": {
-    "file": "assets/block-editor-va__WvHu.css",
+    "file": "assets/block-editor-D0ghm9k3.css",
     "src": "resources/css/block-editor.css",
     "isEntry": true,
     "name": "block-editor",
@@ -9,12 +9,12 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-Ddco1noX.js",
+    "file": "assets/app-1RPF9PWO.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "css": [
-      "assets/block-editor-va__WvHu.css"
+      "assets/block-editor-D0ghm9k3.css"
     ]
   },
   "resources/sass/app.scss": {

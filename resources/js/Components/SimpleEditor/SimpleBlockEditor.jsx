@@ -1,5 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Import the CSS
 import '../../../css/block-editor.css';
@@ -33,6 +49,27 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
     // Remove a block
     const deleteBlock = (id) => {
         setBlocks(blocks.filter(b => b.id !== id));
+    };
+
+    // Drag and drop sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    // Handle drag end
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+
+        if (active.id !== over.id) {
+            setBlocks((items) => {
+                const oldIndex = items.findIndex((item) => item.id === active.id);
+                const newIndex = items.findIndex((item) => item.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
     };
 
     // Sync hidden input for form submission
@@ -465,22 +502,87 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                             <p>Click a block type from the sidebar to get started</p>
                         </div>
                     ) : (
-                        blocks.map((block) => (
-                            <div key={block.id} className="block-item">
-                                {renderBlock(block)}
-                                <div className="block-controls">
-                                    <button
-                                        type="button"
-                                        onClick={() => deleteBlock(block.id)}
-                                        className="block-delete-btn"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        ))
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={blocks.map(b => b.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {blocks.map((block) => (
+                                    <SortableBlock
+                                        key={block.id}
+                                        block={block}
+                                        renderBlock={renderBlock}
+                                        deleteBlock={deleteBlock}
+                                    />
+                                ))}
+                            </SortableContext>
+                        </DndContext>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// Sortable Block Component
+function SortableBlock({ block, renderBlock, deleteBlock }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: block.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="block-item">
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                {/* Drag Handle */}
+                <button
+                    type="button"
+                    {...attributes}
+                    {...listeners}
+                    style={{
+                        cursor: 'grab',
+                        background: 'transparent',
+                        border: 'none',
+                        padding: '4px',
+                        color: '#9ca3af',
+                        fontSize: '18px',
+                        lineHeight: '1',
+                        marginTop: '8px'
+                    }}
+                    title="Drag to reorder"
+                >
+                    ⋮⋮
+                </button>
+
+                {/* Block Content */}
+                <div style={{ flex: 1 }}>
+                    {renderBlock(block)}
+                </div>
+            </div>
+
+            {/* Delete Button */}
+            <div className="block-controls">
+                <button
+                    type="button"
+                    onClick={() => deleteBlock(block.id)}
+                    className="block-delete-btn"
+                >
+                    Delete
+                </button>
             </div>
         </div>
     );

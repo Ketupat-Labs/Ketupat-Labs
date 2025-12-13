@@ -23,7 +23,7 @@ class LessonController extends Controller
     // --- CREATE (CREATE): Show the add form ---
     public function create(): View
     {
-        return view('lessons.create');
+        return view('lessons.create-new');
     }
 
     // --- CREATE (STORE): Handle form submission and save to DB (UC003) ---

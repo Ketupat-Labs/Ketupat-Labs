@@ -58,7 +58,7 @@
 /* Editor Canvas */
 .block-editor-canvas {
   flex: 1;
-  padding: 48px 64px;
+  padding: 48px 12px 48px 12px;
   overflow-y: auto;
   background: #ffffff;
 }
@@ -69,7 +69,7 @@
 
 /* Block List */
 .block-list {
-  max-width: 680px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
