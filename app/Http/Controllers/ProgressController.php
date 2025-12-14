@@ -49,39 +49,38 @@ class ProgressController extends Controller
                 'completionPercentage' => 0
             ];
 
+            $totalProgressSum = 0;
+
             foreach ($lessons as $lesson) {
-                // Use QuizAttempt which uses user_id (matches our User model)
-                $quizAttempt = QuizAttempt::where('user_id', $student->id)
+                // Use Enrollment for progress tracking to align with lesson view
+                $enrollment = \App\Models\Enrollment::where('user_id', $student->id)
                     ->where('lesson_id', $lesson->id)
-                    ->where('submitted', true)
                     ->first();
 
-                if ($quizAttempt) {
-                    $percentage = $quizAttempt->total_questions > 0 
-                        ? ($quizAttempt->score / $quizAttempt->total_questions) * 100 
-                        : 0;
+                $progressValue = $enrollment ? $enrollment->progress : 0;
+                $totalProgressSum += $progressValue;
+
+                if ($progressValue == 100) {
                     $status = 'Completed';
-                    if ($percentage <= 20) {
-                        $status = 'Completed (Low Score)';
-                    }
-                    $studentProgress['completedCount']++;
+                } elseif ($progressValue > 0) {
+                    $status = 'In Progress';
                 } else {
                     $status = 'Not Started';
-                    $percentage = 0;
                 }
+
+                $studentProgress['completedCount'] += ($progressValue == 100 ? 1 : 0);
 
                 $studentProgress['lessons'][] = [
                     'lesson' => $lesson,
                     'status' => $status,
-                    'quizAttempt' => $quizAttempt,
-                    'percentage' => $percentage
+                    'progress' => $progressValue // Pass the actual percentage
                 ];
             }
 
-            // Calculate completion percentage
+            // Calculate completion percentage (Average of all lesson progresses)
             if ($studentProgress['totalLessons'] > 0) {
                 $studentProgress['completionPercentage'] = round(
-                    ($studentProgress['completedCount'] / $studentProgress['totalLessons']) * 100,
+                    $totalProgressSum / $studentProgress['totalLessons'],
                     1
                 );
             }
@@ -97,10 +96,14 @@ class ProgressController extends Controller
         ];
 
         foreach ($lessons as $lesson) {
-            // Use QuizAttempt which uses user_id (matches our User model)
-            $completedCount = QuizAttempt::where('lesson_id', $lesson->id)
+            // Count enrollments that are completed (progress = 100)
+            // Assuming strict completion. Alternatively, could average the progress of all students?
+            // User requested "peratus penyelesaian" alignment.
+            // For the summary table, "Completed" usually means 100%.
+
+            $completedCount = \App\Models\Enrollment::where('lesson_id', $lesson->id)
                 ->whereIn('user_id', $students->pluck('id'))
-                ->where('submitted', true)
+                ->where('progress', 100)
                 ->count();
 
             $summary['lessonCompletion'][$lesson->id] = [

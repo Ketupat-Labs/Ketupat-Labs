@@ -76,12 +76,9 @@
                                                         if ($lessonProgress['status'] === 'Completed') {
                                                             $statusClass = 'bg-green-100 text-green-800';
                                                             $statusText = 'SELESAI';
-                                                        } elseif ($lessonProgress['status'] === 'Completed (Low Score)') {
-                                                            $statusClass = 'bg-red-100 text-red-800';
-                                                            $statusText = 'MARKAH RENDAH';
                                                         } elseif ($lessonProgress['status'] === 'In Progress') {
                                                             $statusClass = 'bg-yellow-100 text-yellow-800';
-                                                            $statusText = 'SEDANG BERJALAN';
+                                                            $statusText = 'SEDANG BERJALAN (' . $lessonProgress['progress'] . '%)';
                                                         }
                                                     @endphp
                                                     <span

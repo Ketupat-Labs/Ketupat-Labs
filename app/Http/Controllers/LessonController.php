@@ -215,6 +215,50 @@ class LessonController extends Controller
             $enrollment = \App\Models\Enrollment::where('user_id', session('user_id'))
                 ->where('lesson_id', $lesson->id)
                 ->first();
+
+            // SYNC PROGRESS: Ensure completed items are valid for current lesson blocks
+            if ($enrollment) {
+                $completedItems = $enrollment->completed_items ? json_decode($enrollment->completed_items, true) : [];
+                $originalCount = count($completedItems);
+
+                // Get all valid Item IDs from lesson blocks
+                $validItemIds = [];
+                if (isset($lesson->content_blocks['blocks'])) {
+                    foreach ($lesson->content_blocks['blocks'] as $index => $block) {
+                        $validItemIds[] = $block['id'] ?? 'block_' . $index;
+                    }
+                }
+
+                // Add submission to valid IDs if it exists
+                // We always allow 'submission' as a valid tracking item for progress
+                $validItemIds[] = 'submission';
+
+                // Filter out invalid items (orphaned from deleted blocks?)
+                $completedItems = array_values(array_intersect($completedItems, $validItemIds));
+
+                // Also check if 'submission' is marked complete but no submission exists? 
+                // (Optional: strict check, but maybe overkill. Let's trust the flag if submission was deleted manually but progress kept? No, let's strictly check submission existence too if needed. But for now, just syncing block IDs is enough to fix the 67% ghost issue.)
+
+                if (count($completedItems) !== $originalCount) {
+                    // Update DB if changes found
+                    $enrollment->completed_items = json_encode($completedItems);
+
+                    // Recalculate Progress
+                    $totalItems = count($validItemIds); // Blocks + 1
+                    $progress = ($totalItems > 0) ? min(100, round((count($completedItems) / $totalItems) * 100)) : 0;
+
+                    $enrollment->progress = $progress;
+
+                    if ($progress == 100)
+                        $enrollment->status = 'completed';
+                    elseif ($progress > 0)
+                        $enrollment->status = 'in_progress';
+                    else
+                        $enrollment->status = 'enrolled'; // Reset to enrolled if 0
+
+                    $enrollment->save();
+                }
+            }
         }
 
         return view('lessons.student-show', compact('lesson', 'submission', 'enrollment'));

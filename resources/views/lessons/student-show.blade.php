@@ -261,7 +261,7 @@
     <script>
         const enrollmentId = "{{ $enrollment ? $enrollment->id : '' }}";
         const csrfToken = "{{ csrf_token() }}";
-        const totalItems = {{ isset($lesson->content_blocks['blocks']) ? count($lesson->content_blocks['blocks']) : 0 }};
+        const totalItems = {{ (isset($lesson->content_blocks['blocks']) ? count($lesson->content_blocks['blocks']) : 0) + 1 }};
         const progressFill = document.getElementById('progress-fill');
         const progressText = document.getElementById('progress-text');
 
