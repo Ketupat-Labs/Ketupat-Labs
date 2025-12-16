@@ -33,7 +33,7 @@ class ProfileController extends Controller
         // If no userId provided, show current user's profile
         $profileUserId = $userId ? (int) $userId : $currentUser->id;
         $profileUser = User::findOrFail($profileUserId);
-        
+
         $isOwnProfile = $currentUser->id === $profileUser->id;
         $isFriend = $currentUser->isFriendWith($profileUserId);
         $hasPendingRequest = $currentUser->hasPendingRequestWith($profileUserId);
@@ -75,25 +75,34 @@ class ProfileController extends Controller
             ->get();
 
         // Get all badges with category information
-        $allBadges = \App\Models\Badge::with('category')
-            ->orderBy('name', 'asc')
-            ->get();
-        
-        // Get user's earned badge codes
-        $earnedBadgeCodes = $profileUser->badges()->pluck('code')->toArray();
-        
-        // Mark which badges are earned
-        $badges = $allBadges->map(function ($badge) use ($earnedBadgeCodes) {
-            $badge->is_earned = in_array($badge->code, $earnedBadgeCodes);
-            return $badge;
-        });
+        $badges = collect();
+        $categories = collect(); // Initialize categories
+        try {
+            $allBadges = \App\Models\Badge::with('category')
+                ->orderBy('name', 'asc')
+                ->get();
+
+            // Get all categories for filter
+            $categories = \App\Models\BadgeCategory::orderBy('name', 'asc')->get();
+
+            // Get user's earned badge codes
+            $earnedBadgeCodes = $profileUser->badges()->pluck('code')->toArray();
+
+            // Mark which badges are earned
+            $badges = $allBadges->map(function ($badge) use ($earnedBadgeCodes) {
+                $badge->is_earned = in_array($badge->code, $earnedBadgeCodes);
+                return $badge;
+            });
+        } catch (\Exception $e) {
+            // Badges table might be missing or schema incorrect
+            // Continue without badges to ensure profile page loads
+        }
 
         // Get friend count
         $friendCount = Friend::where(function ($q) use ($profileUserId) {
-            $q->where('user_id', $profileUserId)->where('status', 'accepted');
-        })->orWhere(function ($q) use ($profileUserId) {
-            $q->where('friend_id', $profileUserId)->where('status', 'accepted');
-        })->count();
+            $q->where('user_id', $profileUserId)
+                ->orWhere('friend_id', $profileUserId);
+        })->where('status', 'accepted')->count();
 
         // Get saved posts (only for own profile)
         $savedPosts = collect();
@@ -101,7 +110,7 @@ class ProfileController extends Controller
             $savedPostIds = SavedPost::where('user_id', $profileUserId)
                 ->pluck('post_id')
                 ->toArray();
-            
+
             if (!empty($savedPostIds)) {
                 $savedPosts = ForumPost::whereIn('id', $savedPostIds)
                     ->where('is_deleted', false)
@@ -122,6 +131,7 @@ class ProfileController extends Controller
             'posts' => $posts,
             'savedPosts' => $savedPosts,
             'badges' => $badges,
+            'categories' => $categories, // Pass categories
             'friendCount' => $friendCount,
         ]);
     }
@@ -135,7 +145,7 @@ class ProfileController extends Controller
         if (!$user) {
             return redirect()->route('login');
         }
-        
+
         return view('profile.edit', [
             'user' => $user,
         ]);
@@ -150,7 +160,7 @@ class ProfileController extends Controller
         if (!$user) {
             return redirect()->route('login');
         }
-        
+
         // Only update allowed fields (email is excluded)
         $validated = $request->validated();
         $user->fill($validated);
@@ -195,11 +205,11 @@ class ProfileController extends Controller
         if (!$user) {
             return redirect()->route('login');
         }
-        
+
         $request->validateWithBag('userDeletion', [
             'password' => ['required'],
         ]);
-        
+
         // Verify password
         if (!Hash::check($request->password, $user->password)) {
             return back()->withErrors(['password' => 'The password is incorrect.']);

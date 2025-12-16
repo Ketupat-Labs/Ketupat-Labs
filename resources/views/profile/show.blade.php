@@ -172,15 +172,46 @@
                 <!-- Badges Section -->
                 <div id="section-badges" class="section-content hidden p-6">
                     @if($badges->count() > 0)
+                        <!-- Filter Controls -->
+                        <div class="mb-6 flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-lg">
+                            <!-- Category Filter -->
+                            <div class="flex items-center space-x-2">
+                                <label for="badge-category" class="text-sm font-medium text-gray-700 bg-white px-2 py-1 rounded shadow-sm">
+                                    <i class="fas fa-filter text-blue-500 mr-1"></i> Kategori
+                                </label>
+                                <select id="badge-category" onchange="filterBadges()" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm">
+                                    <option value="all">Semua</option> <!-- All -->
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Status Filter -->
+                            <div class="flex items-center space-x-2">
+                                <label for="badge-status" class="text-sm font-medium text-gray-700 bg-white px-2 py-1 rounded shadow-sm">
+                                    <i class="fas fa-tasks text-green-500 mr-1"></i> Status
+                                </label>
+                                <select id="badge-status" onchange="filterBadges()" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm">
+                                    <option value="all">Semua</option> <!-- All -->
+                                    <option value="earned">Diperolehi</option> <!-- Earned -->
+                                    <option value="locked">Terkunci</option> <!-- Locked -->
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="mb-4">
                             <p class="text-sm text-gray-600">
-                                {{ __('Showing all :count badges.', ['count' => $badges->count()]) }} 
-                                <span class="font-semibold text-blue-600">{{ $badges->where('is_earned', true)->count() }} {{ __('earned') }}</span>
+                                {{ __('Menunjukkan') }} <span id="visible-badges-count" class="font-semibold">{{ $badges->count() }}</span> {{ __('lencana') }}.
+                                <span class="font-semibold text-blue-600">{{ $badges->where('is_earned', true)->count() }} {{ __('diperolehi') }}</span>
                             </p>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+                        <div id="badges-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             @foreach($badges as $badge)
-                                <div class="relative p-4 rounded-lg border transition-all duration-200 {{ $badge->is_earned ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-75' }}">
+                                <div class="badge-item relative p-4 rounded-lg border transition-all duration-200 {{ $badge->is_earned ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-75' }}"
+                                     data-category="{{ $badge->category_id }}"
+                                     data-status="{{ $badge->is_earned ? 'earned' : 'locked' }}">
                                     <div class="flex flex-col items-center text-center">
                                         <!-- Badge Icon -->
                                         <div class="mb-3 relative">
@@ -227,20 +258,23 @@
                                         <!-- Locked/Unearned Indicator -->
                                         @if(!$badge->is_earned)
                                             <div class="mt-2 text-xs text-gray-400 italic">
-                                                <i class="fas fa-lock"></i> {{ __('Not earned') }}
+                                                <i class="fas fa-lock"></i> {{ __('Belum diperolehi') }}
                                             </div>
                                         @endif
                                     </div>
                                 </div>
                             @endforeach
+                            <div id="no-badges-found" class="hidden col-span-full text-center py-8 text-gray-500">
+                                {{ __('Tiada lencana ditemui untuk penapis ini.') }}
+                            </div>
                         </div>
                     @else
                         <div class="text-center py-12">
                             <div class="inline-block p-4 bg-gray-100 rounded-full mb-4">
                                 <i class="fas fa-trophy text-gray-400 text-4xl"></i>
                             </div>
-                            <p class="text-gray-500 text-lg font-medium">{{ __('No badges available') }}</p>
-                            <p class="text-gray-400 text-sm mt-2">{{ __('Badges will appear here once they are added to the system.') }}</p>
+                            <p class="text-gray-500 text-lg font-medium">{{ __('Tiada lencana tersedia') }}</p>
+                            <p class="text-gray-400 text-sm mt-2">{{ __('Lencana akan muncul di sini sebaik sahaja ia ditambah ke dalam sistem.') }}</p>
                         </div>
                     @endif
                 </div>
@@ -249,6 +283,52 @@
     </div>
 
     <script>
+        function filterBadges() {
+            const categoryFilter = document.getElementById('badge-category').value;
+            const statusFilter = document.getElementById('badge-status').value;
+            const badges = document.querySelectorAll('.badge-item');
+            let visibleCount = 0;
+
+            badges.forEach(badge => {
+                const category = badge.getAttribute('data-category');
+                const status = badge.getAttribute('data-status');
+                
+                let show = true;
+
+                // Category Filter
+                if (categoryFilter !== 'all' && category !== categoryFilter) {
+                    show = false;
+                }
+
+                // Status Filter
+                if (statusFilter !== 'all') {
+                    if (statusFilter === 'earned' && status !== 'earned') show = false;
+                    if (statusFilter === 'locked' && status !== 'locked') show = false;
+                }
+
+                if (show) {
+                    badge.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    badge.classList.add('hidden');
+                }
+            });
+            
+            // Update count
+            const countEl = document.getElementById('visible-badges-count');
+            if(countEl) countEl.innerText = visibleCount;
+
+            // Show 'no results' message
+            const noResults = document.getElementById('no-badges-found');
+            if (noResults) {
+                if (visibleCount === 0) {
+                    noResults.classList.remove('hidden');
+                } else {
+                    noResults.classList.add('hidden');
+                }
+            }
+        }
+        
         function showSection(sectionName) {
             // Hide all sections
             document.querySelectorAll('.section-content').forEach(section => {
