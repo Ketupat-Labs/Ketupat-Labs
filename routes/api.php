@@ -1,0 +1,138 @@
+<?php
+
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UploadController;
+use App\Http\Controllers\ForumController;
+use App\Http\Controllers\MessagingController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ChatbotController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+// Public routes
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);
+
+// Protected routes
+Route::middleware('auth:web')->group(function () {
+    // Auth routes
+    Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    
+    // Upload route
+    Route::post('/upload', [UploadController::class, 'upload']);
+    
+    // Forum routes - specific routes must come before parameterized routes
+    Route::prefix('forum')->group(function () {
+        Route::post('/', [ForumController::class, 'createForum']);
+        Route::get('/', [ForumController::class, 'getForums']);
+        Route::get('/categories', [ForumController::class, 'getCategories']);
+        Route::get('/tags', [ForumController::class, 'getAllTags']);
+        
+        // Post routes - must come before /{id} route
+        Route::post('/post', [ForumController::class, 'createPost']);
+        Route::get('/post', [ForumController::class, 'getPosts']);
+        Route::get('/post/{postId}/comments', [ForumController::class, 'getComments']);
+        Route::put('/post/{id}', [ForumController::class, 'editPost']);
+        Route::delete('/post/{id}', [ForumController::class, 'deletePost']);
+        
+        // Comment and other routes
+        Route::post('/comment', [ForumController::class, 'createComment']);
+        Route::put('/comment/{id}', [ForumController::class, 'editComment']);
+        Route::delete('/comment/{id}', [ForumController::class, 'deleteComment']);
+        Route::post('/react', [ForumController::class, 'react']);
+        Route::post('/bookmark', [ForumController::class, 'bookmark']);
+        Route::post('/join', [ForumController::class, 'joinForum']);
+        Route::post('/leave', [ForumController::class, 'leaveForum']);
+        
+        // Report routes
+        Route::post('/post/report', [ForumController::class, 'reportPost']);
+        Route::get('/post/{postId}/reports', [ForumController::class, 'getPostReports']);
+        Route::post('/post/{id}/hide', [ForumController::class, 'hidePost']);
+        Route::get('/{forumId}/reports', [ForumController::class, 'getForumReports']);
+        Route::put('/report/{reportId}/status', [ForumController::class, 'updateReportStatus']);
+        
+        // Forum management routes - must come before /{id} route
+        Route::get('/{id}/members', [ForumController::class, 'getForumMembers']);
+        Route::post('/{id}/members/promote', [ForumController::class, 'promoteMemberToAdmin']);
+        Route::delete('/{id}/members', [ForumController::class, 'removeMember']);
+        Route::put('/{id}', [ForumController::class, 'updateForum']);
+        Route::delete('/{id}', [ForumController::class, 'deleteForum']);
+        
+        // This must be last to avoid catching other routes
+        Route::get('/{id}', [ForumController::class, 'getForum']);
+    });
+    
+    // Messaging routes
+    Route::prefix('messaging')->group(function () {
+        Route::post('/send', [MessagingController::class, 'sendMessage']);
+        Route::get('/conversations', [MessagingController::class, 'getConversations']);
+        Route::post('/conversation/direct', [MessagingController::class, 'getOrCreateDirectConversation']);
+        Route::get('/conversation/{conversationId}/messages', [MessagingController::class, 'getMessages']);
+        Route::get('/search', [MessagingController::class, 'searchMessages']);
+        Route::post('/status', [MessagingController::class, 'updateOnlineStatus']);
+        Route::delete('/message/{messageId}', [MessagingController::class, 'deleteMessage']);
+        Route::delete('/message/{messageId}/permanent', [MessagingController::class, 'permanentlyDeleteMessage']);
+        Route::post('/group', [MessagingController::class, 'createGroupChat']);
+        Route::post('/group/{conversationId}/rename', [MessagingController::class, 'renameGroup']);
+        Route::post('/group/members', [MessagingController::class, 'manageGroupMembers']);
+        Route::post('/archive', [MessagingController::class, 'archiveConversation']);
+        Route::get('/archived', [MessagingController::class, 'getArchivedConversations']);
+        Route::delete('/conversation/{conversationId}', [MessagingController::class, 'deleteConversation']);
+        Route::delete('/conversation/{conversationId}/messages', [MessagingController::class, 'clearAllMessages']);
+        Route::get('/available-users', [MessagingController::class, 'getAvailableUsers']);
+    });
+    
+    // Notification routes
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::post('/{id}/read', [NotificationController::class, 'markRead']);
+        Route::post('/read-all', [NotificationController::class, 'markRead']); // mark_all=true
+        Route::delete('/{id}', [NotificationController::class, 'destroy']);
+        Route::delete('/', [NotificationController::class, 'clearAll']);
+    });
+    
+    // Friend routes
+    Route::prefix('friends')->group(function () {
+        Route::post('/add', [\App\Http\Controllers\FriendController::class, 'addFriend']);
+        Route::post('/accept', [\App\Http\Controllers\FriendController::class, 'acceptFriend']);
+        Route::post('/remove', [\App\Http\Controllers\FriendController::class, 'removeFriend']);
+        Route::get('/request/{requestId}', [\App\Http\Controllers\FriendController::class, 'getFriendRequest']);
+        Route::get('/list', [\App\Http\Controllers\FriendController::class, 'getFriends']);
+    });
+    
+    // Classroom routes
+    Route::get('/classrooms', [\App\Http\Controllers\ClassroomController::class, 'index']);
+    
+    
+    // Chatbot routes
+    Route::prefix('chatbot')->group(function () {
+        Route::post('/chat', [ChatbotController::class, 'chat']);
+    });
+    
+    // AI Generator routes (Legacy)
+    Route::prefix('ai-generator')->group(function () {
+        Route::post('/slides', [\App\Http\Controllers\AIGeneratorController::class, 'generateSlides']);
+        Route::post('/quiz', [\App\Http\Controllers\AIGeneratorController::class, 'generateQuiz']);
+    });
+    
+    // AI Content routes (New Document Analyzer)
+    Route::prefix('ai-content')->group(function () {
+        Route::post('/analyze', [\App\Http\Controllers\AiContentController::class, 'analyze']);
+        Route::get('/', [\App\Http\Controllers\AiContentController::class, 'index']);
+        Route::get('/{id}', [\App\Http\Controllers\AiContentController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\AiContentController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\AiContentController::class, 'destroy']);
+    });
+    
+    // Lesson block editor routes
+    Route::prefix('lessons')->group(function () {
+        Route::post('/upload-image', [\App\Http\Controllers\LessonController::class, 'uploadImage']);
+    });
+});
+
+
