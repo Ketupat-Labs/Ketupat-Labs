@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const MemoryGame = ({ config = {}, onComplete }) => {
+const MemoryGame = ({ config = {} }) => {
     const {
         mode = 'preset',
         theme = 'animals',
@@ -101,15 +101,6 @@ const MemoryGame = ({ config = {}, onComplete }) => {
                 // Check if game is won
                 if (newMatched.length === cards.length) {
                     setGameWon(true);
-                    if (onComplete) {
-                        onComplete({
-                            score: 100,
-                            total: 100,
-                            percentage: 100
-                        });
-                    } else if (typeof config.onComplete === 'function') {
-                        config.onComplete();
-                    }
                 }
             } else {
                 // No match - flip back after delay

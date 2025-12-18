@@ -157,7 +157,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile/{userId}', [\App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
     
     // Lesson routes
+    // IMPORTANT: Specific routes must come BEFORE Route::resource
+    
+    // Test route for new block editor (temporary - for testing)
+    Route::get('/lessons/create-blocks', function () {
+        return view('lessons.create-new');
+    })->name('lessons.create-blocks');
+    
+    // Resource routes (this creates /lessons/create, /lessons/{id}, etc.)
     Route::resource('lessons', \App\Http\Controllers\LessonController::class);
+    
     Route::get('/lesson', [\App\Http\Controllers\LessonController::class, 'studentIndex'])->name('lesson.index');
     Route::get('/lesson/{lesson}', [\App\Http\Controllers\LessonController::class, 'studentShow'])->name('lesson.show');
     

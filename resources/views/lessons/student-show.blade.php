@@ -26,36 +26,9 @@
                         
                         {{-- Dynamic Block Rendering --}}
                         <div class="mt-6 space-y-6">
-                            @php
-                                $completedItems = $enrollment ? (json_decode($enrollment->completed_items, true) ?? []) : [];
-                            @endphp
-
                             @if(isset($lesson->content_blocks['blocks']) && count($lesson->content_blocks['blocks']) > 0)
                                 @foreach($lesson->content_blocks['blocks'] as $index => $block)
-                                    @php
-                                        $blockId = $block['id'] ?? 'block_' . $index;
-                                        $isCompleted = in_array($blockId, $completedItems);
-                                        $totalItems = count($lesson->content_blocks['blocks']);
-                                    @endphp
-                                    <div class="lesson-block group relative" id="block-container-{{ $blockId }}">
-                                        
-                                        {{-- Completion Controls --}}
-                                        <div class="absolute right-0 top-0 opacity-100 transition-opacity duration-200 print:hidden">
-                                            @if($enrollment)
-                                                <button 
-                                                    onclick="toggleItemCompletion('{{ $blockId }}')"
-                                                    class="flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium transition-colors border {{ $isCompleted ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-blue-50 hover:text-blue-600' }}"
-                                                    id="btn-{{ $blockId }}">
-                                                    <span id="icon-{{ $blockId }}">{{ $isCompleted ? '✓' : '○' }}</span>
-                                                    <span id="text-{{ $blockId }}">
-                                                        @if($block['type'] === 'youtube') Mark as Viewed
-                                                        @elseif($block['type'] === 'game' || $block['type'] === 'quiz') Mark as Done
-                                                        @else Mark as Read @endif
-                                                    </span>
-                                                </button>
-                                            @endif
-                                        </div>
-
+                                    <div class="lesson-block">
                                         @if($block['type'] === 'heading')
                                             <h2 class="text-2xl font-bold text-gray-900 mb-3">
                                                 {{ $block['content'] }}
@@ -116,7 +89,6 @@
                                                 <div 
                                                     data-game-block 
                                                     data-game-type="memory"
-                                                    data-block-id="{{ $blockId }}"
                                                     data-game-config="{{ json_encode($gameConfig) }}">
                                                 </div>
                                             </div>
@@ -129,7 +101,6 @@
                                                 <div 
                                                     data-game-block 
                                                     data-game-type="quiz"
-                                                    data-block-id="{{ $blockId }}"
                                                     data-game-config="{{ json_encode($quizConfig) }}">
                                                 </div>
                                             </div>
@@ -253,113 +224,57 @@
     </div>
 
     {{-- Scroll Progress Tracking Script --}}
-    {{-- Progress Tracking Script --}}
     <script>
-        const enrollmentId = "{{ $enrollment ? $enrollment->id : '' }}";
-        const csrfToken = "{{ csrf_token() }}";
-        const totalItems = {{ (isset($lesson->content_blocks['blocks']) ? count($lesson->content_blocks['blocks']) : 0) + 1 }};
-        const progressFill = document.getElementById('progress-fill');
-        const progressText = document.getElementById('progress-text');
-
-        // Init Progress UI
-        const currentProgress = {{ $enrollment ? $enrollment->progress : 0 }};
-        console.log('Initial Progress:', currentProgress);
-        progressFill.style.width = currentProgress + '%';
-        progressText.textContent = currentProgress + '% Complete';
-
-        // Global function for React components to report completion
-        window.reportItemCompletion = function(itemId) {
-            console.log('Global reportItemCompletion called for:', itemId);
-            const btn = document.getElementById(`btn-${itemId}`);
-            if (btn) {
-                // Check if already completed
-                if (!btn.classList.contains('bg-green-100')) {
-                    toggleItemCompletion(itemId);
-                } else {
-                    console.log('Item already completed:', itemId);
-                }
-            } else {
-                console.error('Completion button not found for:', itemId);
-            }
-        };
-
-        function toggleItemCompletion(itemId) {
-            console.log('Toggle Clicked:', itemId);
-
-            if (!enrollmentId) {
-                alert('Please enroll in this lesson to track progress.');
-                return;
-            }
-
-            const btn = document.getElementById(`btn-${itemId}`);
+        (function() {
+            const lessonId = {{ $lesson->id }};
+            const storageKey = `lesson_${lessonId}_progress`;
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
             
-            // Determine current state based on button class (completed has bg-green-100)
-            const isCompleted = btn.classList.contains('bg-green-100');
-            const newStatus = isCompleted ? 'incomplete' : 'completed';
-            console.log('Current State:', isCompleted, 'New Status:', newStatus);
-
-            // Optimistic UI Update
-            updateButtonState(itemId, !isCompleted);
-
-            fetch(`/enrollment/${enrollmentId}/progress`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify({
-                    item_id: itemId,
-                    status: newStatus,
-                    total_items: totalItems
-                })
-            })
-            .then(response => {
-                console.log('Response Status:', response.status);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok: ' + response.statusText);
+            // Load saved progress
+            let maxProgress = parseInt(localStorage.getItem(storageKey) || '0');
+            
+            function updateProgress(percentage) {
+                // Only update if new percentage is higher
+                if (percentage > maxProgress) {
+                    maxProgress = percentage;
+                    localStorage.setItem(storageKey, maxProgress);
                 }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Server Data:', data);
-                if (data.success) {
-                    // Update Progress Bar
-                    console.log('Updating Progress To:', data.progress);
-                    progressFill.style.width = data.progress + '%';
-                    progressText.textContent = data.progress + '% Complete';
-                } else {
-                    // Revert if error
-                    console.error('Server reported error:', data.message);
-                    updateButtonState(itemId, isCompleted);
-                    alert('Error updating progress: ' + data.message);
+                
+                // Update UI
+                progressFill.style.width = maxProgress + '%';
+                progressText.textContent = maxProgress + '% Complete';
+            }
+            
+            // Initialize with saved progress
+            updateProgress(maxProgress);
+            
+            // Track scroll position
+            function handleScroll() {
+                const windowHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // Calculate scroll percentage
+                const scrollableHeight = documentHeight - windowHeight;
+                const scrollPercentage = scrollableHeight > 0 
+                    ? Math.round((scrollTop / scrollableHeight) * 100)
+                    : 100;
+                
+                updateProgress(scrollPercentage);
+            }
+            
+            // Throttle scroll events for performance
+            let scrollTimeout;
+            window.addEventListener('scroll', function() {
+                if (scrollTimeout) {
+                    clearTimeout(scrollTimeout);
                 }
-            })
-            .catch(error => {
-                console.error('Fetch Error:', error);
-                updateButtonState(itemId, isCompleted);
-                alert('Connection error. Please check console for details.');
+                scrollTimeout = setTimeout(handleScroll, 100);
             });
-        }
-
-        function updateButtonState(itemId, completed) {
-            const btn = document.getElementById(`btn-${itemId}`);
-            const icon = document.getElementById(`icon-${itemId}`);
-            const container = document.getElementById(`block-container-${itemId}`);
-
-            if (!btn) { 
-                console.error('Button not found for:', itemId); 
-                return; 
-            }
-
-            if (completed) {
-                btn.classList.remove('bg-gray-100', 'text-gray-500', 'border-gray-300', 'hover:bg-blue-50', 'hover:text-blue-600');
-                btn.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
-                icon.textContent = '✓';
-            } else {
-                btn.classList.add('bg-gray-100', 'text-gray-500', 'border-gray-300', 'hover:bg-blue-50', 'hover:text-blue-600');
-                btn.classList.remove('bg-green-100', 'text-green-700', 'border-green-300');
-                icon.textContent = '○';
-            }
-        }
+            
+            // Initial check
+            handleScroll();
+        })();
     </script>
 </x-app-layout>

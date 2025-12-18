@@ -120,10 +120,8 @@
                 <input type="hidden" name="content_blocks" id="content_blocks_input" required>
             </div>
 
-
-
-            <!-- Form Actions -->
-            <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
+            <!-- Submit Buttons -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-300">
                 <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition">
                     Cancel
                 </a>

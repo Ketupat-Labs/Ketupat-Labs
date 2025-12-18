@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const QuizGame = ({ config = {}, onComplete }) => {
+const QuizGame = ({ config = {} }) => {
     const { questions = [] } = config;
 
     const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -42,14 +42,6 @@ const QuizGame = ({ config = {}, onComplete }) => {
         });
         setScore(correctCount);
         setShowResults(true);
-
-        if (onComplete) {
-            onComplete({
-                score: correctCount,
-                total: validQuestions.length,
-                percentage: validQuestions.length > 0 ? Math.round((correctCount / validQuestions.length) * 100) : 0
-            });
-        }
     };
 
     const handleRestart = () => {
@@ -198,19 +190,19 @@ const QuizGame = ({ config = {}, onComplete }) => {
                 <div className="text-center">
                     <div className="bg-white p-8 rounded-lg shadow-lg mb-6">
                         <h3 className="text-3xl font-bold text-gray-800 mb-4">
-                            Tahniah! Kuiz Selesai 🎉
+                            Quiz Complete! 🎉
                         </h3>
                         <div className="text-6xl font-bold text-blue-600 mb-2">
                             {score} / {validQuestions.length}
                         </div>
                         <p className="text-xl text-gray-600 mb-6">
                             {score === validQuestions.length
-                                ? 'Markah Penuh! 🌟'
+                                ? 'Perfect Score! 🌟'
                                 : score >= validQuestions.length * 0.7
-                                    ? 'Syabas! 👏'
+                                    ? 'Great Job! 👏'
                                     : score >= validQuestions.length * 0.5
-                                        ? 'Usaha Yang Bagus! 💪'
-                                        : 'Cuba Lagi! 📚'
+                                        ? 'Good Effort! 💪'
+                                        : 'Keep Practicing! 📚'
                             }
                         </p>
 
@@ -235,13 +227,13 @@ const QuizGame = ({ config = {}, onComplete }) => {
                                                     {index + 1}. {q.question}
                                                 </p>
                                                 <p className="text-sm text-gray-600">
-                                                    Jawapan anda: <span className={isCorrect ? 'text-green-700 font-medium' : 'text-red-700 font-medium'}>
+                                                    Your answer: <span className={isCorrect ? 'text-green-700 font-medium' : 'text-red-700 font-medium'}>
                                                         {q.answers[userAnswer]}
                                                     </span>
                                                 </p>
                                                 {!isCorrect && (
                                                     <p className="text-sm text-gray-600 mt-1">
-                                                        Jawapan betul: <span className="text-green-700 font-medium">
+                                                        Correct answer: <span className="text-green-700 font-medium">
                                                             {q.answers[q.correctAnswer]}
                                                         </span>
                                                     </p>
@@ -256,9 +248,9 @@ const QuizGame = ({ config = {}, onComplete }) => {
 
                     <button
                         onClick={handleRestart}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold transition text-lg shadow-md transform hover:-translate-y-1"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition text-lg"
                     >
-                        🔄 Cuba Semula
+                        🔄 Try Again
                     </button>
                 </div>
             )}

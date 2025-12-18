@@ -62,8 +62,6 @@ class LessonController extends Controller
         Lesson::create([
             'title' => $request->title,
             'topic' => $request->topic,
-            'is_public' => false, // Default to Private
-            'is_published' => true, // Ready by default, but restricted visibility checking is_public
             'content' => $request->input('content'), // Legacy field
             'content_blocks' => $contentBlocks, // New block-based content
             'material_path' => $filePath,
@@ -321,6 +319,29 @@ class LessonController extends Controller
         }
 
         return view('lessons.student-show', compact('lesson', 'submission', 'enrollment'));
+    }
+
+    // --- API: Upload image for block editor ---
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
+        ]);
+
+        if ($request->hasFile('image')) {
+            $storagePath = $request->file('image')->store('public/lessons/images');
+            $url = asset(str_replace('public/', 'storage/', $storagePath));
+
+            return response()->json([
+                'success' => true,
+                'url' => $url,
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'No image file provided',
+        ], 400);
     }
 
     // --- API: Upload image for block editor ---

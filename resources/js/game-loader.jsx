@@ -19,28 +19,13 @@ function initializeGames() {
     gameContainers.forEach(container => {
         const gameType = container.dataset.gameType;
         const gameConfig = JSON.parse(container.dataset.gameConfig || '{}');
-        const blockId = container.dataset.blockId;
 
-        console.log('Loading game:', gameType, gameConfig, 'Block:', blockId);
-
-        const onComplete = (results) => {
-            console.log('Game completed:', results, 'Block:', blockId);
-
-            // 1. Report simple completion (for Lesson progression)
-            if (blockId && typeof window.reportItemCompletion === 'function') {
-                window.reportItemCompletion(blockId);
-            }
-
-            // 2. Report detailed score (for Activity grading)
-            if (typeof window.handleGameScore === 'function') {
-                window.handleGameScore(results, blockId);
-            }
-        };
+        console.log('Loading game:', gameType, gameConfig);
 
         const GameComponent = gameComponents[gameType];
         if (GameComponent) {
             const root = createRoot(container);
-            root.render(<GameComponent config={gameConfig} onComplete={onComplete} />);
+            root.render(<GameComponent config={gameConfig} />);
             console.log('✓ Game loaded successfully:', gameType);
         } else {
             console.warn('✗ Unknown game type:', gameType);
