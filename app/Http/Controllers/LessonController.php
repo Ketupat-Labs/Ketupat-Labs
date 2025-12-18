@@ -17,13 +17,17 @@ class LessonController extends Controller
         // Fetch lessons created ONLY by the currently authenticated teacher
         $lessons = Lesson::where('teacher_id', session('user_id'))->latest()->get();
 
-        return view('lessons.index', compact('lessons'));
+        // Fetch activities (Games and Quizzes) for the second tab
+        $games = \App\Models\Activity::where('teacher_id', session('user_id'))->where('type', 'Game')->latest()->get();
+        $quizzes = \App\Models\Activity::where('teacher_id', session('user_id'))->where('type', 'Quiz')->latest()->get();
+
+        return view('lessons.index', compact('lessons', 'games', 'quizzes'));
     }
 
     // --- CREATE (CREATE): Show the add form ---
     public function create(): View
     {
-        return view('lessons.create');
+        return view('lessons.create-new');
     }
 
     // --- CREATE (STORE): Handle form submission and save to DB (UC003) ---
@@ -33,7 +37,8 @@ class LessonController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'topic' => 'required|string|max:255',
-            'content' => 'nullable|string', // Added content validation
+            'content' => 'nullable|string', // Old field for backward compatibility
+            'content_blocks' => 'nullable|json', // New block-based content
             'duration' => 'nullable|integer|min:5',
             'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
             'url' => 'nullable|url',
@@ -47,11 +52,20 @@ class LessonController extends Controller
             $filePath = str_replace('public/', 'storage/', $storagePath);
         }
 
-        // 3. Create the Lesson Record in MySQL (Using validated data)
+        // 3. Parse content_blocks if provided
+        $contentBlocks = null;
+        if ($request->has('content_blocks')) {
+            $contentBlocks = json_decode($request->content_blocks, true);
+        }
+
+        // 4. Create the Lesson Record in MySQL (Using validated data)
         Lesson::create([
             'title' => $request->title,
             'topic' => $request->topic,
-            'content' => $request->input('content'), // Save content
+            'is_public' => false, // Default to Private
+            'is_published' => true, // Ready by default, but restricted visibility checking is_public
+            'content' => $request->input('content'), // Legacy field
+            'content_blocks' => $contentBlocks, // New block-based content
             'material_path' => $filePath,
             'url' => $request->url,
             'duration' => $request->duration,
@@ -91,7 +105,8 @@ class LessonController extends Controller
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',
             'topic' => 'required|string|max:255',
-            'content' => 'nullable|string', // Added content validation
+            'content_blocks' => 'nullable|json', // Block editor data
+            'content' => 'nullable|string', // Backward compatibility
             'duration' => 'nullable|integer|min:5',
             'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
             'url' => 'nullable|url',
@@ -111,11 +126,18 @@ class LessonController extends Controller
             $filePath = str_replace('public/', 'storage/', $storagePath);
         }
 
-        // 3. Update the Lesson Record (Using ONLY validated data + file path)
+        // 3. Prepare content_blocks data
+        $contentBlocks = null;
+        if ($request->has('content_blocks')) {
+            $contentBlocks = json_decode($request->content_blocks, true);
+        }
+
+        // 4. Update the Lesson Record (Using ONLY validated data + file path)
         $lesson->update([
             'title' => $validatedData['title'],
             'topic' => $validatedData['topic'],
-            'content' => $validatedData['content'] ?? $lesson->content, // Update content
+            'content_blocks' => $contentBlocks, // New block editor data
+            'content' => $validatedData['content'] ?? $lesson->content, // Backward compatibility
             'duration' => $validatedData['duration'],
             'material_path' => $filePath,
             'url' => $request->url ?? $lesson->url,
@@ -145,34 +167,81 @@ class LessonController extends Controller
     // --- STUDENT VIEW: List all published lessons ---
     public function studentIndex(): View
     {
+        // 2. Fetch Activity Submissions for Completion Check
+        $user = auth()->user();
+        $activitySubmissions = collect();
+        $lessonEnrollments = collect();
+
+        if ($user) {
+            $activitySubmissions = \App\Models\ActivitySubmission::where('user_id', $user->id)
+                ->get()
+                ->pluck('completed_at', 'activity_assignment_id');
+            
+            $lessonEnrollments = \App\Models\Enrollment::where('user_id', $user->id)
+                ->get()
+                ->pluck('status', 'lesson_id');
+        }
+
         // 1. Fetch Lessons
-        $lessons = Lesson::where('is_published', true)->get()->map(function($lesson) {
+        $classroomIds = collect();
+        if ($user && $user->role === 'student') {
+             $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
+        }
+
+        $lessons = Lesson::where('is_published', true)
+            ->where(function($query) use ($classroomIds) {
+                // Show if Public
+                $query->where('is_public', true)
+                // OR if assigned to one of the student's classrooms
+                      ->orWhereHas('classrooms', function($q) use ($classroomIds) {
+                          $q->whereIn('classroom_id', $classroomIds);
+                      });
+            })
+            ->get()
+            ->map(function ($lesson) use ($lessonEnrollments) {
             $lesson->setAttribute('item_type', 'lesson');
             $lesson->setAttribute('sort_date', $lesson->created_at);
+            // Check completion
+            $isCompleted = $lessonEnrollments->get($lesson->id) === 'completed';
+            $lesson->setAttribute('is_completed', $isCompleted);
             return $lesson;
         });
 
-        // 2. Fetch Activities Assigned to User's Classrooms
-        $activities = collect();
-        if (session('user_id')) {
-            $user = \App\Models\User::find(session('user_id'));
-            if ($user && $user->role === 'student') {
-                $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
-                
-                $activities = \App\Models\ActivityAssignment::whereIn('classroom_id', $classroomIds)
-                    ->with('activity')
-                    ->get()
-                    ->map(function($assignment) {
-                        $activity = $assignment->activity;
-                        // Attach assignment details to activity object for view
-                        $activity->setAttribute('item_type', 'activity');
-                        $activity->setAttribute('sort_date', $assignment->assigned_at ?? $assignment->created_at);
-                        $activity->setAttribute('due_date', $assignment->due_date);
-                        $activity->setAttribute('assignment_id', $assignment->id);
-                        return $activity;
-                    });
-            }
+        // 2. Fetch Activities (Class Assigned + Public)
+        $classActivities = collect();
+        if ($user && $user->role === 'student') {
+            $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
+
+            $classActivities = \App\Models\ActivityAssignment::whereIn('classroom_id', $classroomIds)
+                ->with('activity')
+                ->get()
+                ->map(function ($assignment) use ($activitySubmissions) {
+                    $activity = $assignment->activity;
+                    // Attach assignment details to activity object for view
+                    $activity->setAttribute('item_type', 'activity');
+                    $activity->setAttribute('sort_date', $assignment->assigned_at ?? $assignment->created_at);
+                    $activity->setAttribute('due_date', $assignment->due_date);
+                    $activity->setAttribute('assignment_id', $assignment->id);
+                    // Check if completed
+                    $activity->setAttribute('is_completed', $activitySubmissions->has($assignment->id));
+                    return $activity;
+                });
         }
+
+        // Fetch Public Activities
+        $publicActivities = \App\Models\Activity::where('is_public', true)
+             ->latest()
+             ->get()
+             ->map(function ($activity) {
+                 $activity->setAttribute('item_type', 'activity');
+                 $activity->setAttribute('sort_date', $activity->created_at);
+                 $activity->setAttribute('due_date', null);
+                 $activity->setAttribute('assignment_id', 'public_' . $activity->id);
+                 $activity->setAttribute('is_completed', false); 
+                 return $activity;
+             });
+
+        $activities = $classActivities->concat($publicActivities);
 
         // 3. Merge and Sort
         $items = $lessons->concat($activities)->sortByDesc('sort_date');
@@ -189,12 +258,91 @@ class LessonController extends Controller
         }
 
         $submission = null;
+        $enrollment = null;
+
         if (session('user_id')) {
+            // Check if user is a teacher - if so, show them the Teacher View (Manage Lesson View)
+            $user = \App\Models\User::find(session('user_id'));
+            if ($user && $user->role === 'teacher') {
+                return view('lessons.show', compact('lesson'));
+            }
+
             $submission = \App\Models\Submission::where('user_id', session('user_id'))
                 ->where('lesson_id', $lesson->id)
                 ->first();
+
+            $enrollment = \App\Models\Enrollment::where('user_id', session('user_id'))
+                ->where('lesson_id', $lesson->id)
+                ->first();
+
+            // SYNC PROGRESS: Ensure completed items are valid for current lesson blocks
+            if ($enrollment) {
+                $completedItems = $enrollment->completed_items ? json_decode($enrollment->completed_items, true) : [];
+                $originalCount = count($completedItems);
+
+                // Get all valid Item IDs from lesson blocks
+                $validItemIds = [];
+                if (isset($lesson->content_blocks['blocks'])) {
+                    foreach ($lesson->content_blocks['blocks'] as $index => $block) {
+                        $validItemIds[] = $block['id'] ?? 'block_' . $index;
+                    }
+                }
+
+                // Add submission to valid IDs if it exists
+                // We always allow 'submission' as a valid tracking item for progress
+                $validItemIds[] = 'submission';
+
+                // Filter out invalid items (orphaned from deleted blocks?)
+                $completedItems = array_values(array_intersect($completedItems, $validItemIds));
+
+                // Also check if 'submission' is marked complete but no submission exists? 
+                // (Optional: strict check, but maybe overkill. Let's trust the flag if submission was deleted manually but progress kept? No, let's strictly check submission existence too if needed. But for now, just syncing block IDs is enough to fix the 67% ghost issue.)
+
+                if (count($completedItems) !== $originalCount) {
+                    // Update DB if changes found
+                    $enrollment->completed_items = json_encode($completedItems);
+
+                    // Recalculate Progress
+                    $totalItems = count($validItemIds); // Blocks + 1
+                    $progress = ($totalItems > 0) ? min(100, round((count($completedItems) / $totalItems) * 100)) : 0;
+
+                    $enrollment->progress = $progress;
+
+                    if ($progress == 100)
+                        $enrollment->status = 'completed';
+                    elseif ($progress > 0)
+                        $enrollment->status = 'in_progress';
+                    else
+                        $enrollment->status = 'enrolled'; // Reset to enrolled if 0
+
+                    $enrollment->save();
+                }
+            }
         }
 
-        return view('lessons.student-show', compact('lesson', 'submission'));
+        return view('lessons.student-show', compact('lesson', 'submission', 'enrollment'));
+    }
+
+    // --- API: Upload image for block editor ---
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
+        ]);
+
+        if ($request->hasFile('image')) {
+            $storagePath = $request->file('image')->store('public/lessons/images');
+            $url = asset(str_replace('public/', 'storage/', $storagePath));
+
+            return response()->json([
+                'success' => true,
+                'url' => $url,
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'No image file provided',
+        ], 400);
     }
 }

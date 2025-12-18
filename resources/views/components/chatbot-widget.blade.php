@@ -342,7 +342,12 @@
     }
     
     // Text highlighting functionality
-    function handleTextSelection() {
+    function handleTextSelection(e) {
+        // Don't interfere with inputs or textareas
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+            return;
+        }
+
         const selection = window.getSelection();
         const selectedText = selection.toString().trim();
         
@@ -360,7 +365,11 @@
             tooltip.style.left = (rect.left + window.scrollX + (rect.width / 2) - 100) + 'px';
             tooltip.style.top = (rect.top + window.scrollY - 50) + 'px';
         } else {
-            clearHighlight();
+            // Only clear if the tooltip was actually visible to avoid killing cursor in inputs
+            const tooltip = document.getElementById('highlight-tooltip');
+            if (tooltip && tooltip.style.display !== 'none') {
+                clearHighlight();
+            }
         }
     }
     

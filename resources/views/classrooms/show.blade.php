@@ -7,6 +7,11 @@
 
     <div class="py-12 bg-gray-50 min-h-screen">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <!-- Back Button -->
+            <a href="{{ route('classrooms.index') }}" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Kembali ke Senarai Kelas
+            </a>
 
             {{-- Success Message --}}
             @if(session('success'))
@@ -79,13 +84,60 @@
                                 <form method="POST" action="{{ route('classrooms.students.add', $classroom) }}">
                                     @csrf
                                     <div class="flex space-x-2">
-                                        <select name="student_id" required
-                                            class="flex-1 text-sm border-gray-300 rounded-md focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                            <option value="">Select...</option>
-                                            @foreach($availableStudents as $student)
-                                                <option value="{{ $student->id }}">{{ $student->full_name }}</option>
-                                            @endforeach
-                                        </select>
+                                    <div x-data="{ 
+                                            open: false, 
+                                            search: '', 
+                                            selectedId: '', 
+                                            selectedName: '' 
+                                        }" 
+                                        class="relative flex-1"
+                                        @click.away="open = false">
+                                        
+                                        <input type="hidden" name="student_id" x-model="selectedId" required>
+
+                                        <button type="button" 
+                                            @click="open = !open; if(open) $nextTick(() => $refs.searchInput.focus())"
+                                            class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                            <span class="block truncate" x-text="selectedName || 'Select Student...'"></span>
+                                            <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                        </button>
+
+                                        <div x-show="open" 
+                                            x-transition:leave="transition ease-in duration-100"
+                                            x-transition:leave-start="opacity-100"
+                                            x-transition:leave-end="opacity-0"
+                                            class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
+                                            style="display: none;">
+                                            
+                                            <div class="px-2 py-2 sticky top-0 bg-white border-b z-20">
+                                                <input x-ref="searchInput" x-model="search" type="text" placeholder="Search student name..." class="w-full border-gray-300 rounded-md text-xs p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                            </div>
+
+                                            <ul class="pt-1">
+                                                @foreach($availableStudents as $student)
+                                                    <li class="cursor-pointer select-none relative py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white group"
+                                                        x-show="'{{ strtolower($student->full_name) }}'.includes(search.toLowerCase())"
+                                                        @click="selectedId = '{{ $student->id }}'; selectedName = '{{ $student->full_name }}'; open = false; search = ''">
+                                                        <span class="block truncate font-normal group-hover:font-semibold">
+                                                            {{ $student->full_name }}
+                                                        </span>
+                                                        <span x-show="selectedId === '{{ $student->id }}'" class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600 group-hover:text-white">
+                                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                                            </svg>
+                                                        </span>
+                                                    </li>
+                                                @endforeach
+                                                <li x-show="search !== '' && $el.parentNode.querySelectorAll('li[x-show]:not([style*=\'display: none\'])').length === 0" class="cursor-default select-none relative py-2 pl-3 pr-9 text-gray-500 italic">
+                                                    No students found.
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
                                         <button type="submit"
                                             class="p-2 bg-[#5FAD56] text-white rounded-md hover:bg-green-700 transition">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,134 +187,145 @@
                     </div>
                 </div>
 
-                {{-- RIGHT COLUMN: Timeline & Content --}}
-                <div class="lg:col-span-2">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[500px]">
-                        <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                            <span class="bg-[#2454FF] w-2 h-8 rounded-full mr-3"></span>
-                            Course Timeline
-                        </h3>
-
-                        <div class="space-y-6">
-                            @php
-                                $timelineItems = $classroom->lessons->map(function($lesson) {
-                                    $lesson->timeline_date = $lesson->created_at;
-                                    $lesson->type_label = 'Lesson';
-                                    return $lesson;
-                                })->concat($classroom->activityAssignments->map(function($assignment) {
-                                    $assignment->timeline_date = $assignment->created_at; // Or assigned_at
-                                    $assignment->type_label = 'Activity';
-                                    return $assignment;
-                                }))->sortByDesc('timeline_date');
-                            @endphp
-
-                            @forelse($timelineItems as $item)
-                                @php
-                                    $isActivity = $item->type_label === 'Activity';
-                                @endphp
-                                <div class="relative pl-8 border-l-2 border-gray-200 pb-6 last:pb-0 last:border-0">
-                                    {{-- Timeline Dot --}}
-                                    <div
-                                        class="absolute -left-[9px] top-0 bg-white border-4 {{ $isActivity ? 'border-purple-600' : 'border-[#2454FF]' }} h-4 w-4 rounded-full">
-                                    </div>
-
-                                    <div
-                                        class="bg-gray-50 rounded-lg p-5 border border-gray-200 hover:shadow-md transition duration-200">
-                                        <div class="flex justify-between items-start">
-                                            <div>
-                                                <h4 class="text-lg font-bold text-gray-800 {{ $isActivity ? 'hover:text-purple-600' : 'hover:text-[#2454FF]' }} transition">
-                                                    @if($isActivity)
-                                                        <a href="{{ route('activities.show', $item->activity) }}">{{ $item->activity->title }}</a>
-                                                        <span class="text-xs font-normal text-gray-500 ml-1">({{ $item->activity->suggested_duration }})</span>
-                                                    @else
-                                                        <a href="{{ route('lesson.show', $item) }}">{{ $item->title }}</a>
-                                                    @endif
-                                                </h4>
-                                                @if($isActivity)
-                                                     <p class="text-sm text-gray-500 mb-2">{{ $item->activity->type }} &bull; Assigned {{ $item->created_at->format('M d, Y') }}</p>
-                                                     <p class="text-gray-600 text-sm mb-4">{{ Str::limit($item->activity->description, 120) }}</p>
-                                                     @if($item->due_date)
-                                                        <p class="text-xs text-red-500 font-bold">Due: {{ \Carbon\Carbon::parse($item->due_date)->format('M d, Y') }}</p>
-                                                     @endif
-                                                @else
-                                                    <p class="text-sm text-gray-500 mb-2">{{ $item->topic }} &bull; Posted
-                                                        {{ $item->created_at ? $item->created_at->format('M d, Y') : 'N/A' }}</p>
-                                                    <p class="text-gray-600 text-sm mb-4">
-                                                        {{ Str::limit($item->content, 120) }}</p>
-                                                @endif
-                                            </div>
-                                            
-                                            {{-- Status Badges --}}
-                                            @if($user->role === 'teacher')
-                                                @if(!$isActivity)
-                                                    <div class="bg-blue-100 text-[#2454FF] text-xs font-bold px-2 py-1 rounded whitespace-nowrap ml-2">
-                                                        {{ $item->submissions->whereIn('user_id', $classroom->students->pluck('id'))->count() }}
-                                                        / {{ $classroom->students->count() }} Turned In
-                                                    </div>
-                                                @else
-                                                    <div class="bg-purple-100 text-purple-600 text-xs font-bold px-2 py-1 rounded whitespace-nowrap ml-2">
-                                                        Activity
-                                                    </div>
-                                                @endif
-                                            @else
-                                                @if(!$isActivity)
-                                                    @php
-                                                        $enrollment = $item->enrollments->first();
-                                                        $status = $enrollment ? $enrollment->status : 'not_started';
-                                                        $statusColors = [
-                                                            'completed' => 'bg-green-100 text-green-800',
-                                                            'in_progress' => 'bg-yellow-100 text-yellow-800',
-                                                            'not_started' => 'bg-gray-100 text-gray-600',
-                                                        ];
-                                                        $statusLabel = [
-                                                            'completed' => 'Completed',
-                                                            'in_progress' => 'In Progress',
-                                                            'not_started' => 'Not Started',
-                                                        ];
-                                                    @endphp
-                                                    <div class="{{ $statusColors[$status] ?? 'bg-gray-100' }} text-xs font-bold px-2 py-1 rounded whitespace-nowrap ml-2 uppercase tracking-wide">
-                                                        {{ $statusLabel[$status] ?? 'Not Started' }}
-                                                    </div>
-                                                @else
-                                                     <!-- Activity Status Logic if needed, currently just showing it exists -->
-                                                @endif
-                                            @endif
-                                        </div>
-
-                                        <div class="flex space-x-3 mt-2">
-                                            @if($isActivity)
-                                                <a href="{{ route('activities.show', $item->activity) }}"
-                                                    class="text-sm font-semibold text-purple-600 hover:underline">
-                                                    View Details
-                                                </a>
-                                            @else
-                                                <a href="{{ route('lesson.show', $item) }}"
-                                                    class="text-sm font-semibold text-[#2454FF] hover:underline">
-                                                    {{ $user->role === 'student' && ($item->enrollments->first()->status ?? '') === 'completed' ? 'Review Lesson' : 'Open Lesson' }}
-                                                </a>
-                                                @if($user->role === 'teacher')
-                                                    <span class="text-gray-300">|</span>
-                                                    <a href="{{ route('submission.index', ['lesson_id' => $item->id, 'classroom_id' => $classroom->id]) }}"
-                                                        class="text-sm font-semibold text-[#5FAD56] hover:underline">
-                                                        Grade Submissions
-                                                    </a>
-                                                @endif
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                    </svg>
-                                    <h3 class="mt-2 text-sm font-medium text-gray-900">No content yet</h3>
-                                    <p class="mt-1 text-sm text-gray-500">Get started by creating a new lesson or assigning an activity.</p>
-                                </div>
-                            @endforelse
+                {{-- RIGHT COLUMN: Content Lists --}}
+                <div class="lg:col-span-2" x-data="{ 
+                    search: '',
+                    fuzzyMatch(text, query) {
+                        text = (text || '').toLowerCase();
+                        query = (query || '').toLowerCase().trim();
+                        if (!query) return true;
+                        let i = 0, n = -1, l;
+                        for (; l = query[i++];) {
+                            if (!~(n = text.indexOf(l, n + 1))) return false;
+                        }
+                        return true;
+                    }
+                }">
+                    
+                    {{-- Search Bar --}}
+                    <div class="mb-6">
+                        <div class="relative">
+                            <input type="text" x-model="search" placeholder="Cari pelajaran atau aktiviti..." 
+                                class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-100 transition shadow-sm text-gray-700">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
                         </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        {{-- LESSONS COLUMN --}}
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl">
+                                <h3 class="font-bold text-gray-800 flex items-center">
+                                    <span class="bg-[#2454FF] w-2 h-6 rounded-full mr-2"></span>
+                                    Pelajaran
+                                </h3>
+                            </div>
+                            <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                                @forelse($classroom->lessons->sortByDesc('created_at') as $lesson)
+                                    <div class="bg-white border border-gray-100 rounded-lg p-4 shadow-sm hover:shadow-md transition duration-200"
+                                         x-show="fuzzyMatch('{{ $lesson->title }}', search)"
+                                         x-transition:enter="transition ease-out duration-200"
+                                         x-transition:enter-start="opacity-0 transform scale-95"
+                                         x-transition:enter-end="opacity-100 transform scale-100">
+                                        
+                                        <div class="flex justify-between items-start mb-2">
+                                            <h4 class="font-bold text-[#2454FF] hover:underline leading-snug">
+                                                <a href="{{ route('lesson.show', $lesson) }}">{{ $lesson->title }}</a>
+                                            </h4>
+                                            
+                                            {{-- Status for Students --}}
+                                            @if($user->role === 'student' && $lesson->enrollments->where('user_id', $user->id)->first())
+                                                @php
+                                                    $status = $lesson->enrollments->where('user_id', $user->id)->first()->status;
+                                                    $statusColors = [
+                                                        'completed' => 'bg-green-100 text-green-800',
+                                                        'in_progress' => 'bg-yellow-100 text-yellow-800',
+                                                        'not_started' => 'bg-gray-100 text-gray-600',
+                                                    ];
+                                                @endphp
+                                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $statusColors[$status] ?? 'bg-gray-100' }}">
+                                                    {{ str_replace('_', ' ', ucfirst($status)) }}
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        <p class="text-xs text-gray-500 mb-3">{{ $lesson->topic }}</p>
+                                        <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ $lesson->content }}</p>
+
+                                        <div class="grid grid-cols-1 gap-2">
+                                            <a href="{{ route('lesson.show', $lesson) }}" 
+                                               class="text-center text-xs font-bold text-[#2454FF] bg-blue-50 py-2 rounded hover:bg-blue-100 transition">
+                                                Buka Pelajaran
+                                            </a>
+                                            @if($user->role === 'teacher')
+                                                <a href="{{ route('submission.index', ['lesson_id' => $lesson->id, 'classroom_id' => $classroom->id]) }}"
+                                                   class="text-center text-xs font-bold text-[#5FAD56] bg-green-50 py-2 rounded hover:bg-green-100 transition">
+                                                   Semak Tugasan ({{ $lesson->submissions->count() }})
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-center text-gray-400 text-sm italic py-4">Tiada pelajaran.</p>
+                                @endforelse
+                                <p x-show="search !== '' && $el.parentNode.querySelectorAll('div[x-show]:not([style*=\'display: none\'])').length === 0" 
+                                   class="text-center text-gray-400 text-sm italic py-4" style="display: none;">
+                                    Tiada pelajaran dijumpai.
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- ACTIVITIES COLUMN --}}
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl">
+                                <h3 class="font-bold text-gray-800 flex items-center">
+                                    <span class="bg-purple-600 w-2 h-6 rounded-full mr-2"></span>
+                                    Aktiviti
+                                </h3>
+                            </div>
+                            <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                                @forelse($classroom->activityAssignments->sortByDesc('created_at') as $assignment)
+                                    <div class="bg-white border border-gray-100 rounded-lg p-4 shadow-sm hover:shadow-md transition duration-200"
+                                         x-show="fuzzyMatch('{{ $assignment->activity->title }}', search)"
+                                         x-transition:enter="transition ease-out duration-200"
+                                         x-transition:enter-start="opacity-0 transform scale-95"
+                                         x-transition:enter-end="opacity-100 transform scale-100">
+                                        
+                                        <div class="flex justify-between items-start mb-2">
+                                            <h4 class="font-bold text-purple-600 hover:underline leading-snug">
+                                                <a href="{{ route('activities.show', $assignment->activity) }}">{{ $assignment->activity->title }}</a>
+                                            </h4>
+                                            <span class="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                                                {{ $assignment->activity->type }}
+                                            </span>
+                                        </div>
+
+                                        @if($assignment->due_date)
+                                            <p class="text-xs text-red-500 font-bold mb-2">
+                                                Tamat: {{ \Carbon\Carbon::parse($assignment->due_date)->format('d M Y') }}
+                                            </p>
+                                        @endif
+
+                                        <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ $assignment->activity->description }}</p>
+
+                                        <a href="{{ route('activities.show', $assignment->activity) }}" 
+                                           class="block text-center text-xs font-bold text-purple-600 bg-purple-50 py-2 rounded hover:bg-purple-100 transition">
+                                            Lihat Aktiviti
+                                        </a>
+                                    </div>
+                                @empty
+                                    <p class="text-center text-gray-400 text-sm italic py-4">Tiada aktiviti.</p>
+                                @endforelse
+                                <p x-show="search !== '' && $el.parentNode.querySelectorAll('div[x-show]:not([style*=\'display: none\'])').length === 0" 
+                                   class="text-center text-gray-400 text-sm italic py-4" style="display: none;">
+                                    Tiada aktiviti dijumpai.
+                                </p>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 

@@ -28,7 +28,7 @@
                         <div>
                             <p class="text-sm font-medium text-gray-500">{{ __('Available Lessons') }}</p>
                             <p class="text-2xl font-bold mt-1" style="color: #2454FF;">
-                                {{ \App\Models\Lesson::where('is_published', true)->count() }}
+                                {{ \App\Models\Lesson::where('is_published', true)->where('is_public', true)->count() }}
                             </p>
                         </div>
                         <div class="p-2 rounded-lg bg-blue-50">
@@ -144,7 +144,7 @@
                                         <div class="flex justify-between items-start mb-1">
                                             <span
                                                 class="text-[10px] font-bold {{ $isActivity ? 'text-purple-600 bg-purple-50' : 'text-[#2454FF] bg-blue-50' }} uppercase tracking-wider px-1.5 py-0.5 rounded">
-                                                {{ $item->classroom->subject }}
+                                                {{ $item->classroom ? $item->classroom->subject : 'Public' }}
                                             </span>
                                             <span class="text-xs text-gray-400">
                                                 {{ $item->assigned_at ? \Carbon\Carbon::parse($item->assigned_at)->diffForHumans() : __('Recently') }}
@@ -277,17 +277,6 @@
                 <!-- Column 3: Discovery -->
                 <div class="space-y-6">
                     <!-- Public Lessons -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-sm font-bold text-gray-800">{{ __('Public Lessons') }}</h4>
-                            <a href="{{ route('lesson.index') }}"
-                                class="text-xs font-semibold text-[#2454FF] hover:underline">{{ __('View All') }}</a>
-                        </div>
-                        <div class="space-y-3">
-                            @php
-                            $publicLessons = \App\Models\Lesson::where('is_published', true)->latest()->take(6)->get();
 
-                        </div>
-                    </div>
                 </div>
 </x-app-layout>

@@ -11,7 +11,7 @@
                 </div>
 
                 <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex items-center">
+                <div class="hidden space-x-8 lg:-my-px lg:ms-10 lg:flex items-center">
                     <a href="{{ route('dashboard') }}"
                         class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                         {{ __('Dashboard') }}
@@ -22,7 +22,7 @@
                         {{ __('Forum') }}
                     </a>
 
-                    <div class="hidden sm:flex sm:items-center">
+                    <div class="hidden lg:flex lg:items-center">
                         <x-dropdown align="left" width="48">
                             <x-slot name="trigger">
                                 <button
@@ -54,7 +54,7 @@
                     </div>
 
                     @if($currentUser && $currentUser->role === 'teacher')
-                        <div class="hidden sm:flex sm:items-center">
+                        <div class="hidden lg:flex lg:items-center">
                             <x-dropdown align="left" width="48">
                                 <x-slot name="trigger">
                                     <button
@@ -88,7 +88,9 @@
                             </x-dropdown>
                         </div>
 
-                        <div class="hidden sm:flex sm:items-center">
+
+
+                        <div class="hidden lg:flex lg:items-center">
                             <x-dropdown align="left" width="48">
                                 <x-slot name="trigger">
                                     <button
@@ -116,33 +118,7 @@
                             </x-dropdown>
                         </div>
 
-                        <div class="hidden sm:flex sm:items-center">
-                            <x-dropdown align="left" width="48">
-                                <x-slot name="trigger">
-                                    <button
-                                        class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                                        <div>{{ __('Aktiviti') }}</div>
-                                        <div class="ms-1">
-                                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg"
-                                                viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd"
-                                                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                    clip-rule="evenodd" />
-                                            </svg>
-                                        </div>
-                                    </button>
-                                </x-slot>
 
-                                <x-slot name="content">
-                                    <x-dropdown-link :href="route('activities.index')">
-                                        {{ __('Senarai Aktiviti') }}
-                                    </x-dropdown-link>
-                                    <x-dropdown-link :href="route('schedule.index')">
-                                        {{ __('Mengendalikan Aktiviti') }}
-                                    </x-dropdown-link>
-                                </x-slot>
-                            </x-dropdown>
-                        </div>
                         <a href="{{ route('classrooms.index') }}"
                             class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('classrooms.*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             {{ __('Kelas Saya') }}
@@ -152,20 +128,20 @@
                             class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('lesson.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             {{ __('My Lessons') }}
                         </a>
-                        <a href="{{ route('enrollment.index') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('enrollment.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            {{ __('Course Catalog') }}
-                        </a>
                         <a href="{{ route('submission.show') }}"
                             class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('submission.show') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             {{ __('My Submissions') }}
+                        </a>
+                        <a href="{{ route('performance.index') }}"
+                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('performance.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            {{ __('Lihat Prestasi') }}
                         </a>
                     @endif
                 </div>
             </div>
 
             <!-- Right Side Icons and Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6 sm:gap-3">
+            <div class="hidden lg:flex lg:items-center lg:ms-6 lg:gap-3">
                 <!-- Notification Icon -->
                 <div class="relative">
                     <button id="notificationBtn"
@@ -241,7 +217,7 @@
             </div>
 
             <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
+            <div class="-me-2 flex items-center lg:hidden">
                 <button @click="open = ! open"
                     class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -257,7 +233,7 @@
     </div>
 
     <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden lg:hidden">
         <div class="pt-2 pb-3 space-y-1">
             <a href="{{ route('dashboard') }}"
                 class="block px-4 py-2 text-base font-medium {{ request()->routeIs('dashboard') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
@@ -310,10 +286,23 @@
                     </a>
                 </div>
 
-                <a href="{{ route('monitoring.index') }}"
-                    class="block px-4 py-2 text-base font-medium {{ request()->routeIs('monitoring.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                    {{ __('Monitor Progress') }}
-                </a>
+
+
+                <div class="pt-2 pb-1 border-t border-gray-200">
+                    <div class="px-4 text-xs text-gray-500 uppercase font-semibold">
+                        {{ __('Prestasi') }}
+                    </div>
+                    <a href="{{ route('progress.index') }}"
+                        class="block px-4 py-2 text-base font-medium {{ request()->routeIs('progress.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
+                        {{ __('Lihat Perkembangan') }}
+                    </a>
+                     <a href="{{ route('performance.index') }}"
+                        class="block px-4 py-2 text-base font-medium {{ request()->routeIs('performance.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
+                        {{ __('Lihat Prestasi') }}
+                    </a>
+                </div>
+
+
                 <a href="{{ route('classrooms.index') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('classrooms.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
                     {{ __('Kelas Saya') }}
@@ -327,6 +316,12 @@
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('submission.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
                     {{ __('My Submissions') }}
                 </a>
+                <div class="pt-2 pb-1 border-t border-gray-200">
+                     <a href="{{ route('performance.index') }}"
+                        class="block px-4 py-2 text-base font-medium {{ request()->routeIs('performance.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
+                        {{ __('Lihat Prestasi') }}
+                    </a>
+                </div>
             @endif
         </div>
 

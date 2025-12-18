@@ -171,16 +171,55 @@
 
                 <!-- Badges Section -->
                 <div id="section-badges" class="section-content hidden p-6">
+                    <!-- Badge Filters -->
+                    <div class="mb-6 space-y-4">
+                        <!-- Category Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Kategori</label>
+                            <div class="flex flex-wrap gap-2" id="profileCategoryFilters">
+                                <button class="filter-btn active px-3 py-1 text-sm rounded-full border border-blue-500 bg-blue-500 text-white transition-colors" data-filter="all" data-type="category">Semua</button>
+                                @foreach($categories as $cat)
+                                    <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" 
+                                            data-filter="{{ $cat->code }}" 
+                                            data-type="category">
+                                        {{ $cat->name }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <!-- Status Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</label>
+                            <div class="flex flex-wrap gap-2" id="profileStatusFilters">
+                                <button class="filter-btn active px-3 py-1 text-sm rounded-full border border-blue-500 bg-blue-500 text-white transition-colors" data-filter="all" data-type="status">Semua</button>
+                                <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" data-filter="earned" data-type="status">Tercapai</button>
+                                <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" data-filter="progress" data-type="status">Dalam Progres</button>
+                                <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" data-filter="locked" data-type="status">Terkunci</button>
+                            </div>
+                        </div>
+                    </div>
+
                     @if($badges->count() > 0)
                         <div class="mb-4">
                             <p class="text-sm text-gray-600">
-                                {{ __('Showing all :count badges.', ['count' => $badges->count()]) }} 
-                                <span class="font-semibold text-blue-600">{{ $badges->where('is_earned', true)->count() }} {{ __('earned') }}</span>
+                                {{ __('Menunjukkan :count lencana.', ['count' => $badges->count()]) }} 
+                                <span class="font-semibold text-blue-600">{{ $badges->where('is_earned', true)->count() }} {{ __('tercapai') }}</span>
                             </p>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="profileBadgesGrid">
                             @foreach($badges as $badge)
-                                <div class="relative p-4 rounded-lg border transition-all duration-200 {{ $badge->is_earned ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-75' }}">
+                                @php
+                                    $statusType = $badge->is_earned ? 'earned' : 'locked';
+                                    // Simple logic for progress: if points > 0 but not earned (needs actual progress logic from backend eventually)
+                                    if (!$badge->is_earned && isset($badge->progress) && $badge->progress > 0) {
+                                        $statusType = 'progress';
+                                    }
+                                @endphp
+                                <div class="badge-item relative p-4 rounded-lg border transition-all duration-200 {{ $badge->is_earned ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-75' }}"
+                                     data-category="{{ $badge->category->code ?? 'uncategorized' }}"
+                                     data-status-type="{{ $statusType }}">
+                                    
                                     <div class="flex flex-col items-center text-center">
                                         <!-- Badge Icon -->
                                         <div class="mb-3 relative">
@@ -227,7 +266,7 @@
                                         <!-- Locked/Unearned Indicator -->
                                         @if(!$badge->is_earned)
                                             <div class="mt-2 text-xs text-gray-400 italic">
-                                                <i class="fas fa-lock"></i> {{ __('Not earned') }}
+                                                <i class="fas fa-lock"></i> {{ __('Terkunci') }}
                                             </div>
                                         @endif
                                     </div>
@@ -239,8 +278,8 @@
                             <div class="inline-block p-4 bg-gray-100 rounded-full mb-4">
                                 <i class="fas fa-trophy text-gray-400 text-4xl"></i>
                             </div>
-                            <p class="text-gray-500 text-lg font-medium">{{ __('No badges available') }}</p>
-                            <p class="text-gray-400 text-sm mt-2">{{ __('Badges will appear here once they are added to the system.') }}</p>
+                            <p class="text-gray-500 text-lg font-medium">{{ __('Tiada lencana tersedia') }}</p>
+                            <p class="text-gray-400 text-sm mt-2">{{ __('Lencana akan muncul di sini sebaik sahaja ia ditambah ke dalam sistem.') }}</p>
                         </div>
                     @endif
                 </div>
@@ -334,6 +373,60 @@
                 alert('Failed to remove friend');
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Profile Badge Filter Logic
+            let currentCategory = 'all';
+            let currentStatus = 'all';
+
+            const categoryBtns = document.querySelectorAll('#profileCategoryFilters .filter-btn');
+            const statusBtns = document.querySelectorAll('#profileStatusFilters .filter-btn');
+            const badgeItems = document.querySelectorAll('#profileBadgesGrid .badge-item');
+
+            function filterBadges() {
+                badgeItems.forEach(item => {
+                    const itemCategory = item.getAttribute('data-category');
+                    const itemStatus = item.getAttribute('data-status-type');
+
+                    const matchCategory = (currentCategory === 'all' || itemCategory === currentCategory);
+                    const matchStatus = (currentStatus === 'all' || itemStatus === currentStatus);
+
+                    if (matchCategory && matchStatus) {
+                        item.classList.remove('hidden');
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Category Filter Events
+            categoryBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    categoryBtns.forEach(b => {
+                        b.classList.remove('active', 'border-blue-500', 'bg-blue-500', 'text-white');
+                        b.classList.add('border-gray-300', 'text-gray-600', 'bg-white');
+                    });
+                    this.classList.remove('border-gray-300', 'text-gray-600', 'bg-white');
+                    this.classList.add('active', 'border-blue-500', 'bg-blue-500', 'text-white');
+                    currentCategory = this.getAttribute('data-filter');
+                    filterBadges();
+                });
+            });
+
+            // Status Filter Events
+            statusBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    statusBtns.forEach(b => {
+                        b.classList.remove('active', 'border-blue-500', 'bg-blue-500', 'text-white');
+                        b.classList.add('border-gray-300', 'text-gray-600', 'bg-white');
+                    });
+                    this.classList.remove('border-gray-300', 'text-gray-600', 'bg-white');
+                    this.classList.add('active', 'border-blue-500', 'bg-blue-500', 'text-white');
+                    currentStatus = this.getAttribute('data-filter');
+                    filterBadges();
+                });
+            });
+        });
     </script>
 </x-app-layout>
 

@@ -4,10 +4,10 @@
         <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 card">
             <div class="flex justify-between items-center mb-6 border-b-2 border-[#2454FF] pb-2">
                 <h2 class="text-2xl font-bold text-gray-800">
-                    Create New Lesson
+                    Cipta Pelajaran Baru
                 </h2>
                 <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium">
-                    ← Back to Lessons
+                    ← Kembali ke Pelajaran
                 </a>
             </div>
 
@@ -69,12 +69,30 @@
                            class="mt-1 block w-full p-3 border border-gray-400 rounded-md bg-gray-50 cursor-pointer">
                 </div>
 
-                <div class="flex items-center justify-start space-x-4 pt-4">
+                <!-- Visibility Settings -->
+                <div>
+                    <label class="block font-medium text-lg text-[#3E3E3E] mb-2">Visibility Settings (Tetapan Kebolehlihatan)</label>
+                    <div class="flex items-center gap-6">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="is_public" value="1" class="form-radio text-[#2454FF]" checked>
+                            <span class="ml-2 text-gray-700">Public (All Students)</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="is_public" value="0" class="form-radio text-[#2454FF]">
+                            <span class="ml-2 text-gray-700">Class Only (Restricted)</span>
+                        </label>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                        If Restricted, students must be in a class assigned to this lesson to see it.
+                    </p>
+                </div>
+
+                <div class="flex items-center justify-end space-x-4 pt-4">
                     <button type="submit" class="bg-[#5FAD56] hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition ease-in-out duration-150">
-                        Save Lesson
+                        Simpan Pelajaran
                     </button>
                     <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium">
-                        Cancel
+                        Batal
                     </a>
                 </div>
             </form>

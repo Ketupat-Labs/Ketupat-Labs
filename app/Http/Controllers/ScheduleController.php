@@ -26,6 +26,32 @@ class ScheduleController extends Controller
         $selectedClass = null;
         $classroom_id = $request->get('classroom_id');
         $preselectedActivityId = $request->get('activity_id'); // From redirect
+        $selectedLessonId = $request->get('lesson_id');
+        $targetLesson = null;
+        $assignedClassroomIds = [];
+        $isLessonPublic = false;
+
+        if ($selectedLessonId && $isTeacher) {
+            $targetLesson = \App\Models\Lesson::find($selectedLessonId);
+            if ($targetLesson && $targetLesson->teacher_id == $user->id) {
+                 $assignedClassroomIds = \App\Models\LessonAssignment::where('lesson_id', $selectedLessonId)
+                                            ->pluck('classroom_id')
+                                            ->toArray();
+                 $isLessonPublic = $targetLesson->is_public;
+            } else {
+                // reset if invalid or not owner
+                $selectedLessonId = null;
+            }
+        } elseif ($preselectedActivityId && $isTeacher) {
+            // Logic for pre-selected activity (Multi-class support)
+            $targetActivity = \App\Models\Activity::find($preselectedActivityId);
+            if ($targetActivity && $targetActivity->teacher_id == $user->id) {
+                 $assignedClassroomIds = \App\Models\ActivityAssignment::where('activity_id', $preselectedActivityId)
+                                            ->pluck('classroom_id')
+                                            ->toArray();
+                 $isLessonPublic = $targetActivity->is_public; // Reuse variable for generic 'isPublic' state in view
+            }
+        }
 
         $month = $request->get('month', date('n'));
         $year = $request->get('year', date('Y'));
@@ -41,8 +67,19 @@ class ScheduleController extends Controller
                 $selectedClass = $classrooms->find($classroom_id);
             }
 
-            // Get teacher's activities
-            $activities = Activity::where('teacher_id', $user->id)->get();
+            // Get teacher's activities separated by type
+            $games = Activity::where('teacher_id', $user->id)
+                ->where('type', 'Game')
+                ->get();
+                
+            $quizzes = Activity::where('teacher_id', $user->id)
+                ->where('type', 'Quiz')
+                ->get();
+            
+            // Fallback: If no type distinction in data yet, put everything in games or split manually
+            if ($games->isEmpty() && $quizzes->isEmpty()) {
+                 $games = Activity::where('teacher_id', $user->id)->get();
+            }
 
             // Fetch Assignments for Calendar (Activity Assignments)
             if ($selectedClass) {
@@ -64,71 +101,221 @@ class ScheduleController extends Controller
 
         } else {
             // Student View
-            $classroomIds = $user->enrolledClassrooms()->pluck('classrooms.id'); // Verify this relationship format
+            $classroomIds = $user->enrolledClassrooms()->pluck('classrooms.id'); 
 
             $assignments = ActivityAssignment::with(['activity', 'classroom'])
                 ->whereIn('classroom_id', $classroomIds)
                 ->whereNotNull('due_date')
                 ->get();
 
+            // Fetch all submissions for these activities by this student
+            // ActivitySubmission links to ActivityAssignment, which links to Activity
+            $completedActivityIds = \App\Models\ActivitySubmission::where('user_id', $user->id)
+                ->with('assignment')
+                ->get()
+                ->pluck('assignment.activity_id')
+                ->filter() // Remove nulls
+                ->unique()
+                ->toArray();
+
             foreach ($assignments as $assignment) {
+                $isCompleted = in_array($assignment->activity_id, $completedActivityIds);
+                
                 $events[] = [
                     'title' => $assignment->activity->title . ' (' . $assignment->classroom->name . ')',
                     'start' => $assignment->due_date,
                     'notes' => $assignment->notes,
                     'activity_id' => $assignment->activity_id,
-                    'id' => $assignment->id
+                    'id' => $assignment->id,
+                    'is_completed' => $isCompleted
                 ];
             }
         }
 
         return view('schedule.index', compact(
             'classrooms', 
-            'activities', 
+            'games',
+            'quizzes', 
             'events', 
             'isTeacher', 
             'selectedClass', 
             'classroom_id', 
             'month', 
             'year',
-            'preselectedActivityId'
+            'preselectedActivityId',
+            'selectedLessonId',
+            'targetLesson',
+            'assignedClassroomIds',
+            'isLessonPublic'
         ));
     }
 
     public function store(Request $request): RedirectResponse
     {
+        \Illuminate\Support\Facades\Log::info('ScheduleController@store - Incoming Request:', $request->all());
+
         $user = User::find(session('user_id'));
         if (!$user || $user->role !== 'teacher') {
             abort(403, 'Unauthorized');
         }
 
         $request->validate([
-            'classroom_id' => 'required|exists:classes,id',
-            'activity_id' => 'required|exists:activities,id',
-            'due_date' => 'required|date',
+            'classroom_id' => 'nullable',
+            'classroom_ids' => 'nullable|array',
+            'is_public' => 'nullable',
+            'activity_id' => 'nullable|exists:activities,id',
+            'lesson_id' => 'nullable|exists:lessons,id',
+            'due_date' => 'nullable|date',
             'notes' => 'nullable|string'
         ]);
 
-        // Check ownership of classroom
-        $classroom = Classroom::where('id', $request->classroom_id)
+        if (!$request->activity_id && !$request->lesson_id) {
+            return back()->with('error', 'Sila pilih Aktiviti atau Pelajaran.');
+        }
+        
+        // Ensure at least one destination is selected (Classroom OR Public)
+        if (empty($request->classroom_ids) && !$request->classroom_id && !$request->boolean('is_public')) {
+             return back()->with('error', 'Sila pilih sekurang-kurangnya satu Kelas atau set sebagai Public.');
+        }
+
+        // Handle Lesson Assignment (Multi-Select Sync)
+        if ($request->lesson_id) {
+             $lesson = \App\Models\Lesson::where('id', $request->lesson_id)
+                ->where('teacher_id', $user->id)
+                ->firstOrFail();
+
+             // 1. Update Public Visibility
+             $isPublic = $request->has('is_public');
+             $lesson->update(['is_public' => $isPublic]);
+
+             // 2. Sync Class Assignments
+             // Get array of IDs, filter out 'public' or invalid values just in case
+             $classroomIds = $request->input('classroom_ids', []);
+             if (!is_array($classroomIds)) {
+                 $classroomIds = [];
+             }
+             
+             // Validate that these classrooms belong to the teacher
+             $validClassroomIds = Classroom::whereIn('id', $classroomIds)
+                ->where('teacher_id', $user->id)
+                ->pluck('id')
+                ->toArray();
+
+             $lesson->classrooms()->syncWithPivotValues($validClassroomIds, [
+                 'type' => 'assigned',
+                 'assigned_at' => now(), // Updates timestamp on re-assign, arguably okay.
+             ]);
+
+             return redirect()->route('schedule.index', ['lesson_id' => $lesson->id])
+                ->with('success', 'Tetapan tugasan pelajaran berjaya dikemaskini.');
+        }
+
+        // Handle Activity Assignment
+        if ($request->activity_id) {
+            $activity = \App\Models\Activity::where('id', $request->activity_id)
+                ->where('teacher_id', $user->id)
+                ->firstOrFail();
+
+            // 1. Update Public Visibility
+            $isPublic = $request->boolean('is_public');
+            $activity->update(['is_public' => $isPublic]);
+
+            // 2. Sync Class Assignments
+            $classroomIds = $request->input('classroom_ids', []);
+            if (!is_array($classroomIds)) {
+                $classroomIds = [];
+            }
+
+             // 2a. Delete assignments not in the new list (Sync)
+             // Only delete if they are NOT in the new list.
+             // Note: If empty, delete all? Yes, if user unchecked all.
+             \App\Models\ActivityAssignment::where('activity_id', $activity->id)
+                 ->whereNotIn('classroom_id', $classroomIds)
+                 ->delete();
+
+             // 2b. Create or Update assignments in the list
+             foreach ($classroomIds as $classroomId) {
+                  // Validate ownership
+                  $classroom = Classroom::where('id', $classroomId)->where('teacher_id', $user->id)->first();
+                  if ($classroom) {
+                      \App\Models\ActivityAssignment::updateOrCreate(
+                          ['activity_id' => $activity->id, 'classroom_id' => $classroomId],
+                          [
+                              'due_date' => $request->due_date ? \Carbon\Carbon::parse($request->due_date)->toDateTimeString() : null, 
+                              'notes' => $request->notes
+                          ]
+                      );
+                  }
+             }
+             
+             // Keep redirect behavior to 'assignments' tab if specified
+             if ($request->redirect_to === 'assignments') {
+                  return redirect()->route('assignments.create', ['tab' => 'activity'])
+                     ->with('success', 'Tugasan aktiviti berjaya dikemaskini.');
+             }
+
+             return redirect()->route('schedule.index', ['activity_id' => $activity->id])
+                ->with('success', 'Tetapan tugasan aktiviti berjaya dikemaskini.');
+        }
+    }
+
+    public function destroyActivityAssignment(\App\Models\ActivityAssignment $activityAssignment)
+    {
+        // Simple auth check via relationship
+        if ($activityAssignment->classroom->teacher_id != auth()->id()) {
+             abort(403);
+        }
+        $activityAssignment->delete();
+        return back()->with('success', 'Tugasan aktiviti berjaya dipadam.');
+    }
+
+    public function updateActivityAssignment(Request $request, \App\Models\ActivityAssignment $activityAssignment)
+    {
+        // Authorization
+        if ($activityAssignment->classroom->teacher_id != auth()->id()) {
+             abort(403);
+        }
+
+        $request->validate([
+             'due_date' => 'nullable|date',
+             'notes' => 'nullable|string',
+        ]);
+
+        $activityAssignment->update([
+             'due_date' => $request->due_date,
+             'notes' => $request->notes,
+        ]);
+
+        return back()->with('success', 'Tugasan aktiviti berjaya dikemaskini.');
+    }
+
+    public function revokePublic(\App\Models\Activity $activity)
+    {
+        if ($activity->teacher_id != auth()->id()) {
+            abort(403);
+        }
+        $activity->update(['is_public' => false]);
+        return back()->with('success', 'Status awam aktiviti berjaya dibatalkan.');
+    }
+
+    public function destroy(ActivityAssignment $assignment): RedirectResponse
+    {
+        $user = User::find(session('user_id'));
+        if (!$user || $user->role !== 'teacher') {
+            abort(403, 'Unauthorized');
+        }
+
+        // Verify the user owns the classroom for this assignment
+        $classroom = Classroom::where('id', $assignment->classroom_id)
             ->where('teacher_id', $user->id)
-            ->firstOrFail();
+            ->first();
 
-        // Update or Create ActivityAssignment
-        ActivityAssignment::updateOrCreate(
-            [
-                'classroom_id' => $request->classroom_id,
-                'activity_id' => $request->activity_id
-            ],
-            [
-                'due_date' => $request->due_date,
-                'notes' => $request->notes,
-                'status' => 'assigned',
-                'assigned_at' => now()
-            ]
-        );
+        if (!$classroom) {
+            abort(403, 'Unauthorized access to this assignment');
+        }
 
-        return redirect()->route('schedule.index', ['classroom_id' => $request->classroom_id])
-            ->with('success', 'Aktiviti berjaya dijadualkan.');
+        $assignment->delete();
+
+        return redirect()->back()->with('success', 'Tugasan aktiviti telah dipadam.');
     }
 }

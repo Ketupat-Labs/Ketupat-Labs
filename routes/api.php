@@ -128,6 +128,11 @@ Route::middleware('auth:web')->group(function () {
         Route::put('/{id}', [\App\Http\Controllers\AiContentController::class, 'update']);
         Route::delete('/{id}', [\App\Http\Controllers\AiContentController::class, 'destroy']);
     });
+    
+    // Lesson block editor routes
+    Route::prefix('lessons')->group(function () {
+        Route::post('/upload-image', [\App\Http\Controllers\LessonController::class, 'uploadImage']);
+    });
 });
 
 

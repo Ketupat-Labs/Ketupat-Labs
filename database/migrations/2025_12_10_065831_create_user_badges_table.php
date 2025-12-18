@@ -15,14 +15,16 @@ return new class extends Migration
             Schema::create('user_badges', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('user_id')->constrained('user')->onDelete('cascade');
-                $table->string('badge_name');
-                $table->string('badge_type')->nullable(); // e.g., 'achievement', 'milestone', 'special'
-                $table->text('description')->nullable();
-                $table->string('icon_url')->nullable();
-                $table->timestamp('earned_at')->useCurrent();
+                $table->string('badge_code');
+                $table->string('status')->default('locked'); // earned, locked, redeemed
+                $table->timestamp('earned_at')->nullable();
                 $table->timestamps();
                 
                 $table->index('user_id');
+                $table->index('badge_code');
+                
+                // Optional: Foreign key if you want to enforce referential integrity
+                // $table->foreign('badge_code')->references('code')->on('badges')->onDelete('cascade');
             });
         }
     }

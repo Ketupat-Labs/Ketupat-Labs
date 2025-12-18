@@ -51,12 +51,31 @@ class DashboardController extends Controller
                 ->take(5)
                 ->get();
 
-            // Fetch recent activity assignments
-            $recentActivities = \App\Models\ActivityAssignment::whereIn('classroom_id', $user->enrolledClassrooms->pluck('id'))
+            // Fetch recent class assignments (Activity)
+            $activityAssignments = \App\Models\ActivityAssignment::whereIn('classroom_id', $user->enrolledClassrooms->pluck('id'))
                 ->with('activity', 'classroom')
-                ->latest('assigned_at')
-                ->take(5)
                 ->get();
+
+            // Fetch public activities
+            $publicActivities = \App\Models\Activity::where('is_public', true)
+                ->latest('updated_at')
+                ->take(5)
+                ->get()
+                ->map(function ($activity) {
+                    $assignment = new \App\Models\ActivityAssignment();
+                    $assignment->id = 'public_' . $activity->id; // Pseudo ID
+                    $assignment->activity = $activity;
+                    $assignment->activity_id = $activity->id;
+                    $assignment->classroom = null;
+                    $assignment->assigned_at = $activity->updated_at;
+                    $assignment->due_date = null; 
+                    return $assignment;
+                });
+            
+            // Merge and sort
+            $recentActivities = $activityAssignments->concat($publicActivities)
+                ->sortByDesc('assigned_at')
+                ->take(5);
             
             // Merge and sort by date descending
             $mixedTimeline = $recentAssignments->concat($recentActivities)

@@ -19,11 +19,17 @@ class Lesson extends Model
         'title',
         'topic',
         'content',
+        'content_blocks', // Block-based editor content
         'teacher_id',
         'duration',
         'material_path',
         'url',
         'is_published',
+        'is_public',
+    ];
+
+    protected $casts = [
+        'content_blocks' => 'array', // Automatically cast JSON to array
     ];
 
     public function teacher(): BelongsTo

@@ -21,6 +21,8 @@ class LessonAssignmentController extends Controller
             return redirect()->route('login');
         }
 
+        $publicActivities = collect([]);
+
         if ($user->role === 'teacher') {
             // Teacher: Show all assignments for their classrooms
             $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->pluck('id');
@@ -35,19 +37,149 @@ class LessonAssignmentController extends Controller
                 ->with(['classroom', 'lesson'])
                 ->latest('assigned_at')
                 ->get();
+            
+            // Fetch Public Activities
+            $publicActivities = \App\Models\Activity::where('is_public', true)
+                ->with('teacher')
+                ->latest()
+                ->get();
         }
 
-        return view('assignments.index', compact('assignments', 'user'));
+        return view('assignments.index', compact('assignments', 'user', 'publicActivities'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request): \Illuminate\View\View
     {
-        $classrooms = \App\Models\Classroom::all();
-        $lessons = \App\Models\Lesson::where('is_published', true)->get();
-        return view('assignments.create', compact('classrooms', 'lessons'));
+        $user = \App\Models\User::find(session('user_id'));
+        if (!$user) {
+            abort(403);
+        }
+
+        $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->get(); 
+        
+        // Prepare data for Edit Modal (Grouping data by lesson)
+        $lessons = \App\Models\Lesson::where('teacher_id', $user->id)->latest()->get();
+        $lessonStates = [];
+        foreach ($lessons as $lesson) {
+            $assignedClassIds = \App\Models\LessonAssignment::where('lesson_id', $lesson->id)
+                ->pluck('classroom_id')
+                ->toArray();
+            
+            $lessonStates[$lesson->id] = [
+                'is_public' => $lesson->is_public,
+                'classroom_ids' => $assignedClassIds
+            ];
+        }
+
+        // Fetch Recent Lesson Assignments
+        $assignments = \App\Models\LessonAssignment::with(['lesson', 'classroom'])
+            ->whereIn('classroom_id', $classrooms->pluck('id'))
+            ->latest()
+            ->take(50) // Limit for performance
+            ->get();
+        
+        // --- ACTIVITY / CALENDAR LOGIC ---
+        $month = $request->get('month', date('n'));
+        $year = $request->get('year', date('Y'));
+        $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+        $firstDayOfMonth = date('w', strtotime("$year-$month-01"));
+
+        // Activities (Split by Type)
+        $games = \App\Models\Activity::where('teacher_id', $user->id)->where('type', 'Game')->get();
+        $quizzes = \App\Models\Activity::where('teacher_id', $user->id)->where('type', 'Quiz')->get();
+        if ($games->isEmpty() && $quizzes->isEmpty()) {
+             $games = \App\Models\Activity::where('teacher_id', $user->id)->get();
+        }
+
+        // Selected Class for Calendar
+        $events = [];
+        // Fetch events for ALL classrooms belonging to the teacher
+        if ($classrooms->isNotEmpty()) {
+            $actAssignments = \App\Models\ActivityAssignment::with(['activity', 'classroom'])
+                ->whereIn('classroom_id', $classrooms->pluck('id'))
+                ->whereNotNull('due_date')
+                ->get();
+
+            foreach ($actAssignments as $aa) {
+                $events[] = [
+                    'title' => $aa->activity->title . ' (' . $aa->classroom->name . ')', // Append class name for context
+                    'start' => $aa->due_date,
+                    'notes' => $aa->notes,
+                    'activity_id' => $aa->activity_id,
+                    'id' => $aa->id
+                ];
+            }
+        }
+        
+        $selectedClass = $classrooms->first(); // Default fallback
+
+        // Check for specific tab request
+        $activeTab = $request->has('month') || $request->has('classroom_id') ? 'activity' : 'lesson';
+        if ($request->has('tab')) $activeTab = $request->get('tab');
+
+        // Fetch Recent Activity Assignments
+        $assignmentsCollection = \App\Models\ActivityAssignment::with(['activity.assignments', 'classroom'])
+            ->whereIn('classroom_id', $classrooms->pluck('id'))
+            ->latest()
+            ->get();
+
+        // Fetch Public Activities by this teacher (Pseudo-Assignments)
+        $publicActivities = \App\Models\Activity::with('assignments')
+            ->where('teacher_id', $user->id)
+            ->where('is_public', true)
+            ->latest()
+            ->get()
+            ->map(function ($activity) {
+                $pseudo = new \stdClass();
+                $pseudo->id = 'public_' . $activity->id;
+                $pseudo->activity = $activity;
+                $pseudo->classroom = (object) ['name' => 'Public (Semua Pelajar)'];
+                $pseudo->due_date = null; 
+                $pseudo->notes = '';
+                $pseudo->is_pseudo = true; 
+                return $pseudo;
+            });
+            
+        $activityAssignments = $assignmentsCollection->toBase()->merge($publicActivities)->sortByDesc('activity.created_at');
+
+        // Build Activity States for JS Lookup
+        $activityStates = [];
+        foreach ($activityAssignments as $aa) {
+            $act = $aa->activity;
+            // Determine classroom IDs
+            $classroomIds = [];
+            if ($act->relationLoaded('assignments')) {
+               $classroomIds = $act->assignments->pluck('classroom_id')->toArray();
+            }
+            
+            // Critical Fallback: Ensure the data contains at least the current classroom if empty
+            if (empty($classroomIds) && isset($aa->classroom_id) && $aa->classroom_id) {
+                $classroomIds = [$aa->classroom_id];
+            }
+            
+            // Ensure ID is string for safe lookup
+            $key = (string) $aa->id;
+            
+            $activityStates[$key] = [
+                'id' => $aa->id,
+                'activity_id' => $act->id,
+                'title' => $act->title,
+                'date' => $aa->due_date ? \Carbon\Carbon::parse($aa->due_date)->format('Y-m-d\TH:i') : '',
+                'notes' => $aa->notes ?? '', 
+                'is_public' => (bool)$act->is_public,
+                'classroom_ids' => $classroomIds
+            ];
+        }
+
+        return view('assignments.create', compact(
+            'classrooms', 'lessons', 'assignments', 'lessonStates', 
+            'activityAssignments', 'activityStates',
+            'month', 'year', 'daysInMonth', 'firstDayOfMonth', 
+            'games', 'quizzes', 'events', 'selectedClass', 'activeTab'
+        ));
     }
 
     /**
@@ -56,37 +188,57 @@ class LessonAssignmentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'classroom_id' => 'required|exists:classes,id',
+            'classroom_ids' => 'array',
+            'classroom_ids.*' => 'exists:classes,id',
             'lessons' => 'required|array',
             'lessons.*' => 'exists:lessons,id',
+            'is_public' => 'boolean'
         ]);
 
-        $classroom = \App\Models\Classroom::with('students')->findOrFail($request->classroom_id);
-        $students = $classroom->students;
+        $isPublic = $request->has('is_public');
+        $classroomIds = $request->input('classroom_ids', []);
 
         foreach ($request->lessons as $lessonId) {
-            // 1. Create the Class Assignment
-            \App\Models\LessonAssignment::firstOrCreate([
-                'classroom_id' => $classroom->id,
-                'lesson_id' => $lessonId,
-            ], [
-                'type' => 'Mandatory',
-                'assigned_at' => now(),
-            ]);
+            $lesson = \App\Models\Lesson::find($lessonId);
+            if (!$lesson) continue;
 
-            // 2. Bulk Enroll Students (US006-01)
-            foreach ($students as $student) {
-                \App\Models\Enrollment::firstOrCreate([
-                    'user_id' => $student->id,
-                    'lesson_id' => $lessonId,
-                ], [
-                    'status' => 'in_progress', // Correct enum value
-                    'progress' => 0,
-                ]);
+            // 1. Update Public Visibility
+            if ($isPublic) {
+                $lesson->update(['is_public' => true]);
+            } elseif (count($classroomIds) > 0) {
+                // Only set private if explicitly assigning to classes (strict mode)
+                $lesson->update(['is_public' => false]);
+            }
+
+            // 2. Create Class Assignments
+            if (count($classroomIds) > 0) {
+                $classrooms = \App\Models\Classroom::with('students')->whereIn('id', $classroomIds)->get();
+                
+                foreach ($classrooms as $classroom) {
+                    // Create Assignment
+                   \App\Models\LessonAssignment::firstOrCreate([
+                        'classroom_id' => $classroom->id,
+                        'lesson_id' => $lessonId,
+                    ], [
+                        'type' => 'Mandatory',
+                        'assigned_at' => now(),
+                    ]);
+
+                    // Enroll Students
+                    foreach ($classroom->students as $student) {
+                        \App\Models\Enrollment::firstOrCreate([
+                            'user_id' => $student->id,
+                            'lesson_id' => $lessonId,
+                        ], [
+                            'status' => 'in_progress',
+                            'progress' => 0,
+                        ]);
+                    }
+                }
             }
         }
 
-        return redirect()->route('dashboard')->with('success', 'Lessons assigned and students enrolled successfully.');
+        return redirect()->route('assignments.create')->with('success', 'Assignments updated successfully.');
     }
 
     /**
@@ -118,6 +270,16 @@ class LessonAssignmentController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $assignment = \App\Models\LessonAssignment::with('classroom.students')->findOrFail($id);
+        
+        // Optional: Cleanup enrollments if needed. 
+        // For now, simple delete of assignment record.
+        // If we want to be strict:
+        // $studentIds = $assignment->classroom->students->pluck('id');
+        // \App\Models\Enrollment::where('lesson_id', $assignment->lesson_id)->whereIn('user_id', $studentIds)->delete();
+
+        $assignment->delete();
+
+        return back()->with('success', 'Assignment removed.');
     }
 }

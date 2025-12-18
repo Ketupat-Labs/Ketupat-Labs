@@ -12,11 +12,20 @@ class ProgressController extends Controller
 {
     public function index(Request $request)
     {
-        // Get all classrooms
-        $classrooms = \App\Models\Classroom::all();
+        $user = auth()->user();
+        
+        // Get classrooms based on role
+        if ($user->role === 'teacher') {
+            $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->get();
+        } else {
+            // Assume student or others see enrolled classes (Consistency with Performance)
+             $classrooms = $user->enrolledClassrooms;
+        }
 
         // Determine selected classroom (default to first one if exists)
         $selectedClassId = $request->get('class_id', $classrooms->first()->id ?? null);
+        
+        // Ensure selected class is in the allowed list
         $selectedClass = $classrooms->find($selectedClassId);
 
         if (!$selectedClass) {
@@ -37,6 +46,11 @@ class ProgressController extends Controller
         // Get lessons assigned to this classroom through lesson_assignments pivot table
         $lessons = $selectedClass->lessons;
 
+        // Get Activities assigned to this classroom
+        $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClassId) {
+            $q->where('classroom_id', $selectedClassId);
+        })->get();
+
         // Build progress data
         $progressData = [];
 
@@ -44,44 +58,70 @@ class ProgressController extends Controller
             $studentProgress = [
                 'student' => $student,
                 'lessons' => [],
+                'activities' => [], // New
                 'completedCount' => 0,
                 'totalLessons' => $lessons->count(),
+                'totalActivities' => $activities->count(), // New
                 'completionPercentage' => 0
             ];
 
+            $totalProgressSum = 0;
+
+            // Process Lessons
             foreach ($lessons as $lesson) {
-                // Use QuizAttempt which uses user_id (matches our User model)
-                $quizAttempt = QuizAttempt::where('user_id', $student->id)
+                $enrollment = \App\Models\Enrollment::where('user_id', $student->id)
                     ->where('lesson_id', $lesson->id)
-                    ->where('submitted', true)
                     ->first();
 
-                if ($quizAttempt) {
-                    $percentage = $quizAttempt->total_questions > 0 
-                        ? ($quizAttempt->score / $quizAttempt->total_questions) * 100 
-                        : 0;
+                $progressValue = $enrollment ? $enrollment->progress : 0;
+                $totalProgressSum += $progressValue;
+
+                if ($progressValue == 100) {
                     $status = 'Completed';
-                    if ($percentage <= 20) {
-                        $status = 'Completed (Low Score)';
-                    }
-                    $studentProgress['completedCount']++;
+                } elseif ($progressValue > 0) {
+                    $status = 'In Progress';
                 } else {
                     $status = 'Not Started';
-                    $percentage = 0;
                 }
+
+                $studentProgress['completedCount'] += ($progressValue == 100 ? 1 : 0);
 
                 $studentProgress['lessons'][] = [
                     'lesson' => $lesson,
                     'status' => $status,
-                    'quizAttempt' => $quizAttempt,
-                    'percentage' => $percentage
+                    'progress' => $progressValue
                 ];
             }
+            
+            // Process Activities
+            foreach ($activities as $activity) {
+                 $submission = \App\Models\ActivitySubmission::where('user_id', $student->id)
+                        ->whereHas('assignment', function($q) use ($activity, $selectedClassId) {
+                            $q->where('activity_id', $activity->id)
+                              ->where('classroom_id', $selectedClassId);
+                        })->first();
+                
+                $isCompleted = $submission && $submission->completed_at;
+                
+                $studentProgress['activities'][] = [
+                    'activity' => $activity,
+                    'status' => $isCompleted ? 'Completed' : 'Not Started',
+                    'score' => $submission ? $submission->score . '%' : '-'
+                ];
+                
+                if ($isCompleted) {
+                    // Add 100% for completed activity
+                    $totalProgressSum += 100;
+                    $studentProgress['completedCount']++; // Increment total completed items count
+                }
+            }
 
-            // Calculate completion percentage
-            if ($studentProgress['totalLessons'] > 0) {
+            // Calculate completion percentage (Average of all lesson AND activity progresses)
+            $totalItems = $studentProgress['totalLessons'] + $studentProgress['totalActivities'];
+            
+            if ($totalItems > 0) {
                 $studentProgress['completionPercentage'] = round(
-                    ($studentProgress['completedCount'] / $studentProgress['totalLessons']) * 100,
+                    $totalProgressSum / $totalItems,
                     1
                 );
             }
@@ -90,17 +130,30 @@ class ProgressController extends Controller
         }
 
         // Calculate summary statistics
+        $totalCompletionSum = 0;
+        $hundredPercentCount = 0;
+        foreach ($progressData as $pData) {
+            $totalCompletionSum += $pData['completionPercentage'];
+            if ($pData['completionPercentage'] == 100) {
+                $hundredPercentCount++;
+            }
+        }
+
+        $classAverage = count($progressData) > 0 ? round($totalCompletionSum / count($progressData), 1) : 0;
+
         $summary = [
             'totalStudents' => $students->count(),
-            'totalLessons' => $lessons->count(),
+            'totalLessons' => $lessons->count() + $activities->count(), // Combined per request
+            'totalActivities' => $activities->count(),
+            'classAverage' => $classAverage,
+            'hundredPercentCount' => $hundredPercentCount,
             'lessonCompletion' => []
         ];
 
         foreach ($lessons as $lesson) {
-            // Use QuizAttempt which uses user_id (matches our User model)
-            $completedCount = QuizAttempt::where('lesson_id', $lesson->id)
+            $completedCount = \App\Models\Enrollment::where('lesson_id', $lesson->id)
                 ->whereIn('user_id', $students->pluck('id'))
-                ->where('submitted', true)
+                ->where('progress', 100)
                 ->count();
 
             $summary['lessonCompletion'][$lesson->id] = [
@@ -116,6 +169,7 @@ class ProgressController extends Controller
             'selectedClass',
             'progressData',
             'lessons',
+            'activities', // Pass to view
             'summary'
         ));
     }

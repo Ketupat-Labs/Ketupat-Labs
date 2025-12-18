@@ -113,6 +113,9 @@ class ProfileController extends Controller
             }
         }
 
+        // Get categories for filter
+        $categories = \App\Models\BadgeCategory::orderBy('name')->get();
+
         return view('profile.show', [
             'profileUser' => $profileUser,
             'currentUser' => $currentUser,
@@ -122,6 +125,7 @@ class ProfileController extends Controller
             'posts' => $posts,
             'savedPosts' => $savedPosts,
             'badges' => $badges,
+            'categories' => $categories,
             'friendCount' => $friendCount,
         ]);
     }
@@ -220,6 +224,15 @@ class ProfileController extends Controller
      */
     protected function getCurrentUser()
     {
-        return session('user_id') ? User::find(session('user_id')) : Auth::user();
+        $user = null;
+        if (session('user_id')) {
+            $user = User::find(session('user_id'));
+        }
+        
+        if (!$user) {
+            $user = Auth::user();
+        }
+        
+        return $user;
     }
 }

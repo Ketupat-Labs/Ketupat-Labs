@@ -62,7 +62,7 @@ class SubmissionController extends Controller
         return view('submission.student-index', compact('submissions'));
     }
 
-    public function submit(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
         if (!$user) {
@@ -70,7 +70,7 @@ class SubmissionController extends Controller
         }
 
         $request->validate([
-            'submission_file' => 'required|file|mimes:html,zip,png,jpg,jpeg,pdf,doc,docx,txt|max:10240', // 10MB max
+            'submission_file' => 'nullable|file|mimes:html,zip,png,jpg,jpeg,pdf,doc,docx,txt|max:10240', // 10MB max
             'lesson_id' => 'required|exists:lessons,id',
         ]);
 
@@ -108,10 +108,45 @@ class SubmissionController extends Controller
             [
                 'assignment_name' => $lesson->title, // Use lesson title as assignment name
                 'file_path' => $filePath,
-                'file_name' => $request->file('submission_file')->getClientOriginalName(),
+                'file_name' => $request->hasFile('submission_file') ? $request->file('submission_file')->getClientOriginalName() : 'Marked as Completed',
                 'status' => 'Submitted - Awaiting Grade',
             ]
         );
+
+        // Update Enrollment Progress
+        $enrollment = \App\Models\Enrollment::where('user_id', $user->id)
+            ->where('lesson_id', $request->lesson_id)
+            ->first();
+
+        if ($enrollment) {
+            $completedItems = $enrollment->completed_items ? json_decode($enrollment->completed_items, true) : [];
+
+            // Add 'submission' to completed items if not present
+            if (!in_array('submission', $completedItems)) {
+                $completedItems[] = 'submission';
+                // Re-index array
+                $completedItems = array_values($completedItems);
+                $enrollment->completed_items = json_encode($completedItems);
+
+                // Calculate progress
+                // Total items = content blocks count + 1 (submission)
+                $blocksCount = isset($lesson->content_blocks['blocks']) ? count($lesson->content_blocks['blocks']) : 0;
+                $totalItems = $blocksCount + 1;
+
+                $progress = min(100, round((count($completedItems) / $totalItems) * 100));
+
+                $enrollment->progress = $progress;
+
+                // Update status if complete
+                if ($progress == 100) {
+                    $enrollment->status = 'completed';
+                } elseif ($progress > 0) {
+                    $enrollment->status = 'in_progress';
+                }
+
+                $enrollment->save();
+            }
+        }
 
         return redirect()->route('lesson.show', $request->lesson_id)
             ->with('success', 'Your file has been submitted and is awaiting teacher grade.');
