@@ -14,21 +14,21 @@ class MonitoringController extends Controller
             abort(403);
         }
 
-        $query = \App\Models\User::where('role', 'student')->with(['enrollments.lesson', 'submissions']);
+        $classrooms = \App\Models\Classroom::where('teacher_id', $currentUser->id)->get();
 
-        // Filter by class (if we had a class/section field on users, but we don't really have one yet aside from the new classrooms table)
-        // For now, just fetch all students
+        $query = \App\Models\User::where('role', 'student')
+            ->with(['enrollments.lesson', 'submissions', 'enrolledClassrooms']);
+
         $students = $query->get();
 
-        // Process data for the view to match the legacy format roughly
         $studentProgress = [];
         foreach ($students as $student) {
-            // Get all lessons (or enrolled ones)
-            // For simplicity, let's show progress for enrolled lessons
+            $classIdentified = $student->enrolledClassrooms->first()?->name ?? $student->class ?? 'General';
+
             foreach ($student->enrollments as $enrollment) {
                 $studentProgress[] = [
                     'student_name' => $student->full_name,
-                    'class' => 'General', // Placeholder as we don't have user-class link yet
+                    'class' => $classIdentified,
                     'lesson_title' => $enrollment->lesson->title,
                     'progress' => $enrollment->progress,
                     'status' => ucfirst($enrollment->status),
@@ -37,6 +37,6 @@ class MonitoringController extends Controller
             }
         }
 
-        return view('monitoring.index', compact('studentProgress'));
+        return view('monitoring.index', compact('studentProgress', 'classrooms'));
     }
 }

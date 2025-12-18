@@ -3,7 +3,7 @@ const API_BASE_URL = window.location.origin;
 
 // API Endpoints
 const API_ENDPOINTS = {
-    login: `${API_BASE_URL}/login`,
+    login: `${API_BASE_URL}/api/auth/login`,
     register: `${API_BASE_URL}/api/auth/register`,
     logout: `${API_BASE_URL}/api/auth/logout`,
     me: `${API_BASE_URL}/api/auth/me`,

@@ -32,10 +32,6 @@ class Lesson extends Model
         'content_blocks' => 'array', // Automatically cast JSON to array
     ];
 
-    protected $casts = [
-        'content_blocks' => 'array', // Automatically cast JSON to array
-    ];
-
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'teacher_id');

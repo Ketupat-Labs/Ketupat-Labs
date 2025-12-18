@@ -22,11 +22,12 @@
                         <!-- Filter (Placeholder) -->
                         <div class="flex items-center">
                             <label class="mr-2 text-sm text-gray-600">Filter by Class:</label>
-                            <select
+                            <select id="classFilter"
                                 class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm">
-                                <option>All Classes</option>
-                                <option>4 Amanah</option>
-                                <option>5 Bestari</option>
+                                <option value="">All Classes</option>
+                                @foreach($classrooms as $classroom)
+                                    <option value="{{ $classroom->name }}">{{ $classroom->name }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -107,4 +108,27 @@
             </div>
         </div>
     </div>
+    <script>
+        document.getElementById('classFilter').addEventListener('change', function() {
+            const selectedClass = this.value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                if (selectedClass === "") {
+                    row.style.display = "";
+                    return;
+                }
+                
+                const classCell = row.querySelector('td:nth-child(2)');
+                if (classCell) {
+                    const rowClass = classCell.textContent.trim().toLowerCase();
+                    if (rowClass === selectedClass) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                }
+            });
+        });
+    </script>
 </x-app-layout>
