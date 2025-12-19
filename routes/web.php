@@ -20,31 +20,25 @@ Route::get('/php-settings', function () {
         'php_ini_scanned_files' => php_ini_scanned_files() ?: 'None',
         'converted_bytes' => [
             'upload_max_filesize' => [
-                'bytes' => (function ($val) {
+                'bytes' => (function($val) {
                     $val = trim($val);
-                    $last = strtolower($val[strlen($val) - 1]);
-                    $val = (int) $val;
-                    switch ($last) {
-                        case 'g':
-                            $val *= 1024;
-                        case 'm':
-                            $val *= 1024;
-                        case 'k':
-                            $val *= 1024;
+                    $last = strtolower($val[strlen($val)-1]);
+                    $val = (int)$val;
+                    switch($last) {
+                        case 'g': $val *= 1024;
+                        case 'm': $val *= 1024;
+                        case 'k': $val *= 1024;
                     }
                     return $val;
                 })(ini_get('upload_max_filesize')),
-                'mb' => round((function ($val) {
+                'mb' => round((function($val) {
                     $val = trim($val);
-                    $last = strtolower($val[strlen($val) - 1]);
-                    $val = (int) $val;
-                    switch ($last) {
-                        case 'g':
-                            $val *= 1024;
-                        case 'm':
-                            $val *= 1024;
-                        case 'k':
-                            $val *= 1024;
+                    $last = strtolower($val[strlen($val)-1]);
+                    $val = (int)$val;
+                    switch($last) {
+                        case 'g': $val *= 1024;
+                        case 'm': $val *= 1024;
+                        case 'k': $val *= 1024;
                     }
                     return $val / 1024 / 1024;
                 })(ini_get('upload_max_filesize')), 2),
@@ -104,35 +98,35 @@ Route::get('/forum', function () {
 
 // Forum sub-routes - these come AFTER the main /forum route
 Route::prefix('forum')->group(function () {
-    Route::get('/search', function () {
-        return view('forum.forum-search');
-    })->name('forum.search');
-
-    Route::get('/create', function () {
-        return view('forum.create-forum');
-    })->name('forum.create');
-
-    Route::get('/post/create', function () {
-        return view('forum.create-post');
-    })->name('forum.post.create');
-
-    Route::get('/post/{id}', function ($id) {
-        return view('forum.post-detail', ['id' => $id]);
-    })->name('forum.post.detail');
-
-    Route::get('/comment/{id}', function ($id) {
-        return view('forum.comment-detail', ['id' => $id]);
-    })->name('forum.comment.detail');
-
-    Route::get('/manage/{id}', function ($id) {
-        return view('forum.manage-forum', ['id' => $id]);
-    })->name('forum.manage');
-
-    // This must be last to avoid catching other routes
-    Route::get('/{id}', function ($id) {
-        return view('forum.forum-detail', ['id' => $id]);
-    })->name('forum.detail');
-});
+        Route::get('/search', function () {
+            return view('forum.forum-search');
+        })->name('forum.search');
+        
+        Route::get('/create', function () {
+            return view('forum.create-forum');
+        })->name('forum.create');
+        
+        Route::get('/post/create', function () {
+            return view('forum.create-post');
+        })->name('forum.post.create');
+        
+        Route::get('/post/{id}', function ($id) {
+            return view('forum.post-detail', ['id' => $id]);
+        })->name('forum.post.detail');
+        
+        Route::get('/comment/{id}', function ($id) {
+            return view('forum.comment-detail', ['id' => $id]);
+        })->name('forum.comment.detail');
+        
+        Route::get('/manage/{id}', function ($id) {
+            return view('forum.manage-forum', ['id' => $id]);
+        })->name('forum.manage');
+        
+        // This must be last to avoid catching other routes
+        Route::get('/{id}', function ($id) {
+            return view('forum.forum-detail', ['id' => $id]);
+        })->name('forum.detail');
+    });
 
 // Messaging routes - using session-based auth
 // Note: Using direct route instead of prefix to avoid conflict with public/Messaging directory
@@ -161,62 +155,59 @@ Route::middleware('auth')->group(function () {
     Route::put('/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('password.update');
     Route::delete('/profile', [\App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/profile/{userId}', [\App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
-
+    
     // Lesson routes
     // IMPORTANT: Specific routes must come BEFORE Route::resource
-
+    
     // Test route for new block editor (temporary - for testing)
     Route::get('/lessons/create-blocks', function () {
         return view('lessons.create-new');
     })->name('lessons.create-blocks');
-
+    
     // Resource routes (this creates /lessons/create, /lessons/{id}, etc.)
     Route::resource('lessons', \App\Http\Controllers\LessonController::class);
-
+    
     Route::get('/lesson', [\App\Http\Controllers\LessonController::class, 'studentIndex'])->name('lesson.index');
     Route::get('/lesson/{lesson}', [\App\Http\Controllers\LessonController::class, 'studentShow'])->name('lesson.show');
-
+    
     // Quiz routes
     Route::get('/quiz/{lesson?}', [\App\Http\Controllers\QuizController::class, 'show'])->name('quiz.show');
     Route::post('/quiz', [\App\Http\Controllers\QuizController::class, 'submit'])->name('quiz.submit');
-
+    
     // Submission routes
     Route::get('/submission', [\App\Http\Controllers\SubmissionController::class, 'show'])->name('submission.show');
-    Route::post('/submission', [\App\Http\Controllers\SubmissionController::class, 'store'])->name('submission.submit');
-
-    // Progress Tracking
-    Route::post('/enrollment/{id}/progress', [\App\Http\Controllers\EnrollmentController::class, 'updateProgress'])->name('enrollment.progress');
+    Route::post('/submission', [\App\Http\Controllers\SubmissionController::class, 'submit'])->name('submission.submit');
     Route::get('/submissions', [\App\Http\Controllers\SubmissionController::class, 'index'])->name('submission.index');
     Route::get('/submissions/{submission}/grading', [\App\Http\Controllers\SubmissionController::class, 'gradingView'])->name('submission.grading');
     Route::get('/submissions/{submission}/file', [\App\Http\Controllers\SubmissionController::class, 'viewFile'])->name('submission.file');
     Route::post('/submissions/{submission}/grade', [\App\Http\Controllers\SubmissionController::class, 'grade'])->name('submission.grade');
-
+    
     // Assignment routes
     Route::resource('assignments', \App\Http\Controllers\LessonAssignmentController::class);
-
+    
     // Enrollment routes
     Route::get('/enrollment', [\App\Http\Controllers\EnrollmentController::class, 'index'])->name('enrollment.index');
     Route::post('/enrollment', [\App\Http\Controllers\EnrollmentController::class, 'store'])->name('enrollment.store');
-
+    
     // Monitoring routes
     Route::get('/monitoring', [\App\Http\Controllers\MonitoringController::class, 'index'])->name('monitoring.index');
     Route::get('/progress', [\App\Http\Controllers\ProgressController::class, 'index'])->name('progress.index');
     Route::get('/performance', [\App\Http\Controllers\PerformanceController::class, 'index'])->name('performance.index');
     Route::match(['get', 'post'], '/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedule.index');
     Route::post('/schedule/store', [\App\Http\Controllers\ScheduleController::class, 'store'])->name('schedule.store');
-
+    
     // New Activity Management
     Route::get('/activities', [\App\Http\Controllers\ActivityController::class, 'index'])->name('activities.index');
     Route::get('/activities/create', [\App\Http\Controllers\ActivityController::class, 'create'])->name('activities.create');
     Route::post('/activities', [\App\Http\Controllers\ActivityController::class, 'store'])->name('activities.store');
     Route::post('/activities/{activity}/assign', [\App\Http\Controllers\ActivityController::class, 'assign'])->name('activities.assign');
     Route::get('/activities/{activity}', [\App\Http\Controllers\ActivityController::class, 'show'])->name('activities.show');
-
+    
     // Classroom routes
     Route::resource('classrooms', \App\Http\Controllers\ClassroomController::class);
     Route::post('/classrooms/{classroom}/students', [\App\Http\Controllers\ClassroomController::class, 'addStudent'])->name('classrooms.students.add');
     Route::delete('/classrooms/{classroom}/students/{student}', [\App\Http\Controllers\ClassroomController::class, 'removeStudent'])->name('classrooms.students.remove');
-
+    
     // AI Generator routes
     Route::get('/ai-generator', [\App\Http\Controllers\AIGeneratorController::class, 'index'])->name('ai-generator.index');
     Route::get('/ai-generator/slides', function () {
