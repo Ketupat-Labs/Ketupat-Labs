@@ -50,7 +50,11 @@ class ClassroomController extends Controller
 
     public function create()
     {
-        return view('classrooms.create');
+        $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
+        if (!$user || $user->role !== 'teacher') abort(403);
+
+        $existingNames = Classroom::where('teacher_id', $user->id)->pluck('name');
+        return view('classrooms.create', compact('existingNames'));
     }
 
     public function store(Request $request)
@@ -64,6 +68,19 @@ class ClassroomController extends Controller
             'subject' => ['required', 'string', 'max:200'],
             'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         ]);
+
+        // Normalize input name: remove spaces, lowercase
+        $inputName = strtolower(str_replace(' ', '', $validated['name']));
+
+        // Check for existing classrooms with similar names for this teacher
+        $existingClassrooms = Classroom::where('teacher_id', $user->id)->get();
+
+        foreach ($existingClassrooms as $existing) {
+            $existingName = strtolower(str_replace(' ', '', $existing->name));
+            if ($existingName === $inputName) {
+                return back()->with('error', 'Kelas dengan nama yang sama (ejaan hampir serupa) sudah wujud. Sila gunakan nama lain.')->withInput();
+            }
+        }
 
         Classroom::create([
             'teacher_id' => $user->id,

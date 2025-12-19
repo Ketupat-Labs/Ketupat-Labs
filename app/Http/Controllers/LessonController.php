@@ -17,7 +17,11 @@ class LessonController extends Controller
         // Fetch lessons created ONLY by the currently authenticated teacher
         $lessons = Lesson::where('teacher_id', session('user_id'))->latest()->get();
 
-        return view('lessons.index', compact('lessons'));
+        // Fetch activities (Games and Quizzes) for the second tab
+        $games = \App\Models\Activity::where('teacher_id', session('user_id'))->where('type', 'Game')->latest()->get();
+        $quizzes = \App\Models\Activity::where('teacher_id', session('user_id'))->where('type', 'Quiz')->latest()->get();
+
+        return view('lessons.index', compact('lessons', 'games', 'quizzes'));
     }
 
     // --- CREATE (CREATE): Show the add form ---
@@ -161,34 +165,81 @@ class LessonController extends Controller
     // --- STUDENT VIEW: List all published lessons ---
     public function studentIndex(): View
     {
+        // 2. Fetch Activity Submissions for Completion Check
+        $user = auth()->user();
+        $activitySubmissions = collect();
+        $lessonEnrollments = collect();
+
+        if ($user) {
+            $activitySubmissions = \App\Models\ActivitySubmission::where('user_id', $user->id)
+                ->get()
+                ->pluck('completed_at', 'activity_assignment_id');
+            
+            $lessonEnrollments = \App\Models\Enrollment::where('user_id', $user->id)
+                ->get()
+                ->pluck('status', 'lesson_id');
+        }
+
         // 1. Fetch Lessons
-        $lessons = Lesson::where('is_published', true)->get()->map(function ($lesson) {
+        $classroomIds = collect();
+        if ($user && $user->role === 'student') {
+             $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
+        }
+
+        $lessons = Lesson::where('is_published', true)
+            ->where(function($query) use ($classroomIds) {
+                // Show if Public
+                $query->where('is_public', true)
+                // OR if assigned to one of the student's classrooms
+                      ->orWhereHas('classrooms', function($q) use ($classroomIds) {
+                          $q->whereIn('classroom_id', $classroomIds);
+                      });
+            })
+            ->get()
+            ->map(function ($lesson) use ($lessonEnrollments) {
             $lesson->setAttribute('item_type', 'lesson');
             $lesson->setAttribute('sort_date', $lesson->created_at);
+            // Check completion
+            $isCompleted = $lessonEnrollments->get($lesson->id) === 'completed';
+            $lesson->setAttribute('is_completed', $isCompleted);
             return $lesson;
         });
 
-        // 2. Fetch Activities Assigned to User's Classrooms
-        $activities = collect();
-        if (session('user_id')) {
-            $user = \App\Models\User::find(session('user_id'));
-            if ($user && $user->role === 'student') {
-                $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
+        // 2. Fetch Activities (Class Assigned + Public)
+        $classActivities = collect();
+        if ($user && $user->role === 'student') {
+            $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
 
-                $activities = \App\Models\ActivityAssignment::whereIn('classroom_id', $classroomIds)
-                    ->with('activity')
-                    ->get()
-                    ->map(function ($assignment) {
-                        $activity = $assignment->activity;
-                        // Attach assignment details to activity object for view
-                        $activity->setAttribute('item_type', 'activity');
-                        $activity->setAttribute('sort_date', $assignment->assigned_at ?? $assignment->created_at);
-                        $activity->setAttribute('due_date', $assignment->due_date);
-                        $activity->setAttribute('assignment_id', $assignment->id);
-                        return $activity;
-                    });
-            }
+            $classActivities = \App\Models\ActivityAssignment::whereIn('classroom_id', $classroomIds)
+                ->with('activity')
+                ->get()
+                ->map(function ($assignment) use ($activitySubmissions) {
+                    $activity = $assignment->activity;
+                    // Attach assignment details to activity object for view
+                    $activity->setAttribute('item_type', 'activity');
+                    $activity->setAttribute('sort_date', $assignment->assigned_at ?? $assignment->created_at);
+                    $activity->setAttribute('due_date', $assignment->due_date);
+                    $activity->setAttribute('assignment_id', $assignment->id);
+                    // Check if completed
+                    $activity->setAttribute('is_completed', $activitySubmissions->has($assignment->id));
+                    return $activity;
+                });
         }
+
+        // Fetch Public Activities
+        $publicActivities = \App\Models\Activity::where('is_public', true)
+             ->latest()
+             ->get()
+             ->map(function ($activity) {
+                 $activity->setAttribute('item_type', 'activity');
+                 $activity->setAttribute('sort_date', $activity->created_at);
+                 $activity->setAttribute('due_date', null);
+                 $activity->setAttribute('assignment_id', 'public_' . $activity->id);
+                 $activity->setAttribute('is_completed', false); 
+                 return $activity;
+             });
+
+        $activities = $classActivities->concat($publicActivities);
 
         // 3. Merge and Sort
         $items = $lessons->concat($activities)->sortByDesc('sort_date');
@@ -208,6 +259,12 @@ class LessonController extends Controller
         $enrollment = null;
 
         if (session('user_id')) {
+            // Check if user is a teacher - if so, show them the Teacher View (Manage Lesson View)
+            $user = \App\Models\User::find(session('user_id'));
+            if ($user && $user->role === 'teacher') {
+                return view('lessons.show', compact('lesson'));
+            }
+
             $submission = \App\Models\Submission::where('user_id', session('user_id'))
                 ->where('lesson_id', $lesson->id)
                 ->first();

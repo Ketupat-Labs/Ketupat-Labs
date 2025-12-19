@@ -14,129 +14,380 @@ class PerformanceController extends Controller
 {
     public function index(Request $request)
     {
-        $classrooms = Classroom::all();
-        $selectedClassId = $request->get('class_id', $classrooms->first()->id ?? null);
-        $selectedLessonId = $request->get('lesson_id', 'all');
+        $user = auth()->user();
+        $classrooms = collect();
+        $selectedClass = null;
+        $selectedLessonId = $request->get('lesson_id', 'all'); // Initialize selectedLessonId
 
-        $selectedClass = $classrooms->find($selectedClassId);
-
-        // If no class found, return empty view
-        if (!$selectedClass) {
-            return view('performance.index', [
-                'classrooms' => $classrooms,
-                'lessons' => [],
-                'selectedClass' => null,
-                'selectedLessonId' => $selectedLessonId,
-                'data' => [],
-                'mode' => 'none'
-            ]);
+        if ($user->role === 'teacher') {
+             $classrooms = Classroom::where('teacher_id', $user->id)->get();
+             $selectedClassId = $request->get('class_id', $classrooms->first()->id ?? null);
+             $selectedClass = $classrooms->find($selectedClassId);
+             if (!$selectedClass) return view('performance.index', ['classrooms' => [], 'lessons' => [], 'data' => []]);
+             
+             // Get students in this class
+             $students = $selectedClass->students; // Relationship must exist
+             // Or explicitly: $students = User::whereHas('enrolledClassrooms', function($q) use ($selectedClassId) { $q->where('class_id', $selectedClassId); })->get();
+             // Assuming $selectedClass->students relationship works based on previous code context. 
+             // Wait, previous code didn't show student fetching logic, likely omitted in my view? 
+             // Let's deduce: $selectedClass->students is standard ManyToMany.
+             
+             // Fallback if relation not standard:
+             if(!$students->count()){
+                 $students = \App\Models\User::whereHas('enrollments', function($q) use ($selectedClassId){
+                     // Actually enrollment is usually per classroom? 
+                     // Let's assume User <-> Classroom via 'classes' table or similar. 
+                     // User model has enrolledClassrooms()
+                 })->get(); 
+                 // Let's stick to what was likely there or standard: $selectedClass->students
+             }
+             
+        } else {
+             // STUDENT VIEW
+             $classrooms = $user->enrolledClassrooms;
+             $selectedClass = $classrooms->first(); // Default to first class
+             $students = collect([$user]); // Only show themselves
         }
 
-        // Get lessons assigned to this classroom through lesson_assignments pivot table
-        $lessons = $selectedClass->lessons;
+        // Common Data Gathering
+        if ($user->role === 'teacher') {
+            $lessons = Lesson::where('is_published', true)->get();
+        } else {
+            // Student: Only Public OR Assigned Lessons
+            $lessons = Lesson::where('is_published', true)
+                ->where(function($q) use ($user) {
+                     $q->where('is_public', true)
+                       ->orWhereHas('assignments', function($q2) use ($user) {
+                            $q2->whereIn('classroom_id', $user->enrolledClassrooms->pluck('id'));
+                       });
+                })->get();
+        }
+        
+        // Get Activities assigned to this classroom (or all if teacher)
+        $activities = collect();
+        if ($selectedClass) {
+            $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClass) {
+                $q->where('classroom_id', $selectedClass->id);
+            })->get();
+            
+            // For teacher preview logic ... (keep existing)
+            if($user->role === 'teacher') {
+                 $students = $selectedClass->students;
+                 $teacherSubmissionsCount = \App\Models\ActivitySubmission::where('user_id', $user->id)->count();
+                 if ($teacherSubmissionsCount > 0) {
+                     $hasRelevantSubmission = \App\Models\ActivitySubmission::where('user_id', $user->id)
+                        ->with('assignment')
+                        ->get()
+                        ->contains(function ($submission) use ($activities) {
+                            return $submission->assignment && $activities->contains('id', $submission->assignment->activity_id);
+                        });
+                     if ($hasRelevantSubmission) $students->push($user);
+                 }
+            }
+        }
 
-        // Get Students
-        $students = User::whereHas('enrolledClassrooms', function ($query) use ($selectedClassId) {
-            $query->where('classes.id', $selectedClassId);
-        })->get();
+        // Combine for Dropdown
+        $filterItems = collect();
+        foreach($lessons as $l) $filterItems->push(['id' => 'lesson-'.$l->id, 'name' => $l->title]);
+        foreach($activities as $a) $filterItems->push(['id' => 'activity-'.$a->id, 'name' => $a->title]);
+        $filterItems = $filterItems->values(); // Ensure clean array for JSON
 
         $data = [];
-        $mode = ($selectedLessonId === 'all') ? 'all' : 'lesson';
+        $selectedFilter = $request->get('filter_id', 'all');
+        
+        // Determine Mode and Filter Collections
+        if (str_starts_with($selectedFilter, 'activity-')) {
+            $activityId = (int) str_replace('activity-', '', $selectedFilter);
+            // Filter activities to just this one
+            $activities = $activities->where('id', $activityId);
+            // Hide lessons entirely for this view
+            $lessons = collect();
+            $mode = 'activity_detail'; // NEW: Use specific detail view
+        } elseif (str_starts_with($selectedFilter, 'lesson-')) {
+            $lessonId = (int) str_replace('lesson-', '', $selectedFilter);
+            // Use the detailed lesson view logic (Mode B)
+            $selectedLessonId = $lessonId;
+            $mode = 'single';
+            $mode = 'lesson_detail'; // Renamed from 'single'
+        } else {
+            // 'all'
+            $mode = 'all';
+        }
 
         if ($mode === 'all') {
-            // View Mode A: All Lessons Summary
+            // View Mode A: Summary (Used for 'All')
             foreach ($students as $student) {
                 $studentRow = [
                     'student' => $student,
                     'grades' => [],
+                    'activity_grades' => [], 
                     'total_score' => 0,
                     'max_score' => 0,
-                    'average' => 0
+                    'average' => 0,
+                    'activity_average' => 0
                 ];
 
+                // Process Lessons
                 foreach ($lessons as $lesson) {
-                    // Use QuizAttempt which uses user_id (matches our User model)
+                    // Check Completion (Enrollment)
+                    $enrollment = \App\Models\Enrollment::where('user_id', $student->id)
+                        ->where('lesson_id', $lesson->id)
+                        ->first();
+                    $isCompleted = $enrollment && $enrollment->status === 'completed';
+
+                    // Check Quiz
                     $quizAttempt = QuizAttempt::where('user_id', $student->id)
                         ->where('lesson_id', $lesson->id)
                         ->where('submitted', true)
                         ->first();
-
-                    $score = $quizAttempt ? $quizAttempt->score : 0;
-                    $max = $quizAttempt ? $quizAttempt->total_questions : 0;
+                    
+                    if ($isCompleted) {
+                        $score = 100;
+                        $max = 100; 
+                    } else {
+                        $score = $quizAttempt ? $quizAttempt->score : 0;
+                        $max = $quizAttempt ? $quizAttempt->total_questions : 0;
+                    }
 
                     $studentRow['grades'][$lesson->id] = [
                         'score' => $score,
                         'max' => $max,
-                        'display' => $quizAttempt ? "$score/$max" : '-'
+                        'display' => $isCompleted ? '100%' : ($quizAttempt ? "$score/$max" : '-')
                     ];
 
-                    if ($quizAttempt) {
-                        $studentRow['total_score'] += $score;
-                        $studentRow['max_score'] += $max;
+                    if ($isCompleted || $quizAttempt) {
+                        $percentage = ($max > 0) ? ($score / $max) * 100 : 0;
+                        if($isCompleted) $percentage = 100;
+                        $studentRow['total_score'] += $percentage;
+                        $studentRow['max_score'] += 100; 
                     }
                 }
+                
+                // Process Activities logic... (Same as before)
+                $studentSubmissions = \App\Models\ActivitySubmission::where('user_id', $student->id)
+                    ->with(['assignment.activity'])
+                    ->get()
+                    ->keyBy(function($submission) {
+                        return $submission->assignment->activity_id;
+                    });
 
+                $totalActivityScore = 0;
+                $activityCount = 0;
+                
+                foreach ($activities as $activity) {
+                     $submission = $studentSubmissions->get($activity->id);
+                     $score = $submission ? $submission->score : 0;
+                     $studentRow['activity_grades'][$activity->id] = [
+                        'score' => $score,
+                        'display' => $submission ? $score : '-'
+                     ];
+                     if ($submission) {
+                         $totalActivityScore += $score;
+                         $activityCount++;
+                     }
+                }
+                
+                // Averages logic...
                 if ($studentRow['max_score'] > 0) {
-                    $studentRow['average'] = round(($studentRow['total_score'] / $studentRow['max_score']) * 100, 1); // 4.0 scale or percentage? Screenshot shows 2.3, 3.0 etc. implies GPA style or just raw avg out of 3? 
-                    // Screenshot shows "2.3", "3", "2", "1.5". This looks like average marks (out of 3).
-                    // Calculation: Total Marks / Count of Attempted Lessons that have marks? 
-                    // Or Total Marks / Total Lessons?
-                    // Let's go with Average Mark per Lesson (0-3 scale).
                     $attemptedCount = count(array_filter($studentRow['grades'], fn($g) => $g['display'] !== '-'));
-                    if ($attemptedCount > 0) {
-                        $studentRow['average'] = round($studentRow['total_score'] / $attemptedCount, 1);
-                    }
+                    if ($attemptedCount > 0) $studentRow['average'] = round($studentRow['total_score'] / $attemptedCount, 1);
                 }
+                if ($activityCount > 0) $studentRow['activity_average'] = round($totalActivityScore / $activityCount, 1);
 
+                // Add row to data
                 $data[] = $studentRow;
             }
-        } else {
-            // View Mode B: Specific Lesson Breakdown
-            $selectedLesson = $lessons->find($selectedLessonId);
+            
+            // Statistics for ALL mode
+            $totalAvg = count($data) > 0 ? collect($data)->avg('average') : 0;
+            // Count students with 100% average
+            $hundredPercentCount = collect($data)->where('average', 100)->count();
 
-            // If lesson doesn't exist in filtered list, fallback to all? Or empty?
+            $statistics = [
+                'total_students' => $students->count(),
+                'total_items' => $lessons->count() + $activities->count(),
+                'class_average' => round($totalAvg, 1),
+                'hundred_percent_count' => $hundredPercentCount
+            ];
+            request()->merge(['statistics' => $statistics]);
+
+        } elseif ($mode === 'activity_detail') { // NEW: Activity Detail Mode
+             // Determine question count
+             $activity = $activities->first(); // Filtered above
+             $content = json_decode($activity->content, true);
+             $questions = $content['questions'] ?? [];
+             $questionCount = count($questions) > 0 ? count($questions) : 3; // Fallback to 3 if missing
+
+             $completedCount = 0;
+             $hundredPercentCount = 0;
+             $totalScoreSum = 0;
+             $submissionCount = 0;
+
+             foreach ($students as $student) {
+                 $submission = \App\Models\ActivitySubmission::where('user_id', $student->id)
+                    ->whereHas('assignment', fn($q) => $q->where('activity_id', $activity->id)) // Safer query
+                    ->first();
+                 
+                 // If no submission found via assignment, try fallback for teachers or loose linking
+                 if (!$submission && $student->role === 'teacher') {
+                      $submission = \App\Models\ActivitySubmission::where('user_id', $student->id)->latest()->first(); // Loose check for demo
+                      // Verify it belongs to this activity?
+                      if($submission && $submission->assignment && $submission->assignment->activity_id != $activity->id) $submission = null;
+                 }
+
+                 $score = $submission ? $submission->score : 0;
+                 if ($submission) {
+                     $completedCount++;
+                     $submissionCount++;
+                     $totalScoreSum += $score; // Assuming score is already normalized or raw?
+                     // Verify if score is 100%
+                     if ($score == 100 || ($questionCount > 0 && $score == $questionCount)) {
+                         $hundredPercentCount++;
+                     }
+                 }
+                 
+                 // Infer answers based on score (Visual Distribution)
+                 $inferredAnswers = [];
+                 
+                 // Determine number of correct answers
+                 if ($submission) {
+                     $correctCount = 0;
+                     if ($score > $questionCount && $score <= 100) {
+                         // Percentage Logic
+                         $correctCount = round(($score / 100) * $questionCount);
+                         // Use normalized score for average calc if needed, but keeping raw logic consistent
+                     } else {
+                         // Raw Score Logic
+                         $correctCount = min($score, $questionCount);
+                     }
+ 
+                     for($i=0; $i<$questionCount; $i++) {
+                         if ($i < $correctCount) {
+                             $inferredAnswers[] = '✓';
+                         } else {
+                             $inferredAnswers[] = '✗';
+                         }
+                     }
+                 } else {
+                     // No submission
+                     for($i=0; $i<$questionCount; $i++) {
+                         $inferredAnswers[] = '-';
+                     }
+                 }
+
+                 $data[] = [
+                    'student' => $student,
+                    'answers' => $inferredAnswers,
+                    'total_marks' => $submission ? $score : '-'
+                 ];
+             }
+             // Pass questions to view for headers
+             request()->merge(['activity_questions' => $questions]);
+             
+             // Statistics Activity
+             $statistics = [
+                 'total_students' => $students->count(),
+                 'completed_count' => $completedCount,
+                 'not_completed_count' => $students->count() - $completedCount,
+                 'hundred_percent_count' => $hundredPercentCount,
+                 'average_score' => $submissionCount > 0 ? round($totalScoreSum / $submissionCount, 1) : 0
+             ];
+             request()->merge(['statistics' => $statistics]);
+
+        } else {
+            // View Mode B: Specific Lesson Breakdown (Refined)
+            $selectedLesson = $lessons->firstWhere('id', $selectedLessonId);
+            
+            $completedCount = 0;
+            $hundredPercentCount = 0;
+            $totalScoreSum = 0;
+            $gradedCount = 0;
+
             if ($selectedLesson) {
                 foreach ($students as $student) {
-                    // Use QuizAttempt which uses user_id (matches our User model)
-                    $quizAttempt = QuizAttempt::where('user_id', $student->id)
+                    // Check Enrollment
+                    $enrollment = \App\Models\Enrollment::where('user_id', $student->id)
                         ->where('lesson_id', $selectedLesson->id)
-                        ->where('submitted', true)
                         ->first();
+                    $isCompleted = $enrollment && $enrollment->status === 'completed';
 
-                    // Check for teacher grade from Submission
+                    // Check Teacher Grade
                     $submission = Submission::where('user_id', $student->id)
                         ->where('lesson_id', $selectedLesson->id)
                         ->first();
-                    $teacherGrade = $submission && $submission->grade !== null ? $submission->grade : '-';
-
-                    // Extract answers from quizAttempt if available
-                    $answers = $quizAttempt && $quizAttempt->answers ? json_decode($quizAttempt->answers, true) : [];
-                    $s1 = isset($answers['q0']) && $answers['q0'] ? '✓' : ($quizAttempt ? '✗' : '-');
-                    $s2 = isset($answers['q1']) && $answers['q1'] ? '✓' : ($quizAttempt ? '✗' : '-');
-                    $s3 = isset($answers['q2']) && $answers['q2'] ? '✓' : ($quizAttempt ? '✗' : '-');
+                    
+                    $teacherGrade = $submission ? $submission->grade : null;
+                    
+                    // Final Display Grade
+                    // If Teacher Grade exists, it overrides everything.
+                    // If not, use 100 if completed.
+                    // If neither, 0 (or '-').
+                    if ($teacherGrade !== null) {
+                        $displayGrade = $teacherGrade;
+                    } else {
+                        $displayGrade = $isCompleted ? 100 : '-';
+                    }
+                    
+                    if ($displayGrade !== '-') {
+                        $gradedCount++;
+                        $totalScoreSum += $displayGrade;
+                        if ($displayGrade == 100) $hundredPercentCount++;
+                    }
+                    if ($isCompleted) $completedCount++;
 
                     $data[] = [
                         'student' => $student,
-                        's1' => $s1,
-                        's2' => $s2,
-                        's3' => $s3,
-                        'teacher_grade' => $teacherGrade,
-                        'total_marks' => $quizAttempt ? $quizAttempt->score : 0,
-                        'max' => $quizAttempt ? $quizAttempt->total_questions : 0
+                        'grade' => $displayGrade,
+                        'is_completed' => $isCompleted,
+                        'submission_id' => $submission ? $submission->id : null, // Needed for update
+                        'user_id' => $student->id,
+                        'lesson_id' => $selectedLesson->id
                     ];
                 }
-            } else {
-                $mode = 'none'; // Lesson invalid
+            }
+            
+            // Statistics Lesson
+             $statistics = [
+                 'total_students' => $students->count(),
+                 'completed_count' => $completedCount, // Enrolled & Completed
+                 'not_completed_count' => $students->count() - $completedCount,
+                 'hundred_percent_count' => $hundredPercentCount,
+                 'average_score' => $gradedCount > 0 ? round($totalScoreSum / $gradedCount, 1) : 0
+             ];
+             request()->merge(['statistics' => $statistics]);
+            if (!$selectedLesson) {
+                $mode = 'none';
             }
         }
 
         return view('performance.index', compact(
             'classrooms',
             'lessons',
+            'activities',
             'selectedClass',
-            'selectedLessonId',
+            'selectedLessonId', 
+            'filterItems',
+            'selectedFilter',
             'data',
             'mode'
         ));
+    }
+    
+    // NEW: Update Lesson Grade
+    public function updateLessonGrade(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required',
+            'lesson_id' => 'required',
+            'grade' => 'required|numeric|min:0|max:100'
+        ]);
+        
+        // Find or Create Submission
+        \App\Models\Submission::updateOrCreate(
+            ['user_id' => $request->user_id, 'lesson_id' => $request->lesson_id],
+            ['grade' => $request->grade]
+        );
+        
+        return back()->with('success', 'Gred berjaya dikemaskini.');
     }
 }

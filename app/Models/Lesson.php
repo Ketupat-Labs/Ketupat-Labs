@@ -25,6 +25,7 @@ class Lesson extends Model
         'material_path',
         'url',
         'is_published',
+        'is_public',
     ];
 
     protected $casts = [

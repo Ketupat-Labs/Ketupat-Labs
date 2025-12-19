@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ActivityAssignment extends Model
@@ -20,7 +21,7 @@ class ActivityAssignment extends Model
     ];
 
     protected $casts = [
-        'due_date' => 'date',
+        'due_date' => 'datetime',
         'assigned_at' => 'datetime',
     ];
 
@@ -32,5 +33,10 @@ class ActivityAssignment extends Model
     public function classroom(): BelongsTo
     {
         return $this->belongsTo(Classroom::class);
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(ActivitySubmission::class);
     }
 }

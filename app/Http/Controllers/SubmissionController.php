@@ -70,7 +70,7 @@ class SubmissionController extends Controller
         }
 
         $request->validate([
-            'submission_file' => 'required|file|mimes:html,zip,png,jpg,jpeg,pdf,doc,docx,txt|max:10240', // 10MB max
+            'submission_file' => 'nullable|file|mimes:html,zip,png,jpg,jpeg,pdf,doc,docx,txt|max:10240', // 10MB max
             'lesson_id' => 'required|exists:lessons,id',
         ]);
 
@@ -108,7 +108,7 @@ class SubmissionController extends Controller
             [
                 'assignment_name' => $lesson->title, // Use lesson title as assignment name
                 'file_path' => $filePath,
-                'file_name' => $request->file('submission_file')->getClientOriginalName(),
+                'file_name' => $request->hasFile('submission_file') ? $request->file('submission_file')->getClientOriginalName() : 'Marked as Completed',
                 'status' => 'Submitted - Awaiting Grade',
             ]
         );

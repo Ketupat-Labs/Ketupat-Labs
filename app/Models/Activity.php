@@ -17,6 +17,8 @@ class Activity extends Model
         'type',
         'suggested_duration',
         'description',
+        'content',
+        'is_public',
     ];
 
     public function teacher(): BelongsTo
