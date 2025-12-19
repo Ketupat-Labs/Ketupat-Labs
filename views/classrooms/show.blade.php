@@ -1,0 +1,335 @@
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ $classroom->name }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12 bg-gray-50 min-h-screen">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <!-- Back Button -->
+            <a href="{{ route('classrooms.index') }}" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Kembali ke Senarai Kelas
+            </a>
+
+            {{-- Success Message --}}
+            @if(session('success'))
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6"
+                    role="alert">
+                    <span class="block sm:inline">{{ session('success') }}</span>
+                </div>
+            @endif
+
+            {{-- Classroom Banner --}}
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8 border border-gray-200">
+                <div class="bg-gradient-to-r from-[#2454FF] to-[#1a3fcc] p-8 text-white">
+                    <h1 class="text-4xl font-bold mb-2">{{ $classroom->name }}</h1>
+                    <div class="flex items-center space-x-4 opacity-90">
+                        <span class="text-lg">{{ $classroom->subject }}</span>
+                        @if($classroom->year)
+                            <span>&bull;</span>
+                            <span class="text-lg">{{ $classroom->year }}</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                    <div class="text-sm text-gray-500">
+                        Class Code: <span
+                            class="font-mono font-bold text-gray-700">{{ $classroom->id }}-{{ Str::upper(Str::random(4)) }}</span>
+                        (Simulated)
+                    </div>
+                    @if($user->role === 'teacher')
+                        <a href="{{ route('lessons.create') }}"
+                            class="inline-flex items-center px-4 py-2 bg-[#F26430] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-orange-700 focus:bg-orange-700 active:bg-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                            Create New Lesson
+                        </a>
+                    @endif
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                {{-- LEFT COLUMN: People & Roster --}}
+                <div class="lg:col-span-1 space-y-6">
+
+                    {{-- Teachers Card --}}
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h3 class="text-lg font-bold text-[#2454FF] mb-4 border-b border-gray-100 pb-2">Instructors</h3>
+                        <div class="flex items-center space-x-3">
+                            <div
+                                class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-[#2454FF] font-bold">
+                                {{ substr($classroom->teacher->full_name, 0, 1) }}
+                            </div>
+                            <div>
+                                <p class="text-gray-900 font-medium">{{ $classroom->teacher->full_name }}</p>
+                                <p class="text-gray-500 text-xs">Lead Teacher</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Students Card --}}
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                            <h3 class="text-lg font-bold text-[#5FAD56]">Class Roster</h3>
+                            <span
+                                class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">{{ $classroom->students->count() }}
+                                Students</span>
+                        </div>
+
+                        {{-- Add Student Form (Teacher Only) --}}
+                        @if($user->role === 'teacher')
+                            <div class="mb-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <p class="text-xs font-bold text-gray-500 mb-2 uppercase">Add Student</p>
+                                <form method="POST" action="{{ route('classrooms.students.add', $classroom) }}">
+                                    @csrf
+                                    <div class="flex space-x-2">
+                                    <div x-data="{ 
+                                            open: false, 
+                                            search: '', 
+                                            selectedId: '', 
+                                            selectedName: '' 
+                                        }" 
+                                        class="relative flex-1"
+                                        @click.away="open = false">
+                                        
+                                        <input type="hidden" name="student_id" x-model="selectedId" required>
+
+                                        <button type="button" 
+                                            @click="open = !open; if(open) $nextTick(() => $refs.searchInput.focus())"
+                                            class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                            <span class="block truncate" x-text="selectedName || 'Select Student...'"></span>
+                                            <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                        </button>
+
+                                        <div x-show="open" 
+                                            x-transition:leave="transition ease-in duration-100"
+                                            x-transition:leave-start="opacity-100"
+                                            x-transition:leave-end="opacity-0"
+                                            class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
+                                            style="display: none;">
+                                            
+                                            <div class="px-2 py-2 sticky top-0 bg-white border-b z-20">
+                                                <input x-ref="searchInput" x-model="search" type="text" placeholder="Search student name..." class="w-full border-gray-300 rounded-md text-xs p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                            </div>
+
+                                            <ul class="pt-1">
+                                                @foreach($availableStudents as $student)
+                                                    <li class="cursor-pointer select-none relative py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white group"
+                                                        x-show="'{{ strtolower($student->full_name) }}'.includes(search.toLowerCase())"
+                                                        @click="selectedId = '{{ $student->id }}'; selectedName = '{{ $student->full_name }}'; open = false; search = ''">
+                                                        <span class="block truncate font-normal group-hover:font-semibold">
+                                                            {{ $student->full_name }}
+                                                        </span>
+                                                        <span x-show="selectedId === '{{ $student->id }}'" class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600 group-hover:text-white">
+                                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                                            </svg>
+                                                        </span>
+                                                    </li>
+                                                @endforeach
+                                                <li x-show="search !== '' && $el.parentNode.querySelectorAll('li[x-show]:not([style*=\'display: none\'])').length === 0" class="cursor-default select-none relative py-2 pl-3 pr-9 text-gray-500 italic">
+                                                    No students found.
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                        <button type="submit"
+                                            class="p-2 bg-[#5FAD56] text-white rounded-md hover:bg-green-700 transition">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        @endif
+
+                        {{-- Student List --}}
+                        <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                            @forelse($classroom->students as $student)
+                                <div
+                                    class="flex items-center justify-between group p-2 hover:bg-gray-50 rounded transition">
+                                    <div class="flex items-center space-x-3">
+                                        <div
+                                            class="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xs ring-2 ring-transparent group-hover:ring-purple-200 transition">
+                                            {{ substr($student->full_name, 0, 1) }}
+                                        </div>
+                                        <span class="text-sm text-gray-700 font-medium">{{ $student->full_name }}</span>
+                                    </div>
+                                    @if($user->role === 'teacher')
+                                        <form method="POST"
+                                            action="{{ route('classrooms.students.remove', [$classroom, $student->id]) }}"
+                                            onsubmit="return confirm('Remove {{ $student->full_name }} from this class?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-gray-300 hover:text-red-500 transition">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                    </path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @empty
+                                <div class="text-center py-4">
+                                    <p class="text-gray-400 text-sm italic">No students enrolled yet.</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+
+                {{-- RIGHT COLUMN: Content Lists --}}
+                <div class="lg:col-span-2" x-data="{ 
+                    search: '',
+                    fuzzyMatch(text, query) {
+                        text = (text || '').toLowerCase();
+                        query = (query || '').toLowerCase().trim();
+                        if (!query) return true;
+                        let i = 0, n = -1, l;
+                        for (; l = query[i++];) {
+                            if (!~(n = text.indexOf(l, n + 1))) return false;
+                        }
+                        return true;
+                    }
+                }">
+                    
+                    {{-- Search Bar --}}
+                    <div class="mb-6">
+                        <div class="relative">
+                            <input type="text" x-model="search" placeholder="Cari pelajaran atau aktiviti..." 
+                                class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-100 transition shadow-sm text-gray-700">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        {{-- LESSONS COLUMN --}}
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl">
+                                <h3 class="font-bold text-gray-800 flex items-center">
+                                    <span class="bg-[#2454FF] w-2 h-6 rounded-full mr-2"></span>
+                                    Pelajaran
+                                </h3>
+                            </div>
+                            <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                                @forelse($classroom->lessons->sortByDesc('created_at') as $lesson)
+                                    <div class="bg-white border border-gray-100 rounded-lg p-4 shadow-sm hover:shadow-md transition duration-200"
+                                         x-show="fuzzyMatch('{{ $lesson->title }}', search)"
+                                         x-transition:enter="transition ease-out duration-200"
+                                         x-transition:enter-start="opacity-0 transform scale-95"
+                                         x-transition:enter-end="opacity-100 transform scale-100">
+                                        
+                                        <div class="flex justify-between items-start mb-2">
+                                            <h4 class="font-bold text-[#2454FF] hover:underline leading-snug">
+                                                <a href="{{ route('lesson.show', $lesson) }}">{{ $lesson->title }}</a>
+                                            </h4>
+                                            
+                                            {{-- Status for Students --}}
+                                            @if($user->role === 'student' && $lesson->enrollments->where('user_id', $user->id)->first())
+                                                @php
+                                                    $status = $lesson->enrollments->where('user_id', $user->id)->first()->status;
+                                                    $statusColors = [
+                                                        'completed' => 'bg-green-100 text-green-800',
+                                                        'in_progress' => 'bg-yellow-100 text-yellow-800',
+                                                        'not_started' => 'bg-gray-100 text-gray-600',
+                                                    ];
+                                                @endphp
+                                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $statusColors[$status] ?? 'bg-gray-100' }}">
+                                                    {{ str_replace('_', ' ', ucfirst($status)) }}
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        <p class="text-xs text-gray-500 mb-3">{{ $lesson->topic }}</p>
+                                        <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ $lesson->content }}</p>
+
+                                        <div class="grid grid-cols-1 gap-2">
+                                            <a href="{{ route('lesson.show', $lesson) }}" 
+                                               class="text-center text-xs font-bold text-[#2454FF] bg-blue-50 py-2 rounded hover:bg-blue-100 transition">
+                                                Buka Pelajaran
+                                            </a>
+                                            @if($user->role === 'teacher')
+                                                <a href="{{ route('submission.index', ['lesson_id' => $lesson->id, 'classroom_id' => $classroom->id]) }}"
+                                                   class="text-center text-xs font-bold text-[#5FAD56] bg-green-50 py-2 rounded hover:bg-green-100 transition">
+                                                   Semak Tugasan ({{ $lesson->submissions->count() }})
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-center text-gray-400 text-sm italic py-4">Tiada pelajaran.</p>
+                                @endforelse
+                                <p x-show="search !== '' && $el.parentNode.querySelectorAll('div[x-show]:not([style*=\'display: none\'])').length === 0" 
+                                   class="text-center text-gray-400 text-sm italic py-4" style="display: none;">
+                                    Tiada pelajaran dijumpai.
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- ACTIVITIES COLUMN --}}
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl">
+                                <h3 class="font-bold text-gray-800 flex items-center">
+                                    <span class="bg-purple-600 w-2 h-6 rounded-full mr-2"></span>
+                                    Aktiviti
+                                </h3>
+                            </div>
+                            <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                                @forelse($classroom->activityAssignments->sortByDesc('created_at') as $assignment)
+                                    <div class="bg-white border border-gray-100 rounded-lg p-4 shadow-sm hover:shadow-md transition duration-200"
+                                         x-show="fuzzyMatch('{{ $assignment->activity->title }}', search)"
+                                         x-transition:enter="transition ease-out duration-200"
+                                         x-transition:enter-start="opacity-0 transform scale-95"
+                                         x-transition:enter-end="opacity-100 transform scale-100">
+                                        
+                                        <div class="flex justify-between items-start mb-2">
+                                            <h4 class="font-bold text-purple-600 hover:underline leading-snug">
+                                                <a href="{{ route('activities.show', $assignment->activity) }}">{{ $assignment->activity->title }}</a>
+                                            </h4>
+                                            <span class="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                                                {{ $assignment->activity->type }}
+                                            </span>
+                                        </div>
+
+                                        @if($assignment->due_date)
+                                            <p class="text-xs text-red-500 font-bold mb-2">
+                                                Tamat: {{ \Carbon\Carbon::parse($assignment->due_date)->format('d M Y') }}
+                                            </p>
+                                        @endif
+
+                                        <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ $assignment->activity->description }}</p>
+
+                                        <a href="{{ route('activities.show', $assignment->activity) }}" 
+                                           class="block text-center text-xs font-bold text-purple-600 bg-purple-50 py-2 rounded hover:bg-purple-100 transition">
+                                            Lihat Aktiviti
+                                        </a>
+                                    </div>
+                                @empty
+                                    <p class="text-center text-gray-400 text-sm italic py-4">Tiada aktiviti.</p>
+                                @endforelse
+                                <p x-show="search !== '' && $el.parentNode.querySelectorAll('div[x-show]:not([style*=\'display: none\'])').length === 0" 
+                                   class="text-center text-gray-400 text-sm italic py-4" style="display: none;">
+                                    Tiada aktiviti dijumpai.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</x-app-layout>
