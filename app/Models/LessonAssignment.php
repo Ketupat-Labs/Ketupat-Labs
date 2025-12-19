@@ -9,6 +9,8 @@ class LessonAssignment extends Model
 {
     use HasFactory;
 
+    protected $table = 'lesson_assignment';
+
     protected $fillable = ['classroom_id', 'lesson_id', 'type', 'assigned_at', 'due_date', 'notes'];
 
     public function classroom()

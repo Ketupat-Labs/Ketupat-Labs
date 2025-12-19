@@ -75,8 +75,8 @@ document.getElementById('createForumForm').addEventListener('submit', async func
     const startDate = document.getElementById('forumStartDate').value || null;
     const endDate = document.getElementById('forumEndDate').value || null;
     
-    if (description.length < 20) {
-        showError('Description must be at least 20 characters long.');
+    if (description.length < 1) {
+        showError('Description must be at least 1 character long.');
         return;
     }
 

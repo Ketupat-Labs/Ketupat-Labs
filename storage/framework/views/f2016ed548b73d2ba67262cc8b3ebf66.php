@@ -11,7 +11,7 @@
                 </div>
 
                 <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex items-center">
+                <div class="hidden space-x-8 lg:-my-px lg:ms-10 lg:flex items-center">
                     <a href="<?php echo e(route('dashboard')); ?>"
                         class="inline-flex items-center px-1 pt-1 border-b-2 <?php echo e(request()->routeIs('dashboard') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?> text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                         <?php echo e(__('Dashboard')); ?>
@@ -24,7 +24,7 @@
 
                     </a>
 
-                    <div class="hidden sm:flex sm:items-center">
+                    <div class="hidden lg:flex lg:items-center">
                         <?php if (isset($component)) { $__componentOriginaldf8083d4a852c446488d8d384bbc7cbe = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginaldf8083d4a852c446488d8d384bbc7cbe = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown','data' => ['align' => 'left','width' => '48']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? (array) $attributes->getIterator() : [])); ?>
@@ -131,7 +131,7 @@
                     </div>
 
                     <?php if($currentUser && $currentUser->role === 'teacher'): ?>
-                        <div class="hidden sm:flex sm:items-center">
+                        <div class="hidden lg:flex lg:items-center">
                             <?php if (isset($component)) { $__componentOriginaldf8083d4a852c446488d8d384bbc7cbe = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginaldf8083d4a852c446488d8d384bbc7cbe = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown','data' => ['align' => 'left','width' => '48']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? (array) $attributes->getIterator() : [])); ?>
@@ -259,7 +259,9 @@
 <?php endif; ?>
                         </div>
 
-                        <div class="hidden sm:flex sm:items-center">
+
+
+                        <div class="hidden lg:flex lg:items-center">
                             <?php if (isset($component)) { $__componentOriginaldf8083d4a852c446488d8d384bbc7cbe = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginaldf8083d4a852c446488d8d384bbc7cbe = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown','data' => ['align' => 'left','width' => '48']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? (array) $attributes->getIterator() : [])); ?>
@@ -330,28 +332,6 @@
 <?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
 <?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
 <?php endif; ?>
-                                    <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('activity.index')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? (array) $attributes->getIterator() : [])); ?>
-<?php $component->withName('dropdown-link'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag && $constructor = (new ReflectionClass(Illuminate\View\AnonymousComponent::class))->getConstructor()): ?>
-<?php $attributes = $attributes->except(collect($constructor->getParameters())->map->getName()->all()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('activity.index'))]); ?>
-                                        <?php echo e(__('Mengendalikan Aktiviti')); ?>
-
-                                     <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal68cb1971a2b92c9735f83359058f7108)): ?>
-<?php $attributes = $__attributesOriginal68cb1971a2b92c9735f83359058f7108; ?>
-<?php unset($__attributesOriginal68cb1971a2b92c9735f83359058f7108); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal68cb1971a2b92c9735f83359058f7108)): ?>
-<?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
-<?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
-<?php endif; ?>
                                  <?php $__env->endSlot(); ?>
                              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -364,9 +344,11 @@
 <?php unset($__componentOriginaldf8083d4a852c446488d8d384bbc7cbe); ?>
 <?php endif; ?>
                         </div>
+
+
                         <a href="<?php echo e(route('classrooms.index')); ?>"
                             class="inline-flex items-center px-1 pt-1 border-b-2 <?php echo e(request()->routeIs('classrooms.*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?> text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            <?php echo e(__('My Classrooms')); ?>
+                            <?php echo e(__('Kelas Saya')); ?>
 
                         </a>
                     <?php else: ?>
@@ -375,14 +357,14 @@
                             <?php echo e(__('My Lessons')); ?>
 
                         </a>
-                        <a href="<?php echo e(route('enrollment.index')); ?>"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 <?php echo e(request()->routeIs('enrollment.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?> text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            <?php echo e(__('Course Catalog')); ?>
-
-                        </a>
                         <a href="<?php echo e(route('submission.show')); ?>"
                             class="inline-flex items-center px-1 pt-1 border-b-2 <?php echo e(request()->routeIs('submission.show') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?> text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             <?php echo e(__('My Submissions')); ?>
+
+                        </a>
+                        <a href="<?php echo e(route('performance.index')); ?>"
+                            class="inline-flex items-center px-1 pt-1 border-b-2 <?php echo e(request()->routeIs('performance.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?> text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            <?php echo e(__('Lihat Prestasi')); ?>
 
                         </a>
                     <?php endif; ?>
@@ -390,7 +372,7 @@
             </div>
 
             <!-- Right Side Icons and Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6 sm:gap-3">
+            <div class="hidden lg:flex lg:items-center lg:ms-6 lg:gap-3">
                 <!-- Notification Icon -->
                 <div class="relative">
                     <button id="notificationBtn"
@@ -442,7 +424,17 @@
 <?php $component->withAttributes(['align' => 'right','width' => '48']); ?>
                          <?php $__env->slot('trigger', null, []); ?> 
                             <button
-                                class="inline-flex items-center px-4 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150">
+                                class="inline-flex items-center px-3 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150 gap-2">
+                                <?php if($currentUser->avatar_url): ?>
+                                    <img src="<?php echo e(asset($currentUser->avatar_url)); ?>" 
+                                         alt="<?php echo e($currentUser->full_name ?? 'User'); ?>" 
+                                         class="h-8 w-8 rounded-full object-cover border-2 border-gray-200">
+                                <?php else: ?>
+                                    <div class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200">
+                                        <?php echo e(strtoupper(substr($currentUser->full_name ?? $currentUser->username ?? 'U', 0, 1))); ?>
+
+                                    </div>
+                                <?php endif; ?>
                                 <div><?php echo e($currentUser->full_name ?? $currentUser->email ?? 'User'); ?></div>
                                 <div class="ms-1">
                                     <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg"
@@ -467,6 +459,29 @@
 <?php endif; ?>
 <?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('profile.show', $currentUser->id))]); ?>
                                 <?php echo e(__('Profile')); ?>
+
+                             <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal68cb1971a2b92c9735f83359058f7108)): ?>
+<?php $attributes = $__attributesOriginal68cb1971a2b92c9735f83359058f7108; ?>
+<?php unset($__attributesOriginal68cb1971a2b92c9735f83359058f7108); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal68cb1971a2b92c9735f83359058f7108)): ?>
+<?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
+<?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
+<?php endif; ?>
+
+                            <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('settings.index')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? (array) $attributes->getIterator() : [])); ?>
+<?php $component->withName('dropdown-link'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag && $constructor = (new ReflectionClass(Illuminate\View\AnonymousComponent::class))->getConstructor()): ?>
+<?php $attributes = $attributes->except(collect($constructor->getParameters())->map->getName()->all()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('settings.index'))]); ?>
+                                <?php echo e(__('Settings')); ?>
 
                              <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -523,7 +538,7 @@
             </div>
 
             <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
+            <div class="-me-2 flex items-center lg:hidden">
                 <button @click="open = ! open"
                     class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -539,7 +554,7 @@
     </div>
 
     <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden lg:hidden">
         <div class="pt-2 pb-3 space-y-1">
             <a href="<?php echo e(route('dashboard')); ?>"
                 class="block px-4 py-2 text-base font-medium <?php echo e(request()->routeIs('dashboard') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'); ?> transition duration-150 ease-in-out">
@@ -603,14 +618,29 @@
                     </a>
                 </div>
 
-                <a href="<?php echo e(route('monitoring.index')); ?>"
-                    class="block px-4 py-2 text-base font-medium <?php echo e(request()->routeIs('monitoring.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'); ?> transition duration-150 ease-in-out">
-                    <?php echo e(__('Monitor Progress')); ?>
 
-                </a>
+
+                <div class="pt-2 pb-1 border-t border-gray-200">
+                    <div class="px-4 text-xs text-gray-500 uppercase font-semibold">
+                        <?php echo e(__('Prestasi')); ?>
+
+                    </div>
+                    <a href="<?php echo e(route('progress.index')); ?>"
+                        class="block px-4 py-2 text-base font-medium <?php echo e(request()->routeIs('progress.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'); ?> transition duration-150 ease-in-out">
+                        <?php echo e(__('Lihat Perkembangan')); ?>
+
+                    </a>
+                     <a href="<?php echo e(route('performance.index')); ?>"
+                        class="block px-4 py-2 text-base font-medium <?php echo e(request()->routeIs('performance.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'); ?> transition duration-150 ease-in-out">
+                        <?php echo e(__('Lihat Prestasi')); ?>
+
+                    </a>
+                </div>
+
+
                 <a href="<?php echo e(route('classrooms.index')); ?>"
                     class="block px-4 py-2 text-base font-medium <?php echo e(request()->routeIs('classrooms.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'); ?> transition duration-150 ease-in-out">
-                    <?php echo e(__('My Classrooms')); ?>
+                    <?php echo e(__('Kelas Saya')); ?>
 
                 </a>
             <?php else: ?>
@@ -624,23 +654,48 @@
                     <?php echo e(__('My Submissions')); ?>
 
                 </a>
+                <div class="pt-2 pb-1 border-t border-gray-200">
+                     <a href="<?php echo e(route('performance.index')); ?>"
+                        class="block px-4 py-2 text-base font-medium <?php echo e(request()->routeIs('performance.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'); ?> transition duration-150 ease-in-out">
+                        <?php echo e(__('Lihat Prestasi')); ?>
+
+                    </a>
+                </div>
             <?php endif; ?>
         </div>
 
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800">
-                    <?php echo e($currentUser->full_name ?? $currentUser->email ?? 'User'); ?>
+            <div class="px-4 flex items-center gap-3">
+                <?php if($currentUser->avatar_url): ?>
+                    <img src="<?php echo e(asset($currentUser->avatar_url)); ?>" 
+                         alt="<?php echo e($currentUser->full_name ?? 'User'); ?>" 
+                         class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">
+                <?php else: ?>
+                    <div class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg border-2 border-gray-200">
+                        <?php echo e(strtoupper(substr($currentUser->full_name ?? $currentUser->username ?? 'U', 0, 1))); ?>
 
+                    </div>
+                <?php endif; ?>
+                <div>
+                    <div class="font-medium text-base text-gray-800">
+                        <?php echo e($currentUser->full_name ?? $currentUser->email ?? 'User'); ?>
+
+                    </div>
+                    <div class="font-medium text-sm text-gray-500"><?php echo e($currentUser->email ?? ''); ?></div>
                 </div>
-                <div class="font-medium text-sm text-gray-500"><?php echo e($currentUser->email ?? ''); ?></div>
             </div>
 
             <div class="mt-3 space-y-1">
                 <a href="<?php echo e(route('profile.show', $currentUser->id)); ?>"
                     class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
                     <?php echo e(__('Profile')); ?>
+
+                </a>
+
+                <a href="<?php echo e(route('settings.index')); ?>"
+                    class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
+                    <?php echo e(__('Settings')); ?>
 
                 </a>
 

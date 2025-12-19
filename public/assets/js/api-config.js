@@ -5,6 +5,8 @@ const API_BASE_URL = window.location.origin;
 const API_ENDPOINTS = {
     login: `${API_BASE_URL}/api/auth/login`,
     register: `${API_BASE_URL}/api/auth/register`,
+    verifyOtp: `${API_BASE_URL}/api/auth/verify-otp`,
+    resendOtp: `${API_BASE_URL}/api/auth/resend-otp`,
     logout: `${API_BASE_URL}/api/auth/logout`,
     me: `${API_BASE_URL}/api/auth/me`,
 };

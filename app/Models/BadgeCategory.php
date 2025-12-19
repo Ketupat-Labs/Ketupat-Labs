@@ -10,7 +10,7 @@ class BadgeCategory extends Model
 {
     use HasFactory;
 
-    protected $table = 'badge_categories';
+    protected $table = 'badge_category';
 
     protected $fillable = [
         'name',

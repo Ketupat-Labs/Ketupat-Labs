@@ -48,7 +48,8 @@
                             </svg>
                         </button>
                         <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil</a>
+                            <a href="#" onclick="event.preventDefault(); const userId = sessionStorage.getItem('userId'); if (userId) { window.location.href = '/profile/' + userId; } else { window.location.href = '/profile'; } return false;" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil</a>
+                            <a href="{{ route('settings.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Tetapan</a>
                             <a href="{{ route('logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Keluar</a>
                         </div>
                     </div>
@@ -174,12 +175,24 @@
                     </div>
                 </div>
 
-                <div class="form-section" id="attachmentSection">
+                <!-- Attachment Section for Text Posts -->
+                <div class="form-section" id="attachmentSectionPost">
                     <div class="form-section-title">Lampiran (Pilihan)</div>
                     
                     <div class="form-group">
-                        <input type="file" id="attachmentInput" multiple accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx">
-                        <div id="attachmentsPreview" class="attachments-preview"></div>
+                        <input type="file" id="attachmentInputPost" multiple accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx">
+                        <div id="attachmentsPreviewPost" class="attachments-preview"></div>
+                        <small>Muat naik imej atau fail. Saiz fail maksimum: 50MB setiap satu.</small>
+                    </div>
+                </div>
+
+                <!-- Attachment Section for Link Posts -->
+                <div class="form-section" id="attachmentSectionLink" style="display: none;">
+                    <div class="form-section-title">Lampiran (Pilihan)</div>
+                    
+                    <div class="form-group">
+                        <input type="file" id="attachmentInputLink" multiple accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx">
+                        <div id="attachmentsPreviewLink" class="attachments-preview"></div>
                         <small>Muat naik imej atau fail. Saiz fail maksimum: 50MB setiap satu.</small>
                     </div>
                 </div>

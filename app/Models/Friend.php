@@ -10,6 +10,8 @@ class Friend extends Model
 {
     use HasFactory;
 
+    protected $table = 'friend';
+
     protected $fillable = [
         'user_id',
         'friend_id',

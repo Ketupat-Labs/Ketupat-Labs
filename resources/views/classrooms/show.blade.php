@@ -39,12 +39,25 @@
                             class="font-mono font-bold text-gray-700">{{ $classroom->id }}-{{ Str::upper(Str::random(4)) }}</span>
                         (Simulated)
                     </div>
-                    @if($user->role === 'teacher')
-                        <a href="{{ route('lessons.create') }}"
-                            class="inline-flex items-center px-4 py-2 bg-[#F26430] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-orange-700 focus:bg-orange-700 active:bg-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                            Create New Lesson
-                        </a>
-                    @endif
+                    <div class="flex gap-3">
+                        @if($user->role === 'teacher')
+                            <a href="{{ route('lessons.create') }}"
+                                class="inline-flex items-center px-4 py-2 bg-[#F26430] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-orange-700 focus:bg-orange-700 active:bg-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                Create New Lesson
+                            </a>
+                        @endif
+                        @if($forum)
+                            <a href="{{ route('forum.detail', $forum->id) }}"
+                                class="inline-flex items-center px-4 py-2 bg-[#2454FF] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                View Forum
+                            </a>
+                        @elseif($user->role === 'teacher')
+                            <button onclick="createClassroomForum({{ $classroom->id }})"
+                                class="inline-flex items-center px-4 py-2 bg-[#2454FF] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                Create Forum
+                            </button>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -56,16 +69,25 @@
                     {{-- Teachers Card --}}
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h3 class="text-lg font-bold text-[#2454FF] mb-4 border-b border-gray-100 pb-2">Instructors</h3>
-                        <div class="flex items-center space-x-3">
-                            <div
-                                class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-[#2454FF] font-bold">
-                                {{ substr($classroom->teacher->full_name, 0, 1) }}
+                        <a href="{{ route('profile.show', $classroom->teacher->id) }}" class="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer">
+                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-[#2454FF] font-bold overflow-hidden flex-shrink-0">
+                                @if($classroom->teacher->avatar_url)
+                                    <img src="{{ asset($classroom->teacher->avatar_url) }}" 
+                                         alt="{{ $classroom->teacher->full_name }}" 
+                                         class="h-full w-full object-cover"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
+                                        {{ strtoupper(substr($classroom->teacher->full_name, 0, 1)) }}
+                                    </div>
+                                @else
+                                    {{ strtoupper(substr($classroom->teacher->full_name, 0, 1)) }}
+                                @endif
                             </div>
                             <div>
-                                <p class="text-gray-900 font-medium">{{ $classroom->teacher->full_name }}</p>
+                                <p class="text-gray-900 font-medium hover:text-[#2454FF] transition-colors">{{ $classroom->teacher->full_name }}</p>
                                 <p class="text-gray-500 text-xs">Lead Teacher</p>
                             </div>
-                        </div>
+                        </a>
                     </div>
 
                     {{-- Students Card --}}
@@ -155,17 +177,28 @@
                             @forelse($classroom->students as $student)
                                 <div
                                     class="flex items-center justify-between group p-2 hover:bg-gray-50 rounded transition">
-                                    <div class="flex items-center space-x-3">
-                                        <div
-                                            class="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xs ring-2 ring-transparent group-hover:ring-purple-200 transition">
-                                            {{ substr($student->full_name, 0, 1) }}
+                                    <a href="{{ route('profile.show', $student->id) }}" class="flex items-center space-x-3 flex-1 hover:opacity-80 transition-opacity cursor-pointer">
+                                        <div class="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xs ring-2 ring-transparent group-hover:ring-purple-200 transition overflow-hidden flex-shrink-0">
+                                            @if($student->avatar_url)
+                                                <img src="{{ asset($student->avatar_url) }}" 
+                                                     alt="{{ $student->full_name }}" 
+                                                     class="h-full w-full object-cover"
+                                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">
+                                                    {{ strtoupper(substr($student->full_name, 0, 1)) }}
+                                                </div>
+                                            @else
+                                                {{ strtoupper(substr($student->full_name, 0, 1)) }}
+                                            @endif
                                         </div>
-                                        <span class="text-sm text-gray-700 font-medium">{{ $student->full_name }}</span>
-                                    </div>
+                                        <span class="text-sm text-gray-700 font-medium hover:text-[#5FAD56] transition-colors">{{ $student->full_name }}</span>
+                                    </a>
                                     @if($user->role === 'teacher')
                                         <form method="POST"
                                             action="{{ route('classrooms.students.remove', [$classroom, $student->id]) }}"
-                                            onsubmit="return confirm('Remove {{ $student->full_name }} from this class?');">
+                                            onsubmit="return confirm('Remove {{ $student->full_name }} from this class?');"
+                                            class="ml-2"
+                                            onclick="event.stopPropagation();">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-gray-300 hover:text-red-500 transition">
@@ -332,4 +365,42 @@
             </div>
         </div>
     </div>
+
+    <script>
+        async function createClassroomForum(classroomId) {
+            if (!confirm('Create a forum for this classroom? The forum will be visible only to class members.')) {
+                return;
+            }
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const response = await fetch('/api/classroom/' + classroomId + '/create-forum', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    credentials: 'include',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.status === 200) {
+                    // Redirect to forum detail page
+                    window.location.href = '/forum/' + data.data.forum_id;
+                } else {
+                    alert(data.message || 'Failed to create forum');
+                }
+            } catch (error) {
+                console.error('Error creating forum:', error);
+                alert('Failed to create forum. Please try again.');
+            }
+        }
+    </script>
 </x-app-layout>

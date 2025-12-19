@@ -1,4 +1,9 @@
 <!-- Ketupat Chatbot Widget -->
+@php
+    $currentUser = session('user_id') ? \App\Models\User::find(session('user_id')) : \Illuminate\Support\Facades\Auth::user();
+    $chatbotEnabled = $currentUser ? ($currentUser->chatbot_enabled ?? true) : true;
+@endphp
+@if($chatbotEnabled)
 <div id="ketupat-chatbot" class="fixed bottom-6 right-6 z-50">
     <!-- Chatbot Button -->
     <button id="chatbot-toggle" 
@@ -449,4 +454,5 @@
         }
     });
 </script>
+@endif
 

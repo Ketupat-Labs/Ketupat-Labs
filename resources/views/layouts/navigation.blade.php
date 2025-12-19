@@ -184,7 +184,16 @@
                     <x-dropdown align="right" width="48">
                         <x-slot name="trigger">
                             <button
-                                class="inline-flex items-center px-4 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150">
+                                class="inline-flex items-center px-3 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150 gap-2">
+                                @if($currentUser->avatar_url)
+                                    <img src="{{ asset($currentUser->avatar_url) }}" 
+                                         alt="{{ $currentUser->full_name ?? 'User' }}" 
+                                         class="h-8 w-8 rounded-full object-cover border-2 border-gray-200">
+                                @else
+                                    <div class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200">
+                                        {{ strtoupper(substr($currentUser->full_name ?? $currentUser->username ?? 'U', 0, 1)) }}
+                                    </div>
+                                @endif
                                 <div>{{ $currentUser->full_name ?? $currentUser->email ?? 'User' }}</div>
                                 <div class="ms-1">
                                     <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg"
@@ -200,6 +209,10 @@
                         <x-slot name="content">
                             <x-dropdown-link :href="route('profile.show', $currentUser->id)">
                                 {{ __('Profile') }}
+                            </x-dropdown-link>
+
+                            <x-dropdown-link :href="route('settings.index')">
+                                {{ __('Settings') }}
                             </x-dropdown-link>
 
                             <!-- Authentication -->
@@ -327,17 +340,33 @@
 
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800">
-                    {{ $currentUser->full_name ?? $currentUser->email ?? 'User' }}
+            <div class="px-4 flex items-center gap-3">
+                @if($currentUser->avatar_url)
+                    <img src="{{ asset($currentUser->avatar_url) }}" 
+                         alt="{{ $currentUser->full_name ?? 'User' }}" 
+                         class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">
+                @else
+                    <div class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg border-2 border-gray-200">
+                        {{ strtoupper(substr($currentUser->full_name ?? $currentUser->username ?? 'U', 0, 1)) }}
+                    </div>
+                @endif
+                <div>
+                    <div class="font-medium text-base text-gray-800">
+                        {{ $currentUser->full_name ?? $currentUser->email ?? 'User' }}
+                    </div>
+                    <div class="font-medium text-sm text-gray-500">{{ $currentUser->email ?? '' }}</div>
                 </div>
-                <div class="font-medium text-sm text-gray-500">{{ $currentUser->email ?? '' }}</div>
             </div>
 
             <div class="mt-3 space-y-1">
                 <a href="{{ route('profile.show', $currentUser->id) }}"
                     class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
                     {{ __('Profile') }}
+                </a>
+
+                <a href="{{ route('settings.index') }}"
+                    class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
+                    {{ __('Settings') }}
                 </a>
 
                 <a href="{{ route('friends.index') }}"

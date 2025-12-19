@@ -10,6 +10,8 @@ class ActivitySubmission extends Model
 {
     use HasFactory;
 
+    protected $table = 'activity_submission';
+
     protected $fillable = [
         'activity_assignment_id',
         'user_id',

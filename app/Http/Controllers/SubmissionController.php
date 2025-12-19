@@ -71,7 +71,7 @@ class SubmissionController extends Controller
 
         $request->validate([
             'submission_file' => 'nullable|file|mimes:html,zip,png,jpg,jpeg,pdf,doc,docx,txt|max:10240', // 10MB max
-            'lesson_id' => 'required|exists:lessons,id',
+            'lesson_id' => 'required|exists:lesson,id',
         ]);
 
         $lesson = \App\Models\Lesson::find($request->lesson_id);

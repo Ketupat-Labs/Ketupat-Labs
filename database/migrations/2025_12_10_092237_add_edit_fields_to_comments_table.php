@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('comment', function (Blueprint $table) {
-            $table->boolean('is_edited')->default(false)->after('reaction_count');
-            $table->timestamp('edited_at')->nullable()->after('is_edited');
+            if (!Schema::hasColumn('comment', 'is_edited')) {
+                $table->boolean('is_edited')->default(false)->after('reaction_count');
+            }
+            if (!Schema::hasColumn('comment', 'edited_at')) {
+                $table->timestamp('edited_at')->nullable()->after('is_edited');
+            }
         });
     }
 

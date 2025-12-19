@@ -52,7 +52,13 @@
         </div>
         
         <!-- Ketupat Chatbot Widget -->
-        @include('components.chatbot-widget')
+        @php
+            $currentUser = session('user_id') ? \App\Models\User::find(session('user_id')) : \Illuminate\Support\Facades\Auth::user();
+            $chatbotEnabled = $currentUser ? ($currentUser->chatbot_enabled ?? true) : true;
+        @endphp
+        @if($chatbotEnabled)
+            @include('components.chatbot-widget')
+        @endif
         
         <!-- Navigation JavaScript -->
         <script>

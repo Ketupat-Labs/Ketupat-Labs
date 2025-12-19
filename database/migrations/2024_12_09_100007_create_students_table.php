@@ -8,8 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('students')) {
-            Schema::create('students', function (Blueprint $table) {
+        if (!Schema::hasTable('student')) {
+            Schema::create('student', function (Blueprint $table) {
             $table->id('student_id');
             $table->string('name');
             $table->string('class')->nullable();
@@ -20,7 +20,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('students');
+        Schema::dropIfExists('student');
     }
 };
 

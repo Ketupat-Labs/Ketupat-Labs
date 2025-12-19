@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('conversations', function (Blueprint $table) {
+        Schema::create('conversation', function (Blueprint $table) {
             $table->id();
             $table->enum('type', ['direct', 'group'])->default('direct');
             $table->string('name')->nullable(); // For group chats
@@ -19,7 +19,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('conversations');
+        Schema::dropIfExists('conversation');
     }
 };
 

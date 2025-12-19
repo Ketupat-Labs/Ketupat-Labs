@@ -189,9 +189,9 @@ class LessonAssignmentController extends Controller
     {
         $request->validate([
             'classroom_ids' => 'array',
-            'classroom_ids.*' => 'exists:classes,id',
+            'classroom_ids.*' => 'exists:class,id',
             'lessons' => 'required|array',
-            'lessons.*' => 'exists:lessons,id',
+            'lessons.*' => 'exists:lesson,id',
             'is_public' => 'boolean'
         ]);
 

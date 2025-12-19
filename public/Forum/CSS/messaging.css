@@ -4,6 +4,7 @@
     box-sizing: border-box;
 }
 
+
 :root {
     --primary: #2454FF;
     --secondary: #5FAD56;
@@ -377,6 +378,16 @@ body > div > main {
     justify-content: center;
     font-weight: 600;
     font-size: 1rem;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.conversation-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
 }
 
 .conversation-details {
@@ -454,6 +465,102 @@ body > div > main {
     min-height: 96px;
 }
 
+/* Selection Bar */
+.selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: #2c3e50;
+    color: white;
+    border-radius: 0.5rem;
+}
+
+.btn-selection-cancel {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 1.1rem;
+    transition: background 0.2s ease;
+}
+
+.btn-selection-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.selection-count {
+    font-weight: 600;
+    font-size: 1rem;
+    flex: 1;
+}
+
+.selection-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-selection-action {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-selection-action:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-selection-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-selection-delete {
+    background: rgba(220, 53, 69, 0.2);
+    color: #ff6b6b;
+}
+
+.btn-selection-delete:hover:not(:disabled) {
+    background: rgba(220, 53, 69, 0.3);
+}
+
+.chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background: var(--panel-muted);
+    color: var(--text-primary);
+}
+
 .chat-header-placeholder {
     display: flex;
     flex-direction: column;
@@ -503,6 +610,104 @@ body > div > main {
     margin-bottom: 0.75rem;
     display: flex;
     flex-direction: column;
+    position: relative;
+    transition: background 0.2s ease;
+    width: 100%;
+    align-items: flex-start;
+}
+
+.message-group.message-own-group {
+    align-items: flex-end !important;
+}
+
+.message-group.selection-mode {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.message-group.selection-mode:hover {
+    background: rgba(36, 84, 255, 0.05);
+}
+
+.message-group.message-selected {
+    background: rgba(36, 84, 255, 0.1);
+}
+
+.message-checkbox {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    margin-top: 5px;
+    margin-right: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.message-checkbox input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    max-width: 24px;
+    max-height: 24px;
+    cursor: pointer;
+    accent-color: var(--primary);
+    margin: 0;
+    flex-shrink: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    position: relative;
+    transition: all 0.2s ease;
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+.message-checkbox input[type="checkbox"]:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.message-checkbox input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 1;
+    display: block;
+}
+
+.message-checkbox input[type="checkbox"]:hover {
+    border-color: var(--primary);
+    transform: scale(1.1);
+}
+
+/* Checkboxes are always in DOM but only visible in selection mode */
+.message-group.selection-mode .message-checkbox {
+    opacity: 1 !important;
+    display: flex !important;
+    visibility: visible !important;
+}
+
+.message-group:not(.selection-mode) .message-checkbox {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
 }
 
 .message-group:last-child {
@@ -516,6 +721,9 @@ body > div > main {
     margin-bottom: 0.5rem;
     animation: fadeIn 0.2s ease-in;
     width: 100%;
+    max-width: 100%;
+    flex: 0 0 auto;
+    justify-content: flex-start;
 }
 
 .message:last-child {
@@ -534,7 +742,9 @@ body > div > main {
 }
 
 .message.own {
-    flex-direction: row-reverse;
+    flex-direction: row-reverse !important;
+    justify-content: flex-end !important;
+    align-items: flex-start !important;
 }
 
 .message-avatar {
@@ -548,6 +758,26 @@ body > div > main {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.message-avatar[onclick] {
+    cursor: pointer;
+}
+
+.message-avatar[onclick]:hover {
+    transform: scale(1.1);
+    opacity: 0.9;
+}
+
+.message-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
 }
 
 .message.own .message-avatar {
@@ -555,75 +785,145 @@ body > div > main {
 }
 
 .message-content {
-    max-width: 50%;
-    min-width: 60px;
-    display: flex;
-    flex-direction: column;
-    align-self: flex-start;
+    max-width: 75% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-self: flex-start !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    align-items: flex-start !important;
 }
 
 .message.own .message-content {
-    align-self: flex-end;
+    align-self: flex-end !important;
+    align-items: flex-end !important;
+    margin-left: auto !important;
 }
 
 .message-bubble {
-    background: white;
-    padding: 0.4rem 0.75rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
-    font-size: 0.875rem;
-    color: var(--text-primary);
-    word-wrap: break-word;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    white-space: pre-wrap;
-    max-width: 100%;
-    width: fit-content;
-    min-width: 0;
-    display: inline-block;
-    line-height: 1.35;
-    box-sizing: border-box;
+    background: white !important;
+    padding: 0.5rem 0.75rem !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1) !important;
+    font-size: 0.875rem !important;
+    color: var(--text-primary) !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: pre-wrap !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: fit-content !important;
+    display: table !important;
+    line-height: 1.4 !important;
+    box-sizing: border-box !important;
+    vertical-align: top !important;
+    align-self: flex-start !important;
 }
 
 /* Ensure text content inside bubble wraps properly */
 .message-bubble > div,
 .message-bubble > p {
-    word-wrap: break-word;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    white-space: pre-wrap;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: pre-wrap !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    width: auto !important;
 }
 
 .message.own .message-bubble {
-    background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%);
+    background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%) !important;
+    color: white !important;
+    align-self: flex-end !important;
+    margin-left: auto !important;
+}
+
+/* Message Context Menu */
+.message-context-menu {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    z-index: 10000;
+    min-width: 200px;
+    max-width: calc(100vw - 20px);
+    width: fit-content;
+    height: auto;
+    max-height: calc(100vh - 20px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    display: none;
+    overflow: visible;
+}
+
+.message-reactions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 0.5rem;
+}
+
+.reaction-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.2rem;
     color: white;
 }
 
-/* Message Options */
-.message-options {
-    display: inline-flex;
+.reaction-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.reaction-btn.more-reactions {
+    font-size: 0.9rem;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0.5rem 0;
+}
+
+.context-menu-item {
+    display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-left: 0.5rem;
-}
-
-.btn-message-option {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: white;
     cursor: pointer;
-    padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
-    transition: all 0.2s ease;
-    font-size: 0.875rem;
+    transition: background 0.2s ease;
+    font-size: 0.9rem;
 }
 
-.btn-message-option:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--text-primary);
+.context-menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.context-menu-item i {
+    width: 18px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.context-menu-item span {
+    flex: 1;
 }
 
 /* Conversation Options Menu */
@@ -932,6 +1232,244 @@ body > div > main {
     .link-preview-image {
         height: 150px;
     }
+}
+
+.member-item .conversation-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 0.9rem;
+}
+
+/* Reply Preview */
+.reply-preview {
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    border-left: 3px solid var(--primary);
+}
+
+.reply-preview-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.reply-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.reply-preview-header i {
+    color: var(--primary);
+}
+
+.btn-close-reply {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.btn-close-reply:hover {
+    background: var(--panel-muted);
+    color: var(--text-primary);
+}
+
+.reply-preview-message {
+    background: var(--panel-muted);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.reply-preview-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reply-preview-attachment {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.reply-preview-attachment i {
+    color: var(--text-muted);
+}
+
+/* Pin Indicator */
+.pin-indicator {
+    display: flex;
+    align-items: center;
+    color: var(--primary);
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+    gap: 0.25rem;
+}
+
+.pin-indicator i {
+    font-size: 0.7rem;
+}
+
+/* Forward Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--panel);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.forward-modal {
+    max-width: 600px;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.btn-close-modal {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+    font-size: 1.1rem;
+}
+
+.btn-close-modal:hover {
+    background: var(--panel-muted);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.forward-message-preview {
+    background: var(--panel-muted);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.forward-preview-header {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.forward-preview-content {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    word-wrap: break-word;
+}
+
+.forward-conversations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.forward-conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.forward-conversation-item:hover {
+    background: var(--panel-muted);
+}
+
+.forward-conversation-item .conversation-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.forward-conversation-item .conversation-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.forward-conversation-item .conversation-preview {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.forward-conversation-item i.fa-chevron-right {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.loading-spinner {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }
 
 .member-item {

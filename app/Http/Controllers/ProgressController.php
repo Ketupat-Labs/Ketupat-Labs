@@ -40,7 +40,7 @@ class ProgressController extends Controller
 
         // Get students enrolled in the selected classroom
         $students = \App\Models\User::whereHas('enrolledClassrooms', function ($query) use ($selectedClassId) {
-            $query->where('classes.id', $selectedClassId);
+            $query->where('class.id', $selectedClassId);
         })->get();
 
         // Get lessons assigned to this classroom through lesson_assignments pivot table

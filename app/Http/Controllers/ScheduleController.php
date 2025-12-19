@@ -164,7 +164,7 @@ class ScheduleController extends Controller
             'classroom_ids' => 'nullable|array',
             'is_public' => 'nullable',
             'activity_id' => 'nullable|exists:activities,id',
-            'lesson_id' => 'nullable|exists:lessons,id',
+            'lesson_id' => 'nullable|exists:lesson,id',
             'due_date' => 'nullable|date',
             'notes' => 'nullable|string'
         ]);

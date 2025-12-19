@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use App\Services\EmailService;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -32,6 +34,93 @@ class AuthController extends Controller
             // Map UI role to database role
             $db_role = $request->role === 'cikgu' ? 'teacher' : 'student';
             
+            // Generate 6-digit OTP
+            $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+            
+            // Hash password
+            $hashedPassword = Hash::make($request->password);
+            
+            // Delete any existing OTP for this email
+            DB::table('email_verification_otp')
+                ->where('email', $request->email)
+                ->delete();
+            
+            // Store OTP in database (expires in 10 minutes)
+            DB::table('email_verification_otp')->insert([
+                'email' => $request->email,
+                'otp' => $otp,
+                'name' => $request->name,
+                'password' => $hashedPassword,
+                'role' => $db_role,
+                'expires_at' => now()->addMinutes(10),
+                'is_verified' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            // Send OTP email using PHPMailer with Gmail SMTP
+            $emailSent = EmailService::sendOtpEmail($request->email, $otp);
+            if (!$emailSent) {
+                Log::error('Failed to send OTP email to: ' . $request->email);
+                // Continue even if email fails (for development)
+            }
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Kod pengesahan telah dihantar ke emel anda. Sila semak emel anda.',
+                'data' => [
+                    'email' => $request->email,
+                    'requires_verification' => true,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Registration error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+    
+    public function verifyOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+            'otp' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'message' => $validator->errors()->first(),
+            ], 400);
+        }
+
+        try {
+            // Find OTP record
+            $otpRecord = DB::table('email_verification_otp')
+                ->where('email', $request->email)
+                ->where('otp', $request->otp)
+                ->where('expires_at', '>', now())
+                ->where('is_verified', false)
+                ->first();
+
+            if (!$otpRecord) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Kod pengesahan tidak sah atau telah tamat tempoh. Sila cuba lagi.',
+                ], 400);
+            }
+
+            // Check if email is already registered
+            if (User::where('email', $request->email)->exists()) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Emel ini sudah didaftarkan.',
+                ], 400);
+            }
+
             // Generate username from email
             $username_base = strtolower(explode('@', $request->email)[0]);
             $username = $username_base;
@@ -43,22 +132,29 @@ class AuthController extends Controller
                 $counter++;
             }
 
+            // Create user
             $user = User::create([
                 'username' => $username,
-                'email' => $request->email,
-                'password' => $request->password, // Will be automatically hashed by the 'hashed' cast
-                'full_name' => $request->name,
-                'role' => $db_role,
+                'email' => $otpRecord->email,
+                'password' => $otpRecord->password, // Already hashed
+                'full_name' => $otpRecord->name,
+                'role' => $otpRecord->role,
                 'is_online' => false,
             ]);
 
-            // Map database role back to UI role for response
+            // Mark OTP as verified
+            DB::table('email_verification_otp')
+                ->where('email', $request->email)
+                ->where('otp', $request->otp)
+                ->update(['is_verified' => true]);
+
+            // Map database role back to UI role
             $dbRole = $user->getAttributes()['role'] ?? $user->role;
             $ui_role = $dbRole === 'teacher' ? 'cikgu' : 'pelajar';
 
             return response()->json([
                 'status' => 200,
-                'message' => 'Pendaftaran berjaya',
+                'message' => 'Pendaftaran berjaya! Akaun anda telah dibuat.',
                 'data' => [
                     'user_id' => $user->id,
                     'email' => $user->email,
@@ -68,6 +164,67 @@ class AuthController extends Controller
                 ],
             ], 200);
         } catch (\Exception $e) {
+            Log::error('OTP verification error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+    
+    public function resendOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'message' => $validator->errors()->first(),
+            ], 400);
+        }
+
+        try {
+            // Find existing OTP record
+            $otpRecord = DB::table('email_verification_otp')
+                ->where('email', $request->email)
+                ->where('is_verified', false)
+                ->first();
+
+            if (!$otpRecord) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Tiada permintaan pendaftaran dijumpai untuk emel ini.',
+                ], 400);
+            }
+
+            // Generate new OTP
+            $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+            
+            // Update OTP record
+            DB::table('email_verification_otp')
+                ->where('email', $request->email)
+                ->where('is_verified', false)
+                ->update([
+                    'otp' => $otp,
+                    'expires_at' => now()->addMinutes(10),
+                    'updated_at' => now(),
+                ]);
+            
+            // Send new OTP email using PHPMailer with Gmail SMTP
+            $emailSent = EmailService::sendOtpEmail($request->email, $otp);
+            if (!$emailSent) {
+                Log::error('Failed to resend OTP email to: ' . $request->email);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Kod pengesahan baru telah dihantar ke emel anda.',
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Resend OTP error: ' . $e->getMessage());
             return response()->json([
                 'status' => 500,
                 'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',

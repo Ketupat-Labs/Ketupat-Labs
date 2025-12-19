@@ -153,6 +153,9 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
                     sessionStorage.setItem('userRole', userData.role || currentRole);
                     sessionStorage.setItem('userName', userData.name || userData.full_name || email);
                     sessionStorage.setItem('userId', userId);
+                    if (userData.avatar_url) {
+                        sessionStorage.setItem('userAvatar', userData.avatar_url);
+                    }
 
                     console.log('Login successful! User data stored in sessionStorage');
                     console.log('Stored data:', {
@@ -225,6 +228,9 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
     }
 });
 
+// Store registration data for OTP verification
+let registrationData = null;
+
 // Registration Form Handler
 document.getElementById('registerFormElement').addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -233,7 +239,6 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('registerConfirmPassword').value;
-    const agreeTerms = document.getElementById('agreeTerms').checked;
 
     // Hide previous messages
     hideMessage('registerError');
@@ -255,12 +260,12 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
         return;
     }
 
-    if (!agreeTerms) {
-        showError('registerError', 'Sila bersetuju dengan Terma & Syarat');
-        return;
-    }
-
     try {
+        const submitButton = document.getElementById('registerSubmitBtn');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+
         const { response, data } = await apiPost(API_ENDPOINTS.register, {
             name,
             email,
@@ -268,24 +273,32 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
             role: currentRole
         });
 
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+
         // Success if status is 200
-        if (data.status === 200) {
+        if (data.status === 200 && data.data && data.data.requires_verification) {
+            // Store registration data for OTP verification
+            registrationData = { name, email, password, role: currentRole };
+            
+            // Show OTP verification section
+            document.getElementById('otpVerificationSection').style.display = 'block';
+            document.getElementById('registerSubmitBtn').style.display = 'none';
+            document.getElementById('verifyOtpBtn').style.display = 'block';
+            
+            // Disable registration form fields
+            document.getElementById('registerName').disabled = true;
+            document.getElementById('registerEmail').disabled = true;
+            document.getElementById('registerPassword').disabled = true;
+            document.getElementById('registerConfirmPassword').disabled = true;
+            
+            // Focus on OTP input
+            document.getElementById('registerOtp').focus();
+            
+            showSuccess('registerSuccess', data.message || 'Kod pengesahan telah dihantar ke emel anda.');
+        } else if (data.status === 200) {
+            // Old flow (no OTP required) - should not happen but handle it
             showSuccess('registerSuccess', 'Pendaftaran berjaya! Sila log masuk.');
-
-            // Store user info if available
-            if (data.data) {
-                sessionStorage.setItem('userEmail', data.data.email || email);
-                sessionStorage.setItem('userName', data.data.name || name);
-                sessionStorage.setItem('userRole', data.data.role || currentRole);
-                if (data.data.user_id) {
-                    sessionStorage.setItem('userId', data.data.user_id);
-                }
-            }
-
-            // Clear form
-            document.getElementById('registerFormElement').reset();
-
-            // Switch to login after 2 seconds
             setTimeout(() => {
                 switchToLogin();
                 document.getElementById('loginEmail').value = email;
@@ -295,6 +308,11 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
         }
     } catch (error) {
         console.error('Registration error:', error);
+        const submitButton = document.getElementById('registerSubmitBtn');
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-user-plus"></i> Daftar';
+        }
 
         // Show more specific error messages
         if (error.response && error.response.status === 404) {
@@ -310,6 +328,146 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
         } else {
             showError('registerError', 'Ralat berlaku. Sila cuba lagi kemudian.');
         }
+    }
+});
+
+// Verify OTP function
+async function verifyOtp() {
+    if (!registrationData) {
+        showError('registerError', 'Data pendaftaran tidak dijumpai. Sila daftar semula.');
+        return;
+    }
+
+    const otp = document.getElementById('registerOtp').value.trim();
+
+    if (!otp || otp.length !== 6) {
+        showError('registerError', 'Sila masukkan kod pengesahan 6 digit');
+        return;
+    }
+
+    hideMessage('registerError');
+    hideMessage('registerSuccess');
+
+    try {
+        const verifyButton = document.getElementById('verifyOtpBtn');
+        const originalButtonText = verifyButton.innerHTML;
+        verifyButton.disabled = true;
+        verifyButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyahkan...';
+
+        const { response, data } = await apiPost(API_ENDPOINTS.verifyOtp, {
+            email: registrationData.email,
+            otp: otp
+        });
+
+        verifyButton.disabled = false;
+        verifyButton.innerHTML = originalButtonText;
+
+        if (data.status === 200) {
+            showSuccess('registerSuccess', data.message || 'Pendaftaran berjaya! Sila log masuk.');
+
+            // Store user info if available
+            if (data.data) {
+                sessionStorage.setItem('userEmail', data.data.email || registrationData.email);
+                sessionStorage.setItem('userName', data.data.name || registrationData.name);
+                sessionStorage.setItem('userRole', data.data.role || registrationData.role);
+                if (data.data.user_id) {
+                    sessionStorage.setItem('userId', data.data.user_id);
+                }
+            }
+
+            // Clear form and reset
+            document.getElementById('registerFormElement').reset();
+            registrationData = null;
+            document.getElementById('otpVerificationSection').style.display = 'none';
+            document.getElementById('registerSubmitBtn').style.display = 'block';
+            document.getElementById('verifyOtpBtn').style.display = 'none';
+            document.getElementById('registerName').disabled = false;
+            document.getElementById('registerEmail').disabled = false;
+            document.getElementById('registerPassword').disabled = false;
+            document.getElementById('registerConfirmPassword').disabled = false;
+
+            // Switch to login after 2 seconds
+            setTimeout(() => {
+                switchToLogin();
+                document.getElementById('loginEmail').value = registrationData?.email || '';
+            }, 2000);
+        } else {
+            showError('registerError', data.message || 'Kod pengesahan tidak sah. Sila cuba lagi.');
+        }
+    } catch (error) {
+        console.error('OTP verification error:', error);
+        const verifyButton = document.getElementById('verifyOtpBtn');
+        if (verifyButton) {
+            verifyButton.disabled = false;
+            verifyButton.innerHTML = '<i class="fas fa-check"></i> Sahkan Kod';
+        }
+
+        if (error.data && error.data.message) {
+            showError('registerError', error.data.message);
+        } else {
+            showError('registerError', 'Ralat berlaku. Sila cuba lagi kemudian.');
+        }
+    }
+}
+
+// Resend OTP function
+async function resendOtp() {
+    if (!registrationData) {
+        showError('registerError', 'Data pendaftaran tidak dijumpai. Sila daftar semula.');
+        return;
+    }
+
+    hideMessage('registerError');
+    hideMessage('registerSuccess');
+
+    try {
+        const resendButton = document.getElementById('resendOtpBtn');
+        resendButton.disabled = true;
+        resendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghantar...';
+
+        const { response, data } = await apiPost(API_ENDPOINTS.resendOtp, {
+            email: registrationData.email
+        });
+
+        resendButton.disabled = false;
+        resendButton.innerHTML = '<i class="fas fa-redo"></i> Hantar Semula';
+
+        if (data.status === 200) {
+            showSuccess('registerSuccess', data.message || 'Kod pengesahan baru telah dihantar ke emel anda.');
+        } else {
+            showError('registerError', data.message || 'Gagal menghantar kod semula. Sila cuba lagi.');
+        }
+    } catch (error) {
+        console.error('Resend OTP error:', error);
+        const resendButton = document.getElementById('resendOtpBtn');
+        if (resendButton) {
+            resendButton.disabled = false;
+            resendButton.innerHTML = '<i class="fas fa-redo"></i> Hantar Semula';
+        }
+
+        if (error.data && error.data.message) {
+            showError('registerError', error.data.message);
+        } else {
+            showError('registerError', 'Ralat berlaku. Sila cuba lagi kemudian.');
+        }
+    }
+}
+
+// Allow Enter key to submit OTP
+document.addEventListener('DOMContentLoaded', function() {
+    const otpInput = document.getElementById('registerOtp');
+    if (otpInput) {
+        otpInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                verifyOtp();
+            }
+        });
+        
+        // Auto-format OTP (numbers only)
+        otpInput.addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
     }
 });
 
@@ -341,6 +499,9 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
             sessionStorage.setItem('userEmail', data.data.email);
             sessionStorage.setItem('userName', data.data.name);
             sessionStorage.setItem('userRole', data.data.role);
+            if (data.data.avatar_url) {
+                sessionStorage.setItem('userAvatar', data.data.avatar_url);
+            }
             window.location.href = '/dashboard';
         } else {
             // Not authenticated, clear any stale sessionStorage

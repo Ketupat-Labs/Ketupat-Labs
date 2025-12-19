@@ -14,7 +14,13 @@ const messagingState = {
     inactiveTimeout: null, // Track inactive timeout
     lastActivityTime: Date.now(), // Track last user activity
     currentTab: 'active', // 'active' or 'archived'
-    searchResults: []
+    searchResults: [],
+    lastOnlineStatus: null, // Track last sent online status
+    statusUpdateThrottle: null, // Throttle for status updates
+    isSelectionMode: false, // Message selection mode
+    selectedMessages: new Set(), // Set of selected message IDs
+    replyingTo: null, // Message being replied to
+    pinnedMessages: new Set() // Set of pinned message IDs
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initEventListeners();
     loadConversations();
     connectWebSocket();
+    loadPinnedMessages();
     
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
@@ -83,6 +90,18 @@ function initEventListeners() {
     });
     
     document.getElementById('messageInput').addEventListener('input', handleTyping);
+    
+    // Prevent context menu on white area (chat messages container)
+    const chatMessagesContainer = document.getElementById('chatMessages');
+    if (chatMessagesContainer) {
+        chatMessagesContainer.addEventListener('contextmenu', (e) => {
+            // Only prevent default if clicking on the container itself, not on a message bubble
+            // Message bubbles will handle their own contextmenu events
+            if (e.target === chatMessagesContainer || e.target.closest('.message-bubble') === null) {
+                e.preventDefault();
+            }
+        });
+    }
     
     document.getElementById('btnAttach').addEventListener('click', () => {
         document.getElementById('fileInput').click();
@@ -402,9 +421,16 @@ async function selectConversation(conversationId) {
     
     messagingState.currentConversationId = actualConversationId;
     
-    // Clear message cache when switching conversations
+    // Clear messages and cache immediately when switching conversations
+    messagingState.messages = [];
     messageElementsCache.clear();
     lastRenderedMessageIds.clear();
+    
+    // Clear the messages container immediately
+    const chatMessagesContainer = document.getElementById('chatMessages');
+    if (chatMessagesContainer) {
+        chatMessagesContainer.innerHTML = '';
+    }
     
     // Get conversation data from cache for instant UI update
     const cachedConversation = messagingState.conversations.find(c => c.id === actualConversationId);
@@ -484,6 +510,13 @@ async function loadMessages(conversationId, page = 1) {
         // Hide loading state
         hideMessagesLoading();
         
+        // CRITICAL: Check if conversation ID still matches current conversation
+        // This prevents race conditions where old API calls overwrite new conversation messages
+        if (messagingState.currentConversationId !== conversationId) {
+            console.log(`Ignoring messages for conversation ${conversationId} - current conversation is ${messagingState.currentConversationId}`);
+            return;
+        }
+        
         if (data.status === 200) {
             const newMessages = data.data.messages || [];
             
@@ -491,8 +524,17 @@ async function loadMessages(conversationId, page = 1) {
                 // Reverse messages since API returns DESC (newest first), but we want oldest first for display
                 messagingState.messages = newMessages.reverse();
             } else {
-                // For pagination, prepend older messages
-                messagingState.messages = [...newMessages.reverse(), ...messagingState.messages];
+                // For pagination, prepend older messages (but only if still on same conversation)
+                if (messagingState.currentConversationId === conversationId) {
+                    messagingState.messages = [...newMessages.reverse(), ...messagingState.messages];
+                } else {
+                    return; // Don't update if conversation changed
+                }
+            }
+            
+            // Double-check conversation ID before rendering
+            if (messagingState.currentConversationId !== conversationId) {
+                return;
             }
             
             // Remove duplicates based on message ID
@@ -511,24 +553,30 @@ async function loadMessages(conversationId, page = 1) {
                 return new Date(a.created_at) - new Date(b.created_at);
             });
             
-            renderMessages();
-            
-            // Store participants for typing indicator
-            if (data.data.conversation && data.data.conversation.members) {
-                messagingState.participants = Array.isArray(data.data.conversation.members) 
-                    ? data.data.conversation.members 
-                    : [];
-            }
-            
-            if (data.data.conversation && data.data.conversation.type === 'group') {
-                loadGroupInfo(data.data.conversation);
+            // Final check before rendering
+            if (messagingState.currentConversationId === conversationId) {
+                renderMessages();
+                
+                // Store participants for typing indicator
+                if (data.data.conversation && data.data.conversation.members) {
+                    messagingState.participants = Array.isArray(data.data.conversation.members) 
+                        ? data.data.conversation.members 
+                        : [];
+                }
+                
+                if (data.data.conversation && data.data.conversation.type === 'group') {
+                    loadGroupInfo(data.data.conversation);
+                }
             }
         } else {
             showError(data.message || 'Gagal memuatkan mesej');
         }
     } catch (error) {
         console.error('Error loading messages:', error);
-        showError('Gagal memuatkan mesej. Sila cuba lagi.');
+        // Only show error if still on the same conversation
+        if (messagingState.currentConversationId === conversationId) {
+            showError('Gagal memuatkan mesej. Sila cuba lagi.');
+        }
     }
 }
 
@@ -567,25 +615,40 @@ function renderMessages() {
     
     if (!container) return;
     
-    if (messagingState.messages.length === 0) {
+    // Filter messages to only show messages for current conversation
+    // This is a safety check in case messages array contains messages from different conversations
+    const currentConversationId = messagingState.currentConversationId;
+    const filteredMessages = messagingState.messages.filter(msg => {
+        // If message has conversation_id, filter by it
+        if (msg.conversation_id) {
+            return msg.conversation_id === currentConversationId;
+        }
+        // Otherwise, assume it's for current conversation (for backward compatibility)
+        return true;
+    });
+    
+    if (filteredMessages.length === 0) {
         container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; margin-top: auto;">Tiada mesej lagi. Mulakan perbualan!</div>';
         messageElementsCache.clear();
         lastRenderedMessageIds.clear();
         return;
     }
     
+    // Use filtered messages for rendering
+    const messagesToRender = filteredMessages;
+    
     // Store scroll position before rendering
     const wasAtBottom = isScrolledToBottom(container);
     const previousScrollHeight = container.scrollHeight;
     
     const currentUserId = getCurrentUserId();
-    const currentMessageIds = new Set(messagingState.messages.map(m => m.id));
+    const currentMessageIds = new Set(messagesToRender.map(m => m.id));
     
     // Check if we can do incremental update (only new messages added)
     const hasRemovedMessages = Array.from(lastRenderedMessageIds).some(id => !currentMessageIds.has(id));
     
     // If messages were removed or order changed, do full re-render
-    if (hasRemovedMessages || messagingState.messages.length !== lastRenderedMessageIds.size) {
+    if (hasRemovedMessages || messagesToRender.length !== lastRenderedMessageIds.size) {
         messageElementsCache.clear();
         lastRenderedMessageIds.clear();
     }
@@ -595,7 +658,7 @@ function renderMessages() {
     const tempDiv = document.createElement('div');
     
     // Pre-calculate dates to avoid repeated parsing
-    const messageDates = messagingState.messages.map(msg => ({
+    const messageDates = messagesToRender.map(msg => ({
         msg,
         date: new Date(msg.created_at),
         timestamp: new Date(msg.created_at).getTime()
@@ -607,27 +670,42 @@ function renderMessages() {
         let messageElement = messageElementsCache.get(msg.id);
         
         if (!messageElement) {
-            const isOwn = msg.sender_id === currentUserId;
+            // Compare as integers to handle string/number type mismatches
+            const isOwn = parseInt(msg.sender_id) === parseInt(currentUserId);
             const prevMsgData = index > 0 ? messageDates[index - 1] : null;
             const isGrouped = prevMsgData && 
                              prevMsgData.msg.sender_id === msg.sender_id &&
                              (timestamp - prevMsgData.timestamp) < 300000; // 5 minutes
             
+            // Check if message is selected
+            const isSelected = messagingState.isSelectionMode && messagingState.selectedMessages.has(msg.id);
+            
             // Build message HTML
             const messageHtml = `
-                <div class="message-group" data-message-id="${msg.id}" onmouseenter="showMessageOptions(${msg.id})" onmouseleave="hideMessageOptions(${msg.id})">
+                <div class="message-group ${isSelected ? 'message-selected' : ''} ${messagingState.isSelectionMode ? 'selection-mode' : ''} ${isOwn ? 'message-own-group' : ''}" 
+                     data-message-id="${msg.id}" 
+                     ${messagingState.isSelectionMode ? `onclick="toggleMessageSelection(${msg.id})" style="cursor: pointer;"` : ''}>
+                    <div class="message-checkbox">
+                        <input type="checkbox" data-message-id="${msg.id}" ${isSelected ? 'checked' : ''} 
+                               ${messagingState.isSelectionMode ? `onclick="event.stopPropagation(); toggleMessageSelection(${msg.id});"` : ''}>
+                    </div>
                     <div class="message ${isOwn ? 'own' : ''}">
                         ${!isGrouped ? `
-                            <div class="message-avatar">
+                            <div class="message-avatar" ${!isOwn && !messagingState.isSelectionMode ? `onclick="event.stopPropagation(); openDirectMessage(${msg.sender_id})" style="cursor: pointer;" title="Click to message ${escapeHtml(msg.full_name || msg.username || 'user')}"` : ''}>
                                 ${msg.avatar_url ? 
-                                    `<img src="${escapeHtml(msg.avatar_url)}" alt="${escapeHtml(msg.username || '')}" loading="lazy">` :
-                                    (msg.username ? escapeHtml(msg.username.charAt(0).toUpperCase()) : '?')
+                                    `<img src="${escapeHtml(msg.avatar_url)}" alt="${escapeHtml(msg.username || '')}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                     <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                                        ${msg.username ? escapeHtml(msg.username.charAt(0).toUpperCase()) : '?'}
+                                     </div>` :
+                                    `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                                        ${msg.username ? escapeHtml(msg.username.charAt(0).toUpperCase()) : '?'}
+                                     </div>`
                                 }
                             </div>
                         ` : '<div class="message-avatar" style="visibility: hidden; width: 34px;"></div>'}
                         <div class="message-content">
                             ${!isGrouped && !isOwn ? `<div style="font-size: 12px; color: #666; margin-bottom: 5px;">${escapeHtml(msg.full_name || msg.username || 'Unknown')}</div>` : ''}
-                            <div class="message-bubble">
+                            <div class="message-bubble" ${messagingState.isSelectionMode ? '' : `oncontextmenu="event.preventDefault(); event.stopPropagation(); showMessageContextMenu(event, ${msg.id}, ${isOwn ? 'true' : 'false'})"`}>
                                 ${msg.message_type === 'text' ? 
                                     `<div>${formatMessageContent(msg.content)}</div>` :
                                     msg.message_type === 'link' && msg.attachment_url ?
@@ -643,13 +721,6 @@ function renderMessages() {
                             <div class="message-meta">
                                 ${msg.is_edited ? '<span class="message-edited">edited</span>' : ''}
                                 <span>${formatTime(msg.created_at)}</span>
-                                ${isOwn ? `
-                                    <div class="message-options" id="messageOptions_${msg.id}" style="display: none;">
-                                        <button class="btn-message-option" onclick="event.stopPropagation(); confirmDeleteMessage(${msg.id})" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -749,6 +820,16 @@ async function sendMessage() {
             sendBtn.innerHTML = originalBtnContent;
         }
         
+        // Include reply context if replying
+        let replyContext = null;
+        if (messagingState.replyingTo) {
+            replyContext = {
+                message_id: messagingState.replyingTo.id,
+                sender_name: messagingState.replyingTo.full_name || messagingState.replyingTo.username,
+                content_preview: messagingState.replyingTo.content.substring(0, 100)
+            };
+        }
+        
         const response = await fetch('/api/messaging/send', {
             method: 'POST',
             headers: {
@@ -762,7 +843,8 @@ async function sendMessage() {
                 content: content,
                 message_type: messageType,
                 attachment_url: attachmentUrl,
-                attachment_name: attachmentName
+                attachment_name: attachmentName,
+                reply_to: replyContext ? replyContext.message_id : null
             })
         });
         
@@ -771,6 +853,9 @@ async function sendMessage() {
         if (data.status === 200) {
             input.value = '';
             input.style.height = 'auto';
+            
+            // Clear reply preview
+            cancelReply();
             
             // Don't reload immediately - wait for WebSocket to deliver the message
             // This prevents race conditions where loadMessages might not include the new message
@@ -785,6 +870,14 @@ async function sendMessage() {
                     // Message not received via WebSocket, reload from server
                     await loadMessages(messagingState.currentConversationId);
                 }
+                
+                // Update pin indicators after loading
+                setTimeout(() => {
+                    messagingState.pinnedMessages.forEach(messageId => {
+                        updatePinIndicator(messageId);
+                    });
+                }, 100);
+                
                 scrollToBottom(true);
             }, 1000);
         } else {
@@ -869,6 +962,13 @@ async function uploadFile(file) {
                 
                 await loadMessages(messagingState.currentConversationId);
                 await loadConversations();
+                
+                // Update pin indicators after loading
+                setTimeout(() => {
+                    messagingState.pinnedMessages.forEach(messageId => {
+                        updatePinIndicator(messageId);
+                    });
+                }, 100);
                 
                 // Scroll to bottom after sending file
                 setTimeout(() => scrollToBottom(true), 150);
@@ -1007,7 +1107,8 @@ function renderSearchResults(messages, keyword) {
             <span>Found ${messages.length} message(s)</span>
         </div>
         ${messages.map(msg => {
-            const isOwn = msg.sender_id === currentUserId;
+            // Compare as integers to handle string/number type mismatches
+            const isOwn = parseInt(msg.sender_id) === parseInt(currentUserId);
             const highlightedContent = highlightKeyword(msg.content, keyword);
             
             return `
@@ -1351,29 +1452,31 @@ function loadConversationDetailsFromCache(conversation) {
             </div>
         </div>
         <div class="chat-header-actions">
-            <button class="btn-icon" onclick="event.stopPropagation(); toggleConversationOptions(${conversation.id})">
-                <i class="fas fa-ellipsis-v"></i>
-            </button>
-            <div id="conversationOptions_${conversation.id}" class="conversation-options-menu" style="display: none;">
-                <button class="conversation-option-item" onclick="archiveConversation(${conversation.id})">
-                    <i class="fas fa-archive"></i> Archive
+            <div class="conversation-options-container">
+                <button class="btn-icon" onclick="event.stopPropagation(); toggleConversationOptions(${conversation.id})">
+                    <i class="fas fa-ellipsis-v"></i>
                 </button>
-                ${isGroupCreator ? `
-                    <button class="conversation-option-item" onclick="confirmClearAllMessages(${conversation.id})">
-                        <i class="fas fa-broom"></i> Clear All Messages
+                <div id="conversationOptions_${conversation.id}" class="conversation-options-menu" style="display: none;">
+                    <button class="conversation-option-item" onclick="event.stopPropagation(); archiveConversation(${conversation.id})">
+                        <i class="fas fa-archive"></i> Archive
                     </button>
-                    <button class="conversation-option-item" onclick="confirmRenameGroup(${conversation.id}, '${escapeHtml(conversation.name)}')">
-                        <i class="fas fa-edit"></i> Rename Group
+                    ${isGroupCreator ? `
+                        <button class="conversation-option-item" onclick="event.stopPropagation(); confirmClearAllMessages(${conversation.id})">
+                            <i class="fas fa-broom"></i> Clear All Messages
+                        </button>
+                        <button class="conversation-option-item" onclick="event.stopPropagation(); confirmRenameGroup(${conversation.id}, '${escapeHtml(conversation.name)}')">
+                            <i class="fas fa-edit"></i> Rename Group
+                        </button>
+                    ` : ''}
+                    ${conversation.type === 'group' ? `
+                        <button class="conversation-option-item" onclick="event.stopPropagation(); openInfoSidebar()">
+                            <i class="fas fa-info-circle"></i> Group Info
+                        </button>
+                    ` : ''}
+                    <button class="conversation-option-item delete-option" onclick="event.stopPropagation(); confirmDeleteConversation(${conversation.id})">
+                        <i class="fas fa-trash"></i> ${conversation.type === 'group' ? 'Delete Group' : 'Delete Conversation'}
                     </button>
-                ` : ''}
-                ${conversation.type === 'group' ? `
-                    <button class="conversation-option-item" onclick="openInfoSidebar()">
-                        <i class="fas fa-info-circle"></i> Group Info
-                    </button>
-                ` : ''}
-                <button class="conversation-option-item delete-option" onclick="confirmDeleteConversation(${conversation.id})">
-                    <i class="fas fa-trash"></i> ${conversation.type === 'group' ? 'Delete Group' : 'Delete Conversation'}
-                </button>
+                </div>
             </div>
         </div>
     `;
@@ -1572,13 +1675,6 @@ function connectWebSocket() {
         // Fallback to polling
         startPollingFallback();
     }
-    
-    // Update on visibility change
-    document.addEventListener('visibilitychange', () => {
-        if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
-            updateOnlineStatus(!document.hidden);
-        }
-    });
 }
 
 // Handle WebSocket messages
@@ -1814,36 +1910,56 @@ function startPollingFallback() {
 }
 
 async function updateOnlineStatus(isOnline) {
-    try {
-        await fetch('/api/messaging/status', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ is_online: isOnline })
-        });
-        
-        // Also update via WebSocket if connected
-        if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
-            messagingState.ws.send(JSON.stringify({
-                type: 'online_status',
-                is_online: isOnline
-            }));
-        }
-    } catch (error) {
-        console.error('Error updating status:', error);
+    // Don't update if status hasn't changed
+    if (messagingState.lastOnlineStatus === isOnline) {
+        return;
     }
+    
+    // Clear any pending throttle
+    if (messagingState.statusUpdateThrottle) {
+        clearTimeout(messagingState.statusUpdateThrottle);
+    }
+    
+    // Throttle status updates to max once per 5 seconds
+    messagingState.statusUpdateThrottle = setTimeout(async () => {
+        try {
+            await fetch('/api/messaging/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ is_online: isOnline })
+            });
+            
+            // Update last sent status
+            messagingState.lastOnlineStatus = isOnline;
+            
+            // Also update via WebSocket if connected
+            if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
+                messagingState.ws.send(JSON.stringify({
+                    type: 'online_status',
+                    is_online: isOnline
+                }));
+            }
+        } catch (error) {
+            // Silently handle errors to avoid console spam
+            // Only log if it's not a rate limit error
+            if (!error.message || !error.message.includes('429')) {
+                console.error('Error updating status:', error);
+            }
+        }
+    }, 5000); // Wait 5 seconds before sending
 }
 
 // Initialize inactive timeout tracking
 function initInactiveTimeout() {
     const INACTIVE_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
     
-    // Reset activity time on user interaction
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    // Reset activity time on user interaction (only track meaningful events, not every mouse move)
+    const activityEvents = ['mousedown', 'keypress', 'touchstart', 'click'];
     activityEvents.forEach(event => {
         document.addEventListener(event, () => {
             messagingState.lastActivityTime = Date.now();
@@ -1851,8 +1967,10 @@ function initInactiveTimeout() {
             if (messagingState.inactiveTimeout) {
                 clearTimeout(messagingState.inactiveTimeout);
             }
-            // Set user as online if they were offline
-            updateOnlineStatus(true);
+            // Only update status if user was offline
+            if (messagingState.lastOnlineStatus === false) {
+                updateOnlineStatus(true);
+            }
         }, { passive: true });
     });
     
@@ -1884,12 +2002,17 @@ function trackUserActivity() {
                 clearTimeout(messagingState.inactiveTimeout);
             }
             messagingState.lastActivityTime = Date.now();
-            updateOnlineStatus(true);
+            // Only update if currently offline
+            if (messagingState.lastOnlineStatus === false) {
+                updateOnlineStatus(true);
+            }
         }
     });
     
-    // Set initial online status
-    updateOnlineStatus(true);
+    // Set initial online status (only once on page load)
+    if (messagingState.lastOnlineStatus === null) {
+        updateOnlineStatus(true);
+    }
 }
 
 // Helper functions
@@ -2028,23 +2151,767 @@ function getCurrentUserId() {
     return userId ? parseInt(userId) : null;
 }
 
-// Message options functions
-function showMessageOptions(messageId) {
-    const options = document.getElementById(`messageOptions_${messageId}`);
-    if (options) {
-        options.style.display = 'inline-flex';
+// Message context menu functions
+let currentContextMenuMessageId = null;
+
+function showMessageContextMenu(event, messageId, isOwn) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Close any existing context menu
+    closeMessageContextMenu();
+    
+    currentContextMenuMessageId = messageId;
+    
+    // Get message data
+    const message = messagingState.messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    // Create context menu
+    const menu = document.createElement('div');
+    menu.id = 'messageContextMenu';
+    menu.className = 'message-context-menu';
+    
+    // Reaction emojis row
+    const reactions = ['👍', '❤️', '😂', '😮', '😥', '🙏'];
+    const reactionsHtml = `
+        <div class="message-reactions">
+            ${reactions.map(emoji => `
+                <button class="reaction-btn" onclick="event.stopPropagation(); addReaction(${messageId}, '${emoji}'); closeMessageContextMenu();">
+                    ${emoji}
+                </button>
+            `).join('')}
+            <button class="reaction-btn more-reactions" onclick="event.stopPropagation(); showMoreReactions(${messageId});">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    `;
+    
+    // Menu options
+    const menuOptions = [
+        { icon: 'fa-reply', text: 'Reply', action: `replyToMessage(${messageId})` },
+        { icon: 'fa-copy', text: 'Copy', action: `copyMessage(${messageId})` },
+        { icon: 'fa-user', text: 'Reply privately', action: `replyPrivately(${messageId})`, condition: !isOwn },
+        { icon: 'fa-share', text: 'Forward', action: `forwardMessage(${messageId})` },
+        { icon: 'fa-thumbtack', text: 'Pin', action: `pinMessage(${messageId})` },
+        { icon: 'fa-trash', text: 'Delete for me', action: `confirmDeleteMessage(${messageId})` },
+        { icon: 'fa-check-square', text: 'Select', action: `selectMessage(${messageId})` },
+    ];
+    
+    const menuItemsHtml = menuOptions
+        .filter(option => option.condition !== false)
+        .map(option => `
+            <div class="context-menu-item" onclick="event.stopPropagation(); ${option.action}; closeMessageContextMenu();">
+                <i class="fas ${option.icon}"></i>
+                <span>${option.text}</span>
+            </div>
+        `).join('');
+    
+    menu.innerHTML = reactionsHtml + `<div class="context-menu-divider"></div>` + menuItemsHtml;
+    
+    // Position menu - add to DOM first to measure
+    document.body.appendChild(menu);
+    menu.style.visibility = 'hidden'; // Hide while measuring
+    menu.style.display = 'block'; // Must be block to measure dimensions
+    
+    // Get menu dimensions (need to measure after adding to DOM)
+    const rect = menu.getBoundingClientRect();
+    const menuWidth = rect.width;
+    const menuHeight = rect.height;
+    
+    // Get viewport dimensions
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const padding = 10; // Padding from edges
+    
+    // Get click position
+    const clickX = event.clientX;
+    const clickY = event.clientY;
+    
+    // Calculate position with smart boundary detection
+    let menuX = clickX;
+    let menuY = clickY;
+    
+    // Horizontal positioning: prefer right of cursor, but flip to left if needed
+    if (clickX + menuWidth + padding > viewportWidth) {
+        // Would exceed right edge - try positioning to the left of cursor
+        menuX = clickX - menuWidth;
+        // If that would exceed left edge, align to right edge with padding
+        if (menuX < padding) {
+            menuX = viewportWidth - menuWidth - padding;
+        }
+    } else {
+        // Fits on the right, but ensure it doesn't go off left edge
+        if (menuX < padding) {
+            menuX = padding;
+        }
+    }
+    
+    // Vertical positioning: prefer below cursor, but flip above if needed
+    if (clickY + menuHeight + padding > viewportHeight) {
+        // Would exceed bottom edge - position above cursor
+        menuY = clickY - menuHeight;
+        // If that would exceed top edge, align to bottom edge with padding
+        if (menuY < padding) {
+            menuY = viewportHeight - menuHeight - padding;
+        }
+    } else {
+        // Fits below, but ensure it doesn't go off top edge
+        if (menuY < padding) {
+            menuY = padding;
+        }
+    }
+    
+    // Final boundary checks (safety net)
+    menuX = Math.max(padding, Math.min(menuX, viewportWidth - menuWidth - padding));
+    menuY = Math.max(padding, Math.min(menuY, viewportHeight - menuHeight - padding));
+    
+    // Apply position
+    menu.style.left = menuX + 'px';
+    menu.style.top = menuY + 'px';
+    menu.style.display = 'block'; // Show after positioning
+    menu.style.visibility = 'visible';
+    
+    // Close menu when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', closeMessageContextMenu, { once: true });
+        document.addEventListener('contextmenu', closeMessageContextMenu, { once: true });
+    }, 0);
+}
+
+function closeMessageContextMenu() {
+    const menu = document.getElementById('messageContextMenu');
+    if (menu) {
+        menu.remove();
+    }
+    currentContextMenuMessageId = null;
+}
+
+// Context menu action functions
+function replyToMessage(messageId) {
+    const message = messagingState.messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    // Store reply context
+    messagingState.replyingTo = message;
+    
+    // Focus message input
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.focus();
+    }
+    
+    // Show reply preview
+    showReplyPreview(message);
+}
+
+function showReplyPreview(message) {
+    // Remove existing reply preview if any
+    const existingPreview = document.getElementById('replyPreview');
+    if (existingPreview) {
+        existingPreview.remove();
+    }
+    
+    // Create reply preview element
+    const inputContainer = document.getElementById('chatInputContainer');
+    if (!inputContainer) return;
+    
+    const replyPreview = document.createElement('div');
+    replyPreview.id = 'replyPreview';
+    replyPreview.className = 'reply-preview';
+    replyPreview.innerHTML = `
+        <div class="reply-preview-content">
+            <div class="reply-preview-header">
+                <i class="fas fa-reply"></i>
+                <span>Replying to ${escapeHtml(message.full_name || message.username || 'Unknown')}</span>
+                <button class="btn-close-reply" onclick="cancelReply()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="reply-preview-message">
+                ${message.message_type === 'text' ? 
+                    `<div class="reply-preview-text">${escapeHtml(message.content.substring(0, 100))}${message.content.length > 100 ? '...' : ''}</div>` :
+                    message.message_type === 'file' || message.message_type === 'image' ?
+                    `<div class="reply-preview-attachment">
+                        <i class="fas ${getFileIcon(message.attachment_name)}"></i>
+                        <span>${escapeHtml(message.attachment_name || 'Attachment')}</span>
+                    </div>` :
+                    `<div class="reply-preview-text">${escapeHtml(message.content || 'Message')}</div>`
+                }
+            </div>
+        </div>
+    `;
+    
+    // Insert before input wrapper
+    const inputWrapper = inputContainer.querySelector('.chat-input-wrapper');
+    if (inputWrapper) {
+        inputContainer.insertBefore(replyPreview, inputWrapper);
     }
 }
 
-function hideMessageOptions(messageId) {
-    const options = document.getElementById(`messageOptions_${messageId}`);
-    if (options) {
-        options.style.display = 'none';
+function cancelReply() {
+    messagingState.replyingTo = null;
+    const replyPreview = document.getElementById('replyPreview');
+    if (replyPreview) {
+        replyPreview.remove();
     }
 }
 
-async function confirmDeleteMessage(messageId) {
-    if (!confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
+function copyMessage(messageId) {
+    const message = messagingState.messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    navigator.clipboard.writeText(message.content).then(() => {
+        // Show toast notification
+        if (typeof showToast === 'function') {
+            showToast('Message copied to clipboard');
+        } else {
+            // Simple toast fallback
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 14px;';
+            toast.textContent = 'Message copied to clipboard';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+
+async function openDirectMessage(userId) {
+    if (!userId) return;
+    
+    try {
+        // Get or create direct conversation with the user
+        const response = await fetch('/api/messaging/conversation/direct', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                user_id: userId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 200 && data.data && data.data.conversation_id) {
+            // Reload conversations to ensure the new conversation appears in the list
+            await loadConversations();
+            
+            // Switch to the direct conversation
+            await selectConversation(data.data.conversation_id);
+        } else {
+            showError(data.message || 'Failed to open direct message');
+        }
+    } catch (error) {
+        console.error('Error creating direct conversation:', error);
+        showError('Failed to open direct message');
+    }
+}
+
+async function replyPrivately(messageId) {
+    const message = messagingState.messages.find(m => m.id === messageId);
+    if (!message || !message.sender_id) return;
+    
+    // Use the same function as clicking avatar
+    await openDirectMessage(message.sender_id);
+    
+    // Pre-fill message input with reply context
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.value = `Replying to your message: "${message.content.substring(0, 50)}${message.content.length > 50 ? '...' : ''}"\n\n`;
+        messageInput.focus();
+        messageInput.style.height = 'auto';
+        messageInput.style.height = messageInput.scrollHeight + 'px';
+    }
+}
+
+async function forwardMessage(messageId) {
+    const message = messagingState.messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    // Show forward dialog with conversation list
+    showForwardDialog(message);
+}
+
+function showForwardDialog(message) {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'forwardModal';
+    overlay.innerHTML = `
+        <div class="modal-content forward-modal">
+            <div class="modal-header">
+                <h3>Forward Message</h3>
+                <button class="btn-close-modal" onclick="closeForwardDialog()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="forward-message-preview">
+                    <div class="forward-preview-header">Message to forward:</div>
+                    <div class="forward-preview-content">
+                        ${message.message_type === 'text' ? 
+                            `<div>${escapeHtml(message.content.substring(0, 150))}${message.content.length > 150 ? '...' : ''}</div>` :
+                            `<div><i class="fas ${getFileIcon(message.attachment_name)}"></i> ${escapeHtml(message.attachment_name || 'Attachment')}</div>`
+                        }
+                    </div>
+                </div>
+                <div class="forward-conversations-list" id="forwardConversationsList">
+                    <div class="loading-spinner">Loading conversations...</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Load conversations
+    loadConversationsForForward(message.id);
+}
+
+async function loadConversationsForForward(messageId) {
+    const listContainer = document.getElementById('forwardConversationsList');
+    if (!listContainer) return;
+    
+    try {
+        const response = await fetch('/api/messaging/conversations?sort=recent', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 200 && data.data && data.data.conversations) {
+            const conversations = data.data.conversations.filter(c => c.id !== messagingState.currentConversationId);
+            
+            if (conversations.length === 0) {
+                listContainer.innerHTML = '<div class="empty-state">No other conversations available</div>';
+                return;
+            }
+            
+            listContainer.innerHTML = conversations.map(conv => {
+                const avatar = conv.other_avatar || conv.avatar_url || '';
+                const name = conv.name || conv.other_name || 'Unknown';
+                const lastMessage = conv.last_message ? (conv.last_message.content || '').substring(0, 50) : '';
+                
+                return `
+                    <div class="forward-conversation-item" onclick="forwardToConversation(${messageId}, ${conv.id})">
+                        <div class="conversation-avatar">
+                            ${avatar ? 
+                                `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` :
+                                ''
+                            }
+                            <div style="${avatar ? 'display: none;' : ''} width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                                ${name.charAt(0).toUpperCase()}
+                            </div>
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-name">${escapeHtml(name)}</div>
+                            ${lastMessage ? `<div class="conversation-preview">${escapeHtml(lastMessage)}</div>` : ''}
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            listContainer.innerHTML = '<div class="empty-state">Failed to load conversations</div>';
+        }
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+        listContainer.innerHTML = '<div class="empty-state">Error loading conversations</div>';
+    }
+}
+
+async function forwardToConversation(messageId, conversationId) {
+    const message = messagingState.messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    try {
+        // Forward the message content
+        const forwardContent = message.message_type === 'text' ? 
+            message.content : 
+            `Forwarded ${message.message_type}: ${message.attachment_name || 'attachment'}`;
+        
+        const response = await fetch('/api/messaging/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                conversation_id: conversationId,
+                content: forwardContent,
+                message_type: message.message_type,
+                attachment_url: message.attachment_url,
+                attachment_name: message.attachment_name,
+                attachment_size: message.attachment_size
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 200) {
+            if (typeof showToast === 'function') {
+                showToast('Message forwarded');
+            } else {
+                alert('Message forwarded successfully');
+            }
+            closeForwardDialog();
+        } else {
+            showError(data.message || 'Failed to forward message');
+        }
+    } catch (error) {
+        console.error('Error forwarding message:', error);
+        showError('Failed to forward message');
+    }
+}
+
+function closeForwardDialog() {
+    const modal = document.getElementById('forwardModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function pinMessage(messageId) {
+    const message = messagingState.messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    // Toggle pin status
+    if (messagingState.pinnedMessages.has(messageId)) {
+        messagingState.pinnedMessages.delete(messageId);
+    } else {
+        messagingState.pinnedMessages.add(messageId);
+    }
+    
+    // Update UI to show pin indicator
+    updatePinIndicator(messageId);
+    
+    // Store in localStorage for persistence
+    try {
+        const pinned = Array.from(messagingState.pinnedMessages);
+        localStorage.setItem('pinnedMessages', JSON.stringify(pinned));
+    } catch (e) {
+        console.error('Failed to save pinned messages:', e);
+    }
+    
+    // Show feedback
+    const isPinned = messagingState.pinnedMessages.has(messageId);
+    if (typeof showToast === 'function') {
+        showToast(isPinned ? 'Message pinned' : 'Message unpinned');
+    }
+}
+
+function updatePinIndicator(messageId) {
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (!messageElement) return;
+    
+    const isPinned = messagingState.pinnedMessages.has(messageId);
+    let pinIndicator = messageElement.querySelector('.pin-indicator');
+    
+    if (isPinned) {
+        if (!pinIndicator) {
+            pinIndicator = document.createElement('div');
+            pinIndicator.className = 'pin-indicator';
+            pinIndicator.innerHTML = '<i class="fas fa-thumbtack"></i>';
+            const messageContent = messageElement.querySelector('.message-content');
+            if (messageContent) {
+                messageContent.insertBefore(pinIndicator, messageContent.firstChild);
+            }
+        }
+        pinIndicator.style.display = 'flex';
+    } else {
+        if (pinIndicator) {
+            pinIndicator.style.display = 'none';
+        }
+    }
+}
+
+function loadPinnedMessages() {
+    try {
+        const stored = localStorage.getItem('pinnedMessages');
+        if (stored) {
+            const pinned = JSON.parse(stored);
+            messagingState.pinnedMessages = new Set(pinned);
+            
+            // Update UI for all pinned messages
+            pinned.forEach(messageId => {
+                updatePinIndicator(messageId);
+            });
+        }
+    } catch (e) {
+        console.error('Failed to load pinned messages:', e);
+    }
+}
+
+function selectMessage(messageId) {
+    // Enter selection mode
+    messagingState.isSelectionMode = true;
+    messagingState.selectedMessages.clear();
+    if (messageId) {
+        messagingState.selectedMessages.add(messageId);
+    }
+    
+    // Show selection bar
+    showSelectionBar();
+    
+    // Re-render messages with checkboxes
+    renderMessages();
+    
+    // Force show all checkboxes after render - use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
+        const messageGroups = document.querySelectorAll('.message-group');
+        messageGroups.forEach(group => {
+            // Ensure selection-mode class is added
+            if (messagingState.isSelectionMode) {
+                group.classList.add('selection-mode');
+                const checkbox = group.querySelector('.message-checkbox');
+                if (checkbox) {
+                    // Force visibility with inline styles
+                    checkbox.style.display = 'flex';
+                    checkbox.style.opacity = '1';
+                    checkbox.style.visibility = 'visible';
+                    // Also ensure the checkbox input is visible
+                    const checkboxInput = checkbox.querySelector('input[type="checkbox"]');
+                    if (checkboxInput) {
+                        checkboxInput.style.display = 'block';
+                        checkboxInput.style.visibility = 'visible';
+                    }
+                }
+            }
+        });
+        
+        // Update selection bar
+        updateSelectionBar();
+    });
+}
+
+function exitSelectionMode() {
+    messagingState.isSelectionMode = false;
+    messagingState.selectedMessages.clear();
+    hideSelectionBar();
+    
+    // Hide all checkboxes
+    document.querySelectorAll('.message-checkbox').forEach(checkbox => {
+        checkbox.style.display = 'none';
+    });
+    
+    // Remove selected styling
+    document.querySelectorAll('.message-group.message-selected').forEach(group => {
+        group.classList.remove('message-selected');
+    });
+    
+    renderMessages();
+}
+
+function toggleMessageSelection(messageId) {
+    if (!messagingState.isSelectionMode) {
+        selectMessage(messageId);
+        return;
+    }
+    
+    if (messagingState.selectedMessages.has(messageId)) {
+        messagingState.selectedMessages.delete(messageId);
+    } else {
+        messagingState.selectedMessages.add(messageId);
+    }
+    
+    // Update selection bar count
+    updateSelectionBar();
+    
+    // Update checkbox state and message group styling
+    const checkbox = document.querySelector(`input[type="checkbox"][data-message-id="${messageId}"]`);
+    const messageGroup = document.querySelector(`.message-group[data-message-id="${messageId}"]`);
+    
+    if (checkbox) {
+        checkbox.checked = messagingState.selectedMessages.has(messageId);
+    }
+    
+    if (messageGroup) {
+        if (messagingState.selectedMessages.has(messageId)) {
+            messageGroup.classList.add('message-selected');
+        } else {
+            messageGroup.classList.remove('message-selected');
+        }
+    }
+    
+    // If no messages selected, exit selection mode
+    if (messagingState.selectedMessages.size === 0) {
+        exitSelectionMode();
+    }
+}
+
+function showSelectionBar() {
+    const chatHeader = document.getElementById('chatHeader');
+    if (!chatHeader) return;
+    
+    const selectedCount = messagingState.selectedMessages.size;
+    chatHeader.innerHTML = `
+        <div class="selection-bar">
+            <button class="btn-selection-cancel" onclick="exitSelectionMode()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="selection-count">${selectedCount} selected</div>
+            <div class="selection-actions">
+                <button class="btn-selection-action" onclick="starSelectedMessages()" title="Star" ${selectedCount === 0 ? 'disabled' : ''}>
+                    <i class="fas fa-star"></i>
+                </button>
+                <button class="btn-selection-action" onclick="copySelectedMessages()" title="Copy" ${selectedCount === 0 ? 'disabled' : ''}>
+                    <i class="fas fa-copy"></i>
+                </button>
+                <button class="btn-selection-action" onclick="forwardSelectedMessages()" title="Forward" ${selectedCount === 0 ? 'disabled' : ''}>
+                    <i class="fas fa-share"></i>
+                </button>
+                <button class="btn-selection-action btn-selection-delete" onclick="deleteSelectedMessages()" title="Delete" ${selectedCount === 0 ? 'disabled' : ''}>
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Hide input container in selection mode
+    const inputContainer = document.getElementById('chatInputContainer');
+    if (inputContainer) {
+        inputContainer.style.display = 'none';
+    }
+}
+
+function hideSelectionBar() {
+    const chatHeader = document.getElementById('chatHeader');
+    if (!chatHeader) return;
+    
+    // Restore original header
+    const conversation = messagingState.conversations.find(c => c.id === messagingState.currentConversationId);
+    if (conversation) {
+        loadConversationDetailsFromCache(conversation);
+    } else {
+        chatHeader.innerHTML = `
+            <div class="chat-header-placeholder">
+                <i class="fas fa-comment-dots"></i>
+                <p>Select a conversation to start chatting</p>
+            </div>
+        `;
+    }
+    
+    // Show input container again
+    const inputContainer = document.getElementById('chatInputContainer');
+    if (inputContainer && messagingState.currentConversationId) {
+        inputContainer.style.display = 'block';
+    }
+}
+
+function updateSelectionBar() {
+    const selectionCount = document.querySelector('.selection-count');
+    if (selectionCount) {
+        selectionCount.textContent = `${messagingState.selectedMessages.size} selected`;
+    }
+    
+    // Update action buttons state
+    const hasSelection = messagingState.selectedMessages.size > 0;
+    const actionButtons = document.querySelectorAll('.btn-selection-action');
+    actionButtons.forEach(btn => {
+        btn.disabled = !hasSelection;
+        btn.style.opacity = hasSelection ? '1' : '0.5';
+        btn.style.cursor = hasSelection ? 'pointer' : 'not-allowed';
+    });
+}
+
+function starSelectedMessages() {
+    const messageIds = Array.from(messagingState.selectedMessages);
+    console.log('Star messages:', messageIds);
+    // Implement API call to star messages
+    exitSelectionMode();
+}
+
+function copySelectedMessages() {
+    const messageIds = Array.from(messagingState.selectedMessages);
+    const messages = messagingState.messages.filter(m => messageIds.includes(m.id));
+    const text = messages.map(m => m.content).join('\n');
+    
+    navigator.clipboard.writeText(text).then(() => {
+        if (typeof showToast === 'function') {
+            showToast('Messages copied to clipboard');
+        } else {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 14px;';
+            toast.textContent = 'Messages copied to clipboard';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+    
+    exitSelectionMode();
+}
+
+function forwardSelectedMessages() {
+    const messageIds = Array.from(messagingState.selectedMessages);
+    console.log('Forward messages:', messageIds);
+    // Implement forward dialog
+    exitSelectionMode();
+}
+
+async function deleteSelectedMessages() {
+    const messageIds = Array.from(messagingState.selectedMessages);
+    const count = messageIds.length;
+    
+    if (count === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${count} message(s)? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        // Delete messages one by one (or implement batch delete API)
+        const deletePromises = messageIds.map(messageId => confirmDeleteMessage(messageId, false));
+        await Promise.all(deletePromises);
+        
+        // Reload messages to reflect deletions
+        if (messagingState.currentConversationId) {
+            await loadMessages(messagingState.currentConversationId, 1);
+            
+            // Update pin indicators after loading
+            setTimeout(() => {
+                messagingState.pinnedMessages.forEach(messageId => {
+                    updatePinIndicator(messageId);
+                });
+            }, 100);
+        }
+        
+        exitSelectionMode();
+    } catch (error) {
+        console.error('Error deleting messages:', error);
+        alert('Failed to delete some messages');
+    }
+}
+
+
+function addReaction(messageId, emoji) {
+    console.log('Add reaction:', messageId, emoji);
+    // Implement API call to add reaction
+}
+
+function showMoreReactions(messageId) {
+    // Show extended reactions picker
+    console.log('Show more reactions for:', messageId);
+}
+
+async function confirmDeleteMessage(messageId, showConfirm = true) {
+    if (showConfirm && !confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
         return;
     }
     
@@ -2345,7 +3212,10 @@ function toggleConversationOptions(conversationId) {
 
 // Close conversation options when clicking outside
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.conversation-options-container')) {
+    // Don't close if clicking inside the options container (button or menu)
+    if (!e.target.closest('.conversation-options-container') && 
+        !e.target.closest('.conversation-options-menu') &&
+        !e.target.closest('.btn-icon')) {
         document.querySelectorAll('.conversation-options-menu').forEach(menu => {
             menu.style.display = 'none';
         });
@@ -2360,8 +3230,27 @@ window.confirmClearAllMessages = confirmClearAllMessages;
 window.archiveConversation = archiveConversation;
 window.renameGroup = renameGroup;
 window.removeGroupMember = removeGroupMember;
-window.showMessageOptions = showMessageOptions;
-window.hideMessageOptions = hideMessageOptions;
+window.showMessageContextMenu = showMessageContextMenu;
+window.closeMessageContextMenu = closeMessageContextMenu;
+window.replyToMessage = replyToMessage;
+window.cancelReply = cancelReply;
+window.copyMessage = copyMessage;
+window.replyPrivately = replyPrivately;
+window.openDirectMessage = openDirectMessage;
+window.forwardMessage = forwardMessage;
+window.forwardToConversation = forwardToConversation;
+window.closeForwardDialog = closeForwardDialog;
+window.pinMessage = pinMessage;
+window.selectMessage = selectMessage;
+window.exitSelectionMode = exitSelectionMode;
+window.toggleMessageSelection = toggleMessageSelection;
+window.starSelectedMessages = starSelectedMessages;
+window.copySelectedMessages = copySelectedMessages;
+window.forwardSelectedMessages = forwardSelectedMessages;
+window.deleteSelectedMessages = deleteSelectedMessages;
+window.shareMessage = shareMessage;
+window.addReaction = addReaction;
+window.showMoreReactions = showMoreReactions;
 window.toggleConversationOptions = toggleConversationOptions;
 
 // Export for onclick handlers

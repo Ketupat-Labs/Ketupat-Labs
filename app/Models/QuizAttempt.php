@@ -10,6 +10,8 @@ class QuizAttempt extends Model
 {
     use HasFactory;
 
+    protected $table = 'quiz_attempt';
+
     protected $fillable = [
         'user_id',
         'lesson_id',

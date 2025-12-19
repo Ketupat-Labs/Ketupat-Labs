@@ -90,8 +90,8 @@ class MessagingController extends Controller
             $q->where('user_id', $user->id);
             if (!$includeArchived) {
                 $q->where(function ($subQ) {
-                    $subQ->where('conversation_participants.is_archived', 0)
-                        ->orWhereNull('conversation_participants.is_archived');
+                    $subQ->where('conversation_participant.is_archived', 0)
+                        ->orWhereNull('conversation_participant.is_archived');
                 });
             }
         });
@@ -103,36 +103,45 @@ class MessagingController extends Controller
             $conversationIds = [0]; // Prevent empty IN clause
         }
         
+        // Get message IDs that are deleted for this user
+        $deletedMessageIds = DB::table('message_user_deleted')
+            ->where('user_id', $user->id)
+            ->pluck('message_id')
+            ->toArray();
+        
         // Get last messages for all conversations - optimized query
-        $lastMessages = DB::table('messages')
+        $lastMessages = DB::table('message')
             ->select('conversation_id', 'content', 'created_at')
             ->whereIn('conversation_id', $conversationIds)
             ->where('is_deleted', false)
-            ->whereIn('id', function ($query) use ($conversationIds) {
+            ->whereNotIn('id', $deletedMessageIds ?: [0]) // Exclude messages deleted by user
+            ->whereIn('id', function ($query) use ($conversationIds, $deletedMessageIds) {
                 $query->select(DB::raw('MAX(id)'))
-                    ->from('messages')
+                    ->from('message')
                     ->whereIn('conversation_id', $conversationIds)
                     ->where('is_deleted', false)
+                    ->whereNotIn('id', $deletedMessageIds ?: [0])
                     ->groupBy('conversation_id');
             })
             ->get()
             ->keyBy('conversation_id');
         
         // Get unread counts for all conversations - optimized with LEFT JOIN
-        $unreadCounts = DB::table('messages')
-            ->select('messages.conversation_id', DB::raw('COUNT(*) as unread_count'))
-            ->leftJoin('conversation_participants', function ($join) use ($user) {
-                $join->on('conversation_participants.conversation_id', '=', 'messages.conversation_id')
-                     ->where('conversation_participants.user_id', '=', $user->id);
+        $unreadCounts = DB::table('message')
+            ->select('message.conversation_id', DB::raw('COUNT(*) as unread_count'))
+            ->leftJoin('conversation_participant', function ($join) use ($user) {
+                $join->on('conversation_participant.conversation_id', '=', 'message.conversation_id')
+                     ->where('conversation_participant.user_id', '=', $user->id);
             })
-            ->whereIn('messages.conversation_id', $conversationIds)
-            ->where('messages.is_deleted', false)
-            ->where('messages.sender_id', '!=', $user->id)
+            ->whereIn('message.conversation_id', $conversationIds)
+            ->where('message.is_deleted', false)
+            ->whereNotIn('message.id', $deletedMessageIds ?: [0]) // Exclude messages deleted by user
+            ->where('message.sender_id', '!=', $user->id)
             ->where(function ($q) {
-                $q->whereNull('conversation_participants.last_read_at')
-                  ->orWhereRaw('messages.created_at > conversation_participants.last_read_at');
+                $q->whereNull('conversation_participant.last_read_at')
+                  ->orWhereRaw('message.created_at > conversation_participant.last_read_at');
             })
-            ->groupBy('messages.conversation_id')
+            ->groupBy('message.conversation_id')
             ->get()
             ->keyBy('conversation_id');
         
@@ -169,7 +178,7 @@ class MessagingController extends Controller
                 }
             } else {
                 // For groups, just get count without loading all participants
-                $convData['member_count'] = DB::table('conversation_participants')
+                $convData['member_count'] = DB::table('conversation_participant')
                     ->where('conversation_id', $conv->id)
                     ->count();
             }
@@ -187,7 +196,7 @@ class MessagingController extends Controller
         }
         
         // Get all accepted friends - batch load to avoid N+1 queries
-        $friends = DB::table('friends')
+        $friends = DB::table('friend')
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)->where('status', 'accepted');
             })
@@ -288,18 +297,46 @@ class MessagingController extends Controller
         $limit = 50;
         $offset = ($page - 1) * $limit;
         
+        // Get message IDs that are deleted for this user
+        $deletedMessageIds = DB::table('message_user_deleted')
+            ->where('user_id', $user->id)
+            ->pluck('message_id')
+            ->toArray();
+        
         $messages = Message::where('conversation_id', $conversationId)
             ->where('is_deleted', false)
+            ->whereNotIn('id', $deletedMessageIds ?: [0]) // Use [0] to prevent empty IN clause
             ->with('sender:id,username,full_name,avatar_url')
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->offset($offset)
             ->get()
+            ->map(function ($message) {
+                // Flatten sender data into message object for easier frontend access
+                return [
+                    'id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                    'sender_id' => $message->sender_id,
+                    'content' => $message->content,
+                    'message_type' => $message->message_type,
+                    'attachment_url' => $message->attachment_url,
+                    'attachment_name' => $message->attachment_name,
+                    'attachment_size' => $message->attachment_size,
+                    'is_deleted' => $message->is_deleted,
+                    'is_edited' => isset($message->is_edited) ? (bool)$message->is_edited : false,
+                    'created_at' => $message->created_at,
+                    'updated_at' => $message->updated_at,
+                    // Flatten sender data
+                    'username' => $message->sender->username ?? null,
+                    'full_name' => $message->sender->full_name ?? null,
+                    'avatar_url' => $message->sender->avatar_url ? asset($message->sender->avatar_url) : null,
+                ];
+            })
             ->reverse()
             ->values();
         
         // Update last read timestamp
-        DB::table('conversation_participants')
+        DB::table('conversation_participant')
             ->where('conversation_id', $conversationId)
             ->where('user_id', $user->id)
             ->update(['last_read_at' => now()]);
@@ -327,14 +364,14 @@ class MessagingController extends Controller
                         'id' => $p->id,
                         'username' => $p->username,
                         'full_name' => $p->full_name,
-                        'avatar_url' => $p->avatar_url,
+                        'avatar_url' => $p->avatar_url ? asset($p->avatar_url) : null,
                         'is_online' => $p->is_online,
                     ];
                 });
             }
             
             // Always get member count (cheap query)
-            $conversationData['member_count'] = DB::table('conversation_participants')
+            $conversationData['member_count'] = DB::table('conversation_participant')
                 ->where('conversation_id', $conversationId)
                 ->count();
         } else {
@@ -348,7 +385,7 @@ class MessagingController extends Controller
                 $conversationData['other_user_id'] = $otherParticipant->id;
                 $conversationData['other_username'] = $otherParticipant->username;
                 $conversationData['other_full_name'] = $otherParticipant->full_name;
-                $conversationData['other_avatar'] = $otherParticipant->avatar_url;
+                $conversationData['other_avatar'] = $otherParticipant->avatar_url ? asset($otherParticipant->avatar_url) : null;
                 $conversationData['is_online'] = $otherParticipant->is_online;
             }
         }
@@ -387,13 +424,41 @@ class MessagingController extends Controller
             ], 403);
         }
         
+        // Get message IDs that are deleted for this user
+        $deletedMessageIds = DB::table('message_user_deleted')
+            ->where('user_id', $user->id)
+            ->pluck('message_id')
+            ->toArray();
+        
         $messages = Message::where('conversation_id', $request->conversation_id)
             ->where('is_deleted', false)
+            ->whereNotIn('id', $deletedMessageIds ?: [0]) // Use [0] to prevent empty IN clause
             ->where('content', 'like', '%' . $request->keyword . '%')
             ->with('sender:id,username,full_name,avatar_url')
             ->orderBy('created_at', 'desc')
             ->limit(50)
-            ->get();
+            ->get()
+            ->map(function ($message) {
+                // Flatten sender data into message object for easier frontend access
+                return [
+                    'id' => $message->id,
+                    'conversation_id' => $message->conversation_id,
+                    'sender_id' => $message->sender_id,
+                    'content' => $message->content,
+                    'message_type' => $message->message_type,
+                    'attachment_url' => $message->attachment_url,
+                    'attachment_name' => $message->attachment_name,
+                    'attachment_size' => $message->attachment_size,
+                    'is_deleted' => $message->is_deleted,
+                    'is_edited' => isset($message->is_edited) ? (bool)$message->is_edited : false,
+                    'created_at' => $message->created_at,
+                    'updated_at' => $message->updated_at,
+                    // Flatten sender data
+                    'username' => $message->sender->username ?? null,
+                    'full_name' => $message->sender->full_name ?? null,
+                    'avatar_url' => $message->sender->avatar_url ? asset($message->sender->avatar_url) : null,
+                ];
+            });
         
         return response()->json([
             'status' => 200,
@@ -564,7 +629,7 @@ class MessagingController extends Controller
             ], 403);
         }
         
-        DB::table('conversation_participants')
+        DB::table('conversation_participant')
             ->where('conversation_id', $request->conversation_id)
             ->where('user_id', $user->id)
             ->update(['is_archived' => $request->boolean('archive', true) ? 1 : 0]);
@@ -613,9 +678,15 @@ class MessagingController extends Controller
                 }
             }
             
-            // Get last message
+            // Get last message (excluding messages deleted by user)
+            $deletedMessageIdsForConv = DB::table('message_user_deleted')
+                ->where('user_id', $user->id)
+                ->pluck('message_id')
+                ->toArray();
+            
             $lastMessage = $conv->messages()
                 ->where('is_deleted', false)
+                ->whereNotIn('id', $deletedMessageIdsForConv ?: [0])
                 ->orderBy('created_at', 'desc')
                 ->first();
             
@@ -676,7 +747,7 @@ class MessagingController extends Controller
         ]);
         
         // Add both users as participants
-        DB::table('conversation_participants')->insert([
+        DB::table('conversation_participant')->insert([
             ['conversation_id' => $conversation->id, 'user_id' => $user->id, 'created_at' => now(), 'updated_at' => now()],
             ['conversation_id' => $conversation->id, 'user_id' => $otherUserId, 'created_at' => now(), 'updated_at' => now()],
         ]);
@@ -699,15 +770,15 @@ class MessagingController extends Controller
         $limit = $request->get('limit', 50);
 
         // Get users from recent conversations (direct messages only)
-        $recentUserIds = DB::table('conversation_participants')
-            ->join('conversations', 'conversation_participants.conversation_id', '=', 'conversations.id')
-            ->where('conversation_participants.user_id', $user->id)
-            ->where('conversations.type', 'direct')
-            ->where('conversations.updated_at', '>=', now()->subDays(30)) // Last 30 days
-            ->select('conversation_participants.conversation_id')
+        $recentUserIds = DB::table('conversation_participant')
+            ->join('conversation', 'conversation_participant.conversation_id', '=', 'conversation.id')
+            ->where('conversation_participant.user_id', $user->id)
+            ->where('conversation.type', 'direct')
+            ->where('conversation.updated_at', '>=', now()->subDays(30)) // Last 30 days
+            ->select('conversation_participant.conversation_id')
             ->pluck('conversation_id');
 
-        $recentUserIds = DB::table('conversation_participants')
+        $recentUserIds = DB::table('conversation_participant')
             ->whereIn('conversation_id', $recentUserIds)
             ->where('user_id', '!=', $user->id)
             ->pluck('user_id')
@@ -772,12 +843,19 @@ class MessagingController extends Controller
             ], 403);
         }
 
-        // For group chats, only creator can delete
-        if ($conversation->type === 'group' && $conversation->created_by !== $user->id) {
-            return response()->json([
-                'status' => 403,
-                'message' => 'Only group creator can delete the group',
-            ], 403);
+        // For group chats, only creator/admin can delete the whole group
+        if ($conversation->type === 'group') {
+            // Check if user is the creator
+            $isCreator = $conversation->created_by === $user->id;
+            
+            // Check if user is admin (you can add additional admin check logic here)
+            // For now, we'll only allow the creator to delete the group
+            if (!$isCreator) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Only group creator can delete the group',
+                ], 403);
+            }
         }
 
         DB::beginTransaction();
@@ -786,9 +864,16 @@ class MessagingController extends Controller
             if ($conversation->type === 'direct') {
                 $conversation->participants()->detach($user->id);
             } else {
-                // For group chats, delete the entire conversation
-                $conversation->messages()->delete();
+                // For group chats, permanently delete all messages first
+                // Use DB facade to ensure hard delete (not soft delete)
+                DB::table('message')
+                    ->where('conversation_id', $conversation->id)
+                    ->delete();
+                
+                // Remove all participants
                 $conversation->participants()->detach();
+                
+                // Delete the conversation (this will also cascade delete messages, but we already did it explicitly)
                 $conversation->delete();
             }
             
@@ -825,28 +910,37 @@ class MessagingController extends Controller
             ], 403);
         }
 
-        // For group chats, only creator can clear all messages
-        if ($conversation->type === 'group' && $conversation->created_by !== $user->id) {
-            return response()->json([
-                'status' => 403,
-                'message' => 'Only group creator can clear all messages',
-            ], 403);
-        }
-
         DB::beginTransaction();
         try {
-            // Soft delete all messages
-            Message::where('conversation_id', $conversationId)
-                ->update([
-                    'is_deleted' => true,
-                    'deleted_at' => now(),
-                ]);
+            // Get all message IDs in this conversation
+            $messageIds = DB::table('message')
+                ->where('conversation_id', $conversationId)
+                ->where('is_deleted', false)
+                ->pluck('id')
+                ->toArray();
+            
+            if (!empty($messageIds)) {
+                // Mark all messages as deleted for this user only
+                $insertData = array_map(function ($messageId) use ($user) {
+                    return [
+                        'message_id' => $messageId,
+                        'user_id' => $user->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }, $messageIds);
+                
+                // Use insertOrIgnore to avoid duplicates
+                foreach ($insertData as $data) {
+                    DB::table('message_user_deleted')->insertOrIgnore($data);
+                }
+            }
             
             DB::commit();
             
             return response()->json([
                 'status' => 200,
-                'message' => 'All messages cleared',
+                'message' => 'All messages cleared for you',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

@@ -30,7 +30,7 @@ class ForumController extends Controller
         
         $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'required|string|min:20',
+            'description' => 'required|string|min:1',
             'category' => 'nullable|string',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:50',
@@ -106,8 +106,7 @@ class ForumController extends Controller
         
         // If search parameter is provided, show ALL forums (for discovery)
         // Otherwise, only show forums where the user is a member (for "My Forums" sidebar)
-        $query = Forum::where('status', 'active')
-            ->with(['creator:id,username,full_name', 'tags']);
+        $query = Forum::with(['creator:id,username,full_name', 'tags']);
         
         // Only filter by membership if NOT searching (for sidebar)
         if (!$request->search) {
@@ -184,9 +183,16 @@ class ForumController extends Controller
         // Check membership
         $isMember = $forum->members()->where('user_id', $user->id)->exists();
         $userRole = null;
+        $isMuted = false;
         if ($isMember) {
             $member = $forum->members()->where('user_id', $user->id)->first();
             $userRole = $member->pivot->role ?? 'member';
+            // Get is_muted status from forum_member table
+            $memberRecord = DB::table('forum_member')
+                ->where('forum_id', $forum->id)
+                ->where('user_id', $user->id)
+                ->first();
+            $isMuted = $memberRecord ? (bool) $memberRecord->is_muted : false;
         }
         
         return response()->json([
@@ -208,7 +214,7 @@ class ForumController extends Controller
                     'tags' => $forum->tags->pluck('tag_name')->toArray(),
                     'is_member' => $isMember,
                     'user_role' => $userRole,
-                    'is_muted' => false, // TODO: Implement mute functionality
+                    'is_muted' => $isMuted,
                     'is_favorite' => false, // TODO: Implement favorite functionality
                 ],
             ],
@@ -296,11 +302,13 @@ class ForumController extends Controller
                 }
             }
             
-            // Add attachments
+            // Add attachments - store attachment type based on post_type
             if ($request->attachments) {
+                $attachmentType = $request->post_type === 'link' ? 'link' : 'post';
                 foreach ($request->attachments as $attachment) {
                     PostAttachment::create([
                         'post_id' => $post->id,
+                        'attachment_type' => $attachmentType,
                         'file_url' => $attachment['url'] ?? '',
                         'file_name' => $attachment['name'] ?? '',
                         'file_type' => $attachment['type'] ?? '',
@@ -321,6 +329,28 @@ class ForumController extends Controller
             
             // Update forum post count
             $forum->increment('post_count');
+            
+            // Send notifications to all forum members except:
+            // 1. The post author
+            // 2. Members who have muted the forum
+            $forumMembers = DB::table('forum_member')
+                ->where('forum_id', $request->forum_id)
+                ->where('user_id', '!=', $user->id) // Exclude post author
+                ->where('is_muted', false) // Exclude muted members
+                ->pluck('user_id')
+                ->toArray();
+            
+            foreach ($forumMembers as $memberId) {
+                Notification::create([
+                    'user_id' => $memberId,
+                    'type' => 'forum_post',
+                    'title' => 'New Post in ' . $forum->title,
+                    'message' => $user->full_name . ' posted: ' . $post->title,
+                    'related_type' => 'post',
+                    'related_id' => $post->id,
+                    'is_read' => false,
+                ]);
+            }
             
             DB::commit();
             
@@ -392,7 +422,6 @@ class ForumController extends Controller
             // 1. All public forums
             // 2. Private/class forums where user is a member
             $publicForumIds = Forum::where('visibility', 'public')
-                ->where('status', 'active')
                 ->pluck('id')
                 ->toArray();
             
@@ -445,22 +474,39 @@ class ForumController extends Controller
                     }
                 }
                 
-                // Get poll options if this is a poll post
+                // Get poll options if this is a poll post (check if poll_options exist)
                 $pollOptions = [];
-                if ($post->post_type === 'poll') {
+                $userPollVote = null;
+                $totalPollVotes = 0;
+                $hasPollOptions = DB::table('poll_option')->where('post_id', $post->id)->exists();
+                if ($hasPollOptions) {
+                    // Get user's vote if exists
+                    $userVote = DB::table('poll_vote')
+                        ->where('post_id', $post->id)
+                        ->where('user_id', $user->id)
+                        ->first();
+                    $userPollVote = $userVote ? $userVote->option_id : null;
+                    
                     $pollOptions = DB::table('poll_option')
                         ->where('post_id', $post->id)
                         ->get()
-                        ->map(function ($option) {
+                        ->map(function ($option) use ($post) {
+                            $voteCount = DB::table('poll_vote')
+                                ->where('option_id', $option->id)
+                                ->count();
                             return [
                                 'id' => $option->id,
                                 'text' => $option->option_text,
-                                'vote_count' => DB::table('poll_vote')
-                                    ->where('option_id', $option->id)
-                                    ->count(),
+                                'option_text' => $option->option_text, // Include both for compatibility
+                                'vote_count' => $voteCount,
                             ];
                         })
                         ->toArray();
+                    
+                    // Calculate total votes
+                    $totalPollVotes = DB::table('poll_vote')
+                        ->where('post_id', $post->id)
+                        ->count();
                 }
                 
                 return [
@@ -469,7 +515,7 @@ class ForumController extends Controller
                     'author_id' => $post->author_id,
                     'title' => $post->title,
                     'content' => $post->content,
-                    'post_type' => $post->post_type ?? 'post', // Include post_type
+                    'post_type' => $hasPollOptions ? 'poll' : ($post->post_type ?? 'post'), // Include post_type, mark as poll if has poll_options
                     'category' => $post->category,
                     'is_pinned' => $post->is_pinned,
                     'view_count' => $post->view_count,
@@ -484,63 +530,19 @@ class ForumController extends Controller
                     'author_avatar' => $post->author->avatar_url ?? null,
                     'user_forum_role' => $userForumRole,
                     'poll_options' => $pollOptions, // Include poll options for poll posts
+                    'user_poll_vote' => $userPollVote, // User's vote option_id if voted
+                    'total_poll_votes' => $totalPollVotes, // Total votes across all options
+                    // All attachments (for backward compatibility)
                     'attachments' => $post->attachments->map(function ($att) {
-                        // Convert file_url to absolute URL
-                        $url = $att->file_url;
-                        if (empty($url)) {
-                            return [
-                                'id' => $att->id,
-                                'url' => '',
-                                'name' => $att->file_name,
-                                'type' => $att->file_type,
-                                'size' => $att->file_size,
-                            ];
-                        }
-                        
-                        // If already absolute URL, return as-is
-                        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
-                            return [
-                                'id' => $att->id,
-                                'url' => $url,
-                                'name' => $att->file_name,
-                                'type' => $att->file_type,
-                                'size' => $att->file_size,
-                            ];
-                        }
-                        
-                        // Clean up the URL - remove any Material/ prefix that might have been added
-                        $url = str_replace('/Material/', '/', $url);
-                        $url = str_replace('Material/', '', $url);
-                        
-                        // If URL already starts with /uploads/, it's correct (direct public access)
-                        if (str_starts_with($url, '/uploads/')) {
-                            // URL is already correct for public/uploads/ directory
-                            $url = $url;
-                        } elseif (str_starts_with($url, '/storage/uploads/')) {
-                            // Convert /storage/uploads/ to /uploads/ (files are in public/uploads/)
-                            $url = str_replace('/storage/uploads/', '/uploads/', $url);
-                        } elseif (str_contains($url, 'uploads/')) {
-                            // If it's an uploads path, ensure it starts with /
-                            $url = ltrim($url, '/');
-                            // Remove storage/ prefix if present
-                            $url = str_replace('storage/', '', $url);
-                            $url = '/' . $url;
-                        } elseif (str_starts_with($url, '/')) {
-                            // Already absolute path, use as-is
-                            $url = $url;
-                        } else {
-                            // Relative path, make it absolute
-                            $url = '/' . $url;
-                        }
-                        
-                        return [
-                            'id' => $att->id,
-                            'url' => $url,
-                            'name' => $att->file_name,
-                            'type' => $att->file_type,
-                            'size' => $att->file_size,
-                        ];
+                        return $this->formatAttachment($att);
                     }),
+                    // Separate attachments by type
+                    'attachments_post' => $post->attachments->where('attachment_type', 'post')->map(function ($att) {
+                        return $this->formatAttachment($att);
+                    })->values(),
+                    'attachments_link' => $post->attachments->where('attachment_type', 'link')->map(function ($att) {
+                        return $this->formatAttachment($att);
+                    })->values(),
                     'tags' => $post->tags->pluck('tag_name')->toArray(),
                     'report_count' => $post->reports()->where('status', 'pending')->count(),
                     'is_forum_member' => $userForumRole !== null, // User is a member if they have a role
@@ -703,29 +705,90 @@ class ForumController extends Controller
             // Update post reply count
             ForumPost::where('id', $request->post_id)->increment('reply_count');
             
-            // Create notifications
-            $post = ForumPost::find($request->post_id);
-            if ($post->author_id !== $user->id) {
-                Notification::create([
-                    'user_id' => $post->author_id,
-                    'type' => 'comment',
-                    'title' => 'New comment on your post',
-                    'message' => $user->username . ' commented on: ' . $post->title,
-                    'related_type' => 'comment',
-                    'related_id' => $comment->id,
-                ]);
+            // Get post and author info
+            $post = ForumPost::with('author:id,username,full_name')->find($request->post_id);
+            $commenterName = $user->full_name ?? $user->username;
+            
+            // Parse mentions from content (@username)
+            $mentionedUserIds = [];
+            preg_match_all('/@(\w+)/', $request->content, $matches);
+            if (!empty($matches[1])) {
+                $mentionedUsernames = array_unique($matches[1]);
+                $mentionedUsers = User::whereIn('username', $mentionedUsernames)
+                    ->where('id', '!=', $user->id)
+                    ->pluck('id')
+                    ->toArray();
+                $mentionedUserIds = array_unique($mentionedUsers);
             }
             
+            // Create notifications
+            $notifiedUserIds = [];
+            
             if ($request->parent_id) {
-                $parentComment = Comment::find($request->parent_id);
-                if ($parentComment && $parentComment->author_id !== $user->id) {
+                // This is a reply to a comment
+                $parentComment = Comment::with('author:id,username,full_name')->find($request->parent_id);
+                
+                if ($parentComment) {
+                    $parentCommentAuthorId = $parentComment->author_id;
+                    
+                    // Notify the parent comment author (if not the commenter)
+                    if ($parentCommentAuthorId !== $user->id) {
+                        Notification::create([
+                            'user_id' => $parentCommentAuthorId,
+                            'type' => 'reply',
+                            'title' => 'Reply to your comment',
+                            'message' => $commenterName . ' replied to your comment on: ' . $post->title,
+                            'related_type' => 'comment',
+                            'related_id' => $comment->id,
+                            'is_read' => false,
+                        ]);
+                        $notifiedUserIds[] = $parentCommentAuthorId;
+                    }
+                    
+                    // Also notify the post author if:
+                    // 1. Post author is not the commenter
+                    // 2. Post author is not the parent comment author (to avoid duplicate)
+                    if ($post->author_id !== $user->id && $post->author_id !== $parentCommentAuthorId) {
+                        Notification::create([
+                            'user_id' => $post->author_id,
+                            'type' => 'comment',
+                            'title' => 'New reply on your post',
+                            'message' => $commenterName . ' replied to a comment on your post: ' . $post->title,
+                            'related_type' => 'comment',
+                            'related_id' => $comment->id,
+                            'is_read' => false,
+                        ]);
+                        $notifiedUserIds[] = $post->author_id;
+                    }
+                }
+            } else {
+                // This is a direct comment on the post (not a reply)
+                // Notify the post author (if not the commenter)
+                if ($post->author_id !== $user->id) {
                     Notification::create([
-                        'user_id' => $parentComment->author_id,
-                        'type' => 'reply',
-                        'title' => 'Reply to your comment',
-                        'message' => $user->username . ' replied to your comment',
+                        'user_id' => $post->author_id,
+                        'type' => 'comment',
+                        'title' => 'New comment on your post',
+                        'message' => $commenterName . ' commented on: ' . $post->title,
                         'related_type' => 'comment',
                         'related_id' => $comment->id,
+                        'is_read' => false,
+                    ]);
+                    $notifiedUserIds[] = $post->author_id;
+                }
+            }
+            
+            // Notify mentioned users (avoid duplicates)
+            foreach ($mentionedUserIds as $mentionedUserId) {
+                if (!in_array($mentionedUserId, $notifiedUserIds)) {
+                    Notification::create([
+                        'user_id' => $mentionedUserId,
+                        'type' => 'mention',
+                        'title' => 'You were mentioned',
+                        'message' => $commenterName . ' mentioned you in a comment on: ' . $post->title,
+                        'related_type' => 'comment',
+                        'related_id' => $comment->id,
+                        'is_read' => false,
                     ]);
                 }
             }
@@ -837,6 +900,24 @@ class ForumController extends Controller
                         $reply['quoted_author'] = $parentAuthor;
                     }
                     
+                    // Parse mentions from reply content
+                    $replyMentions = [];
+                    preg_match_all('/@(\w+)/', $reply['content'] ?? '', $replyMatches);
+                    if (!empty($replyMatches[1])) {
+                        $mentionedUsernames = array_unique($replyMatches[1]);
+                        $mentionedUsers = User::whereIn('username', $mentionedUsernames)
+                            ->select('id', 'username')
+                            ->get()
+                            ->keyBy('username');
+                        
+                        foreach ($mentionedUsernames as $username) {
+                            if (isset($mentionedUsers[$username])) {
+                                $replyMentions[$username] = $mentionedUsers[$username]->id;
+                            }
+                        }
+                    }
+                    $reply['mentions'] = $replyMentions;
+                    
                     // Store current reply info for nested replies before processing
                     $currentReplyContent = $reply['content'] ?? '';
                     $currentReplyAuthor = $reply['author_name'] ?? $reply['author_username'] ?? 'Unknown';
@@ -857,6 +938,24 @@ class ForumController extends Controller
                             $nestedReply['can_delete'] = ($nestedReply['author_id'] ?? null) === $user->id;
                             $nestedReply['quoted_content'] = $currentReplyContent;
                             $nestedReply['quoted_author'] = $currentReplyAuthor;
+                            
+                            // Parse mentions from nested reply content
+                            $nestedMentions = [];
+                            preg_match_all('/@(\w+)/', $nestedReply['content'] ?? '', $nestedMatches);
+                            if (!empty($nestedMatches[1])) {
+                                $mentionedUsernames = array_unique($nestedMatches[1]);
+                                $mentionedUsers = User::whereIn('username', $mentionedUsernames)
+                                    ->select('id', 'username')
+                                    ->get()
+                                    ->keyBy('username');
+                                
+                                foreach ($mentionedUsernames as $username) {
+                                    if (isset($mentionedUsers[$username])) {
+                                        $nestedMentions[$username] = $mentionedUsers[$username]->id;
+                                    }
+                                }
+                            }
+                            $nestedReply['mentions'] = $nestedMentions;
                             
                             // Check if this nested reply has its own nested replies
                             $deepNestedReplies = $nestedReply['replies'] ?? [];
@@ -921,6 +1020,24 @@ class ForumController extends Controller
                 $parentAuthor = $commentData['author_name'] ?? $commentData['author_username'] ?? 'Unknown';
                 $commentData['replies'] = $flattenReplies($commentData['replies'], $parentContent, $parentAuthor);
             }
+            
+            // Parse mentions from content and get user IDs
+            $mentions = [];
+            preg_match_all('/@(\w+)/', $commentData['content'] ?? '', $matches);
+            if (!empty($matches[1])) {
+                $mentionedUsernames = array_unique($matches[1]);
+                $mentionedUsers = User::whereIn('username', $mentionedUsernames)
+                    ->select('id', 'username')
+                    ->get()
+                    ->keyBy('username');
+                
+                foreach ($mentionedUsernames as $username) {
+                    if (isset($mentionedUsers[$username])) {
+                        $mentions[$username] = $mentionedUsers[$username]->id;
+                    }
+                }
+            }
+            $commentData['mentions'] = $mentions;
             
             return $commentData;
         });
@@ -1062,6 +1179,146 @@ class ForumController extends Controller
         return response()->json([
             'status' => 200,
             'message' => 'Reaction ' . $action,
+        ]);
+    }
+
+    public function getSavedPosts(Request $request)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Get saved post IDs
+        $savedPostIds = SavedPost::where('user_id', $user->id)
+            ->pluck('post_id')
+            ->toArray();
+        
+        if (empty($savedPostIds)) {
+            return response()->json([
+                'status' => 200,
+                'data' => [
+                    'posts' => [],
+                ],
+            ]);
+        }
+
+        // Get posts from allowed forums (public + user's member forums)
+        $userForumIds = DB::table('forum_member')
+            ->where('user_id', $user->id)
+            ->pluck('forum_id')
+            ->toArray();
+        
+        $publicForumIds = Forum::where('visibility', 'public')
+            ->pluck('id')
+            ->toArray();
+        
+        $allowedForumIds = array_unique(array_merge($publicForumIds, $userForumIds));
+
+        // Get saved posts
+        $posts = ForumPost::whereIn('id', $savedPostIds)
+            ->where('is_deleted', false)
+            ->whereIn('forum_id', $allowedForumIds)
+            ->with(['author:id,username,full_name,avatar_url', 'forum:id,title', 'attachments', 'tags'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($post) use ($user) {
+                // Get user's role in the forum
+                $userForumRole = null;
+                if ($post->forum_id) {
+                    $forum = Forum::find($post->forum_id);
+                    if ($forum) {
+                        $member = $forum->members()->where('user_id', $user->id)->first();
+                        if ($member) {
+                            $userForumRole = $member->pivot->role ?? null;
+                        }
+                    }
+                }
+                
+                // Get poll options if this is a poll post
+                $pollOptions = [];
+                $userPollVote = null;
+                $totalPollVotes = 0;
+                $hasPollOptions = DB::table('poll_option')->where('post_id', $post->id)->exists();
+                if ($hasPollOptions) {
+                    $userVote = DB::table('poll_vote')
+                        ->where('post_id', $post->id)
+                        ->where('user_id', $user->id)
+                        ->first();
+                    $userPollVote = $userVote ? $userVote->option_id : null;
+                    
+                    $pollOptions = DB::table('poll_option')
+                        ->where('post_id', $post->id)
+                        ->get()
+                        ->map(function ($option) use ($post, $user) {
+                            $voteCount = DB::table('poll_vote')
+                                ->where('post_id', $post->id)
+                                ->where('option_id', $option->id)
+                                ->count();
+                            return [
+                                'id' => $option->id,
+                                'text' => $option->option_text,
+                                'option_text' => $option->option_text,
+                                'vote_count' => $voteCount,
+                            ];
+                        })
+                        ->toArray();
+                    
+                    $totalPollVotes = DB::table('poll_vote')
+                        ->where('post_id', $post->id)
+                        ->count();
+                }
+                
+                return [
+                    'id' => $post->id,
+                    'forum_id' => $post->forum_id,
+                    'author_id' => $post->author_id,
+                    'title' => $post->title,
+                    'content' => $post->content,
+                    'post_type' => $hasPollOptions ? 'poll' : ($post->post_type ?? 'post'),
+                    'category' => $post->category,
+                    'is_pinned' => $post->is_pinned,
+                    'view_count' => $post->view_count,
+                    'reply_count' => $post->reply_count,
+                    'is_edited' => $post->is_edited ?? false,
+                    'edited_at' => $post->edited_at,
+                    'created_at' => $post->created_at,
+                    'updated_at' => $post->updated_at,
+                    'forum_name' => $post->forum->title ?? null,
+                    'author_username' => $post->author->username ?? null,
+                    'author_name' => $post->author->full_name ?? null,
+                    'author_avatar' => $post->author->avatar_url ?? null,
+                    'user_forum_role' => $userForumRole,
+                    'poll_options' => $pollOptions,
+                    'user_poll_vote' => $userPollVote,
+                    'total_poll_votes' => $totalPollVotes,
+                    'attachments' => $post->attachments->map(function ($att) {
+                        return $this->formatAttachment($att);
+                    }),
+                    'attachments_post' => $post->attachments->where('attachment_type', 'post')->map(function ($att) {
+                        return $this->formatAttachment($att);
+                    })->values(),
+                    'attachments_link' => $post->attachments->where('attachment_type', 'link')->map(function ($att) {
+                        return $this->formatAttachment($att);
+                    })->values(),
+                    'tags' => $post->tags->pluck('tag_name')->toArray(),
+                    'is_forum_member' => $userForumRole !== null,
+                    'reaction_count' => Reaction::where('target_type', 'post')
+                        ->where('target_id', $post->id)
+                        ->count(),
+                    'is_bookmarked' => true, // All posts here are bookmarked
+                    'user_reacted' => Reaction::where('target_type', 'post')
+                        ->where('target_id', $post->id)
+                        ->where('user_id', $user->id)
+                        ->exists(),
+                ];
+            });
+        
+        return response()->json([
+            'status' => 200,
+            'data' => [
+                'posts' => $posts,
+            ],
         ]);
     }
 
@@ -1215,12 +1472,12 @@ class ForumController extends Controller
         }
         
         if ($type === 'post' || $type === 'all') {
-            $postTags = PostTag::select('post_tags.tag_name', DB::raw('COUNT(*) as count'))
-                ->join('forum_post', 'post_tags.post_id', '=', 'forum_post.id')
+            $postTags = PostTag::select('post_tag.tag_name', DB::raw('COUNT(*) as count'))
+                ->join('forum_post', 'post_tag.post_id', '=', 'forum_post.id')
                 ->where('forum_post.is_deleted', false)
-                ->groupBy('post_tags.tag_name')
+                ->groupBy('post_tag.tag_name')
                 ->orderBy('count', 'desc')
-                ->orderBy('post_tags.tag_name', 'asc')
+                ->orderBy('post_tag.tag_name', 'asc')
                 ->limit($limit)
                 ->get()
                 ->map(function ($tag) {
@@ -1870,9 +2127,382 @@ class ForumController extends Controller
         ]);
     }
 
+    public function muteForum(Request $request, $id)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $forum = Forum::findOrFail($id);
+        
+        // Check if user is a member
+        $member = $forum->members()->where('user_id', $user->id)->first();
+        if (!$member) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You must be a member of this forum to mute it',
+            ], 403);
+        }
+
+        // Update is_muted status
+        DB::table('forum_member')
+            ->where('forum_id', $id)
+            ->where('user_id', $user->id)
+            ->update(['is_muted' => true]);
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Forum muted successfully. You will not receive notifications for new posts.',
+        ]);
+    }
+
+    public function unmuteForum(Request $request, $id)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $forum = Forum::findOrFail($id);
+        
+        // Check if user is a member
+        $member = $forum->members()->where('user_id', $user->id)->first();
+        if (!$member) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You must be a member of this forum to unmute it',
+            ], 403);
+        }
+
+        // Update is_muted status
+        DB::table('forum_member')
+            ->where('forum_id', $id)
+            ->where('user_id', $user->id)
+            ->update(['is_muted' => false]);
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Forum unmuted successfully. You will now receive notifications for new posts.',
+        ]);
+    }
+
+    public function getMentionableUsers(Request $request)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $search = $request->get('search', '');
+        $limit = min((int) $request->get('limit', 20), 50);
+
+        // Get friends
+        $friends = DB::table('friend')
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)->where('status', 'accepted');
+            })
+            ->orWhere(function ($q) use ($user) {
+                $q->where('friend_id', $user->id)->where('status', 'accepted');
+            })
+            ->get()
+            ->map(function ($f) use ($user) {
+                return $f->user_id === $user->id ? $f->friend_id : $f->user_id;
+            })
+            ->toArray();
+
+        // Get recently mentioned users (from comments where current user mentioned others)
+        $recentMentions = DB::table('comment')
+            ->where('author_id', $user->id)
+            ->where(function ($q) {
+                $q->where('content', 'like', '%@%');
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->pluck('content')
+            ->map(function ($content) {
+                // Extract usernames from content
+                preg_match_all('/@(\w+)/', $content, $matches);
+                return !empty($matches[1]) ? $matches[1] : [];
+            })
+            ->flatten()
+            ->unique()
+            ->take(10)
+            ->toArray();
+        
+        // Get user IDs for recently mentioned usernames
+        $recentMentionUserIds = [];
+        if (!empty($recentMentions)) {
+            $recentMentionUserIds = User::whereIn('username', $recentMentions)
+                ->where('id', '!=', $user->id)
+                ->pluck('id')
+                ->toArray();
+        }
+
+        // Combine friends and recent mentions, remove duplicates
+        $mentionableUserIds = array_unique(array_merge($friends, $recentMentionUserIds));
+
+        // Build query
+        // If we have mentionable users (friends/recent), use them; otherwise search all users
+        if (!empty($mentionableUserIds)) {
+            $query = User::whereIn('id', $mentionableUserIds)
+                ->where('id', '!=', $user->id)
+                ->select('id', 'username', 'full_name', 'avatar_url');
+            
+            // If search is provided, filter by username or full_name
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('username', 'like', '%' . $search . '%')
+                      ->orWhere('full_name', 'like', '%' . $search . '%');
+                });
+            }
+        } else {
+            // No friends yet, search all users
+            $query = User::where('id', '!=', $user->id)
+                ->select('id', 'username', 'full_name', 'avatar_url');
+            
+            // Require search term if no friends
+            if (empty($search)) {
+                return response()->json([
+                    'status' => 200,
+                    'data' => ['users' => []],
+                ]);
+            }
+            
+            $query->where(function ($q) use ($search) {
+                $q->where('username', 'like', '%' . $search . '%')
+                  ->orWhere('full_name', 'like', '%' . $search . '%');
+            });
+        }
+
+        $users = $query->limit($limit)->get()->map(function ($u) use ($friends) {
+            return [
+                'id' => $u->id,
+                'username' => $u->username,
+                'full_name' => $u->full_name ?? $u->username,
+                'avatar_url' => $u->avatar_url,
+                'is_friend' => in_array($u->id, $friends),
+            ];
+        });
+
+        // Sort: friends first, then by name
+        $users = $users->sortBy(function ($u) {
+            return ($u['is_friend'] ? 0 : 1) . $u['full_name'];
+        })->values();
+
+        return response()->json([
+            'status' => 200,
+            'data' => ['users' => $users],
+        ]);
+    }
+
+    public function searchUserByUsername(Request $request)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $username = $request->get('username');
+        if (!$username) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'Username is required',
+            ], 400);
+        }
+
+        $foundUser = User::where('username', $username)->first();
+        
+        if (!$foundUser) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'data' => [
+                'user_id' => $foundUser->id,
+                'username' => $foundUser->username,
+                'full_name' => $foundUser->full_name,
+            ],
+        ]);
+    }
+
+    /**
+     * Vote on a poll option
+     */
+    public function votePoll(Request $request)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+        
+        $request->validate([
+            'post_id' => 'required|integer|exists:forum_post,id',
+            'option_id' => 'required|integer|exists:poll_option,id',
+        ]);
+        
+        // Check if post is a poll (check if poll_options exist)
+        $post = ForumPost::findOrFail($request->post_id);
+        $hasPollOptions = DB::table('poll_option')->where('post_id', $request->post_id)->exists();
+        if (!$hasPollOptions) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'This post is not a poll',
+            ], 400);
+        }
+        
+        // Check if option belongs to this post
+        $option = DB::table('poll_option')
+            ->where('id', $request->option_id)
+            ->where('post_id', $request->post_id)
+            ->first();
+        
+        if (!$option) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'Invalid poll option',
+            ], 400);
+        }
+        
+        // Check if user already voted
+        $existingVote = DB::table('poll_vote')
+            ->where('post_id', $request->post_id)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        if ($existingVote) {
+            // User has already voted, prevent changing vote
+            return response()->json([
+                'status' => 400,
+                'message' => 'You have already voted on this poll and cannot change your vote',
+            ], 400);
+        }
+        
+        // Create new vote
+        DB::table('poll_vote')->insert([
+            'post_id' => $request->post_id,
+            'option_id' => $request->option_id,
+            'user_id' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        
+        // Get updated poll data
+        $pollOptions = DB::table('poll_option')
+            ->where('post_id', $request->post_id)
+            ->get()
+            ->map(function ($opt) {
+                return [
+                    'id' => $opt->id,
+                    'text' => $opt->option_text,
+                    'option_text' => $opt->option_text,
+                    'vote_count' => DB::table('poll_vote')
+                        ->where('option_id', $opt->id)
+                        ->count(),
+                ];
+            })
+            ->toArray();
+        
+        $totalVotes = DB::table('poll_vote')
+            ->where('post_id', $request->post_id)
+            ->count();
+        
+        return response()->json([
+            'status' => 200,
+            'message' => 'Vote recorded successfully',
+            'data' => [
+                'poll_options' => $pollOptions,
+                'user_poll_vote' => $request->option_id,
+                'total_poll_votes' => $totalVotes,
+            ],
+        ]);
+    }
+
+    /**
+     * Format attachment data for API response
+     */
+    private function formatAttachment($att)
+    {
+        // Convert file_url to absolute URL
+        $url = $att->file_url;
+        if (empty($url)) {
+            return [
+                'id' => $att->id,
+                'url' => '',
+                'name' => $att->file_name,
+                'type' => $att->file_type,
+                'size' => $att->file_size,
+            ];
+        }
+        
+        // If already absolute URL, return as-is
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return [
+                'id' => $att->id,
+                'url' => $url,
+                'name' => $att->file_name,
+                'type' => $att->file_type,
+                'size' => $att->file_size,
+            ];
+        }
+        
+        // Clean up the URL - remove any Material/ prefix that might have been added
+        $url = str_replace('/Material/', '/', $url);
+        $url = str_replace('Material/', '', $url);
+        
+        // If URL already starts with /uploads/, it's correct (direct public access)
+        if (str_starts_with($url, '/uploads/')) {
+            // URL is already correct for public/uploads/ directory
+            $url = $url;
+        } elseif (str_starts_with($url, '/storage/uploads/')) {
+            // Convert /storage/uploads/ to /uploads/ (files are in public/uploads/)
+            $url = str_replace('/storage/uploads/', '/uploads/', $url);
+        } elseif (str_contains($url, 'uploads/')) {
+            // If it's an uploads path, ensure it starts with /
+            $url = ltrim($url, '/');
+            // Remove storage/ prefix if present
+            $url = str_replace('storage/', '', $url);
+            $url = '/' . $url;
+        } elseif (str_starts_with($url, '/')) {
+            // Already absolute path, use as-is
+            $url = $url;
+        } else {
+            // Relative path, make it absolute
+            $url = '/' . $url;
+        }
+        
+        return [
+            'id' => $att->id,
+            'url' => $url,
+            'name' => $att->file_name,
+            'type' => $att->file_type,
+            'size' => $att->file_size,
+        ];
+    }
+
     protected function getCurrentUser()
     {
-        return session('user_id') ? User::find(session('user_id')) : Auth::user();
+        // Try Auth::user() first since we're using auth:web middleware
+        $user = Auth::user();
+        
+        if ($user) {
+            // Ensure session user_id is set for compatibility
+            if (!session('user_id')) {
+                session(['user_id' => $user->id]);
+            }
+            return $user;
+        }
+        
+        // Fallback to session user_id for legacy compatibility
+        if (session('user_id')) {
+            return User::find(session('user_id'));
+        }
+        
+        return null;
     }
 }
 

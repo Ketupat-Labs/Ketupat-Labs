@@ -7,11 +7,11 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        if (!Schema::hasTable('lesson_assignments')) {
-            Schema::create('lesson_assignments', function (Blueprint $table) {
+        if (!Schema::hasTable('lesson_assignment')) {
+            Schema::create('lesson_assignment', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('classroom_id')->constrained()->onDelete('cascade');
-                $table->foreignId('lesson_id')->constrained()->onDelete('cascade');
+                $table->foreignId('classroom_id')->constrained('class')->onDelete('cascade');
+                $table->foreignId('lesson_id')->constrained('lesson')->onDelete('cascade');
                 $table->string('type')->nullable();
                 $table->timestamp('assigned_at')->nullable();
                 $table->date('due_date')->nullable();
@@ -23,7 +23,7 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists('lesson_assignments');
+        Schema::dropIfExists('lesson_assignment');
     }
 };
 

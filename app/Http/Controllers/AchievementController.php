@@ -26,14 +26,14 @@ class AchievementController extends Controller
         
         try {
             // Get all badges with categories
-            $badges = DB::table('badges')
-                ->leftJoin('badge_categories', 'badges.category_code', '=', 'badge_categories.code')
-                ->select('badges.*', 'badge_categories.name as category_name', 'badge_categories.color as category_color')
-                ->orderBy('badges.name')
+            $badges = DB::table('badge')
+                ->leftJoin('badge_category', 'badge.category_code', '=', 'badge_category.code')
+                ->select('badge.*', 'badge_category.name as category_name', 'badge_category.color as category_color')
+                ->orderBy('badge.name')
                 ->get();
             
             // Get user badges
-            $userBadges = DB::table('user_badges')
+            $userBadges = DB::table('user_badge')
                 ->where('user_id', $userId)
                 ->get()
                 ->keyBy('badge_code');
@@ -84,7 +84,7 @@ class AchievementController extends Controller
             }
 
             // Get categories for filter
-            $categories = DB::table('badge_categories')->get();
+            $categories = DB::table('badge_category')->get();
             
             // Calculate statistics
             $totalBadges = count($badgesWithStatus);
@@ -128,17 +128,17 @@ class AchievementController extends Controller
         $userId = Session::get('user_id');
         
         // Get user badges
-        $userBadges = DB::table('user_badges')
+        $userBadges = DB::table('user_badge')
             ->where('user_id', $userId)
-            ->join('badges', 'user_badges.badge_code', '=', 'badges.code')
-            ->leftJoin('badge_categories', 'badges.category_code', '=', 'badge_categories.code')
+            ->join('badge', 'user_badge.badge_code', '=', 'badge.code')
+            ->leftJoin('badge_category', 'badge.category_code', '=', 'badge_category.code')
             ->select(
-                'badges.*',
-                'badge_categories.name as category_name',
-                'badge_categories.color as category_color',
-                'user_badges.*'
+                'badge.*',
+                'badge_category.name as category_name',
+                'badge_category.color as category_color',
+                'user_badge.*'
             )
-            ->orderBy('user_badges.updated_at', 'desc')
+            ->orderBy('user_badge.updated_at', 'desc')
             ->get();
         
         // Categorize badges
@@ -176,7 +176,7 @@ class AchievementController extends Controller
         $badgeId = $request->badge_id;
         
         // Find badge by code
-        $badge = DB::table('badges')->where('code', $badgeId)->first();
+        $badge = DB::table('badge')->where('code', $badgeId)->first();
         
         if (!$badge) {
             return response()->json([
@@ -185,7 +185,7 @@ class AchievementController extends Controller
             ], 404);
         }
 
-        $userBadge = DB::table('user_badges')
+        $userBadge = DB::table('user_badge')
             ->where('user_id', $userId)
             ->where('badge_code', $badge->code)
             ->first();
@@ -213,7 +213,7 @@ class AchievementController extends Controller
 
         try {
             // Update to redeemed
-            DB::table('user_badges')
+            DB::table('user_badge')
                 ->where('id', $userBadge->id)
                 ->update([
                     'is_redeemed' => true,
@@ -258,7 +258,7 @@ class AchievementController extends Controller
         $points = $request->points;
         
         // Find badge
-        $badge = DB::table('badges')->where('code', $badgeId)->first();
+        $badge = DB::table('badge')->where('code', $badgeId)->first();
         
         if (!$badge) {
             return response()->json([
@@ -267,14 +267,14 @@ class AchievementController extends Controller
             ], 404);
         }
 
-        $userBadge = DB::table('user_badges')
+        $userBadge = DB::table('user_badge')
             ->where('user_id', $userId)
             ->where('badge_code', $badge->code)
             ->first();
 
         if ($userBadge) {
             // Update existing
-            DB::table('user_badges')
+            DB::table('user_badge')
                 ->where('id', $userBadge->id)
                 ->update([
                     'progress' => DB::raw('progress + ' . $points),
@@ -282,9 +282,9 @@ class AchievementController extends Controller
                 ]);
                 
             // Check if earned
-            $updatedBadge = DB::table('user_badges')->where('id', $userBadge->id)->first();
+            $updatedBadge = DB::table('user_badge')->where('id', $userBadge->id)->first();
             if ($updatedBadge->progress >= ($badge->points_required ?? 100) && !$updatedBadge->is_earned) {
-                DB::table('user_badges')
+                DB::table('user_badge')
                     ->where('id', $userBadge->id)
                     ->update([
                         'is_earned' => true,
@@ -294,7 +294,7 @@ class AchievementController extends Controller
         } else {
             // Create new
             $isEarned = $points >= ($badge->points_required ?? 100);
-            DB::table('user_badges')->insert([
+            DB::table('user_badge')->insert([
                 'user_id' => $userId,
                 'badge_code' => $badge->code,
                 'progress' => $points,
@@ -327,12 +327,12 @@ class AchievementController extends Controller
         }
         $userId = Session::get('user_id');
 
-        $redeemableBadges = DB::table('user_badges')
+        $redeemableBadges = DB::table('user_badge')
             ->where('user_id', $userId)
             ->where('is_earned', true)
             ->where('is_redeemed', false)
-            ->join('badges', 'user_badges.badge_code', '=', 'badges.code')
-            ->select('badges.*', 'user_badges.progress')
+            ->join('badge', 'user_badge.badge_code', '=', 'badge.code')
+            ->select('badge.*', 'user_badge.progress')
             ->get()
             ->map(function($badge) {
                 return [

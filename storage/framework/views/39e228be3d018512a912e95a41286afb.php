@@ -292,6 +292,25 @@
                             </svg>
                         </a>
 
+                        <a href="<?php echo e(route('activities.index')); ?>"
+                            class="flex items-center justify-between p-4 text-white rounded-lg hover:shadow-lg transition-all group"
+                            style="background: linear-gradient(to right, #F26430, #FFBA08);">
+                            <div class="flex items-center">
+                                <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="font-semibold"><?php echo e(__('Assign Activity')); ?></span>
+                            </div>
+                            <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                                </path>
+                            </svg>
+                        </a>
+
                         <a href="<?php echo e(route('progress.index')); ?>"
                             class="flex items-center justify-between p-4 text-white rounded-lg hover:shadow-lg transition-all group"
                             style="background: linear-gradient(to right, #8B5CF6, #7C3AED);">

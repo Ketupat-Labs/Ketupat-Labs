@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('badges', function (Blueprint $table) {
+        if (!Schema::hasTable('badges')) {
+            Schema::create('badges', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->text('description');
@@ -26,6 +27,7 @@ return new class extends Migration
             $table->index('category_slug');
             $table->index('requirement_type');
         });
+        }
     }
 
     /**

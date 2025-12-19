@@ -31,7 +31,7 @@ class EnrollmentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'lesson_id' => 'required|exists:lessons,id',
+            'lesson_id' => 'required|exists:lesson,id',
         ]);
 
         $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;

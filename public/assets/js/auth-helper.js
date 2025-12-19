@@ -54,6 +54,9 @@ class AuthHelper {
         sessionStorage.setItem('userRole', userData.role || '');
         sessionStorage.setItem('userName', userData.name || userData.full_name || '');
         sessionStorage.setItem('userId', userData.user_id || userData.id || '');
+        if (userData.avatar_url) {
+            sessionStorage.setItem('userAvatar', userData.avatar_url);
+        }
         sessionStorage.setItem(this.sessionKey, JSON.stringify(userData));
     }
 

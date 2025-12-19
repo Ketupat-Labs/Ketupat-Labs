@@ -11,6 +11,8 @@ class ActivityAssignment extends Model
 {
     use HasFactory;
 
+    protected $table = 'activity_assignment';
+
     protected $fillable = [
         'activity_id',
         'classroom_id',

@@ -11,6 +11,8 @@ class Badge extends Model
 {
     use HasFactory;
 
+    protected $table = 'badge';
+
     protected $fillable = [
         'code',
         'name',
@@ -36,7 +38,7 @@ class Badge extends Model
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'user_badges', 'badge_code', 'user_id', 'code', 'id')
+        return $this->belongsToMany(User::class, 'user_badge', 'badge_code', 'user_id', 'code', 'id')
             ->withTimestamps();
     }
 }

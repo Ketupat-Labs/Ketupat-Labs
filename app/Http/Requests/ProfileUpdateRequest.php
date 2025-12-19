@@ -22,6 +22,8 @@ class ProfileUpdateRequest extends FormRequest
             'school' => ['nullable', 'string', 'max:255'],
             'class' => ['nullable', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:1000'],
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif', 'max:5120'], // Max 5MB
+            'remove_avatar' => ['nullable', 'boolean'],
             // Email is not included - it cannot be changed
         ];
     }

@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
+Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Protected routes
@@ -45,9 +47,13 @@ Route::middleware('auth:web')->group(function () {
         Route::put('/comment/{id}', [ForumController::class, 'editComment']);
         Route::delete('/comment/{id}', [ForumController::class, 'deleteComment']);
         Route::post('/react', [ForumController::class, 'react']);
+        Route::post('/poll/vote', [ForumController::class, 'votePoll']);
         Route::post('/bookmark', [ForumController::class, 'bookmark']);
+        Route::get('/saved-posts', [ForumController::class, 'getSavedPosts']);
         Route::post('/join', [ForumController::class, 'joinForum']);
         Route::post('/leave', [ForumController::class, 'leaveForum']);
+        Route::post('/{id}/mute', [ForumController::class, 'muteForum']);
+        Route::post('/{id}/unmute', [ForumController::class, 'unmuteForum']);
         
         // Report routes
         Route::post('/post/report', [ForumController::class, 'reportPost']);
@@ -105,8 +111,17 @@ Route::middleware('auth:web')->group(function () {
         Route::get('/list', [\App\Http\Controllers\FriendController::class, 'getFriends']);
     });
     
+    // Mention routes
+    Route::prefix('mentions')->group(function () {
+        Route::get('/users', [\App\Http\Controllers\ForumController::class, 'getMentionableUsers']);
+    });
+    
+    // User search route
+    Route::get('/user/search', [\App\Http\Controllers\ForumController::class, 'searchUserByUsername']);
+    
     // Classroom routes
     Route::get('/classrooms', [\App\Http\Controllers\ClassroomController::class, 'index']);
+    Route::post('/classroom/{classroom}/create-forum', [\App\Http\Controllers\ClassroomController::class, 'createForum']);
     
     
     // Chatbot routes

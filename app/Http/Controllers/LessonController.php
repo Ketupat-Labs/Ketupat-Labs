@@ -183,7 +183,7 @@ class LessonController extends Controller
         // 1. Fetch Lessons
         $classroomIds = collect();
         if ($user && $user->role === 'student') {
-             $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
+             $classroomIds = $user->enrolledClassrooms()->pluck('class.id');
         }
 
         $lessons = Lesson::where('is_published', true)
@@ -208,7 +208,7 @@ class LessonController extends Controller
         // 2. Fetch Activities (Class Assigned + Public)
         $classActivities = collect();
         if ($user && $user->role === 'student') {
-            $classroomIds = $user->enrolledClassrooms()->pluck('classes.id');
+            $classroomIds = $user->enrolledClassrooms()->pluck('class.id');
 
             $classActivities = \App\Models\ActivityAssignment::whereIn('classroom_id', $classroomIds)
                 ->with('activity')

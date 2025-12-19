@@ -26,7 +26,7 @@
         
         <!-- Scripts -->
         <?php if(file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot'))): ?>
-            <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
+            <?php echo app('Illuminate\Foundation\Vite')(['resources/sass/app.scss', 'resources/js/app.js']); ?>
         <?php endif; ?>
     </head>
     <body class="font-sans antialiased bg-gray-50">
@@ -54,7 +54,13 @@
         </div>
         
         <!-- Ketupat Chatbot Widget -->
-        <?php echo $__env->make('components.chatbot-widget', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+        <?php
+            $currentUser = session('user_id') ? \App\Models\User::find(session('user_id')) : \Illuminate\Support\Facades\Auth::user();
+            $chatbotEnabled = $currentUser ? ($currentUser->chatbot_enabled ?? true) : true;
+        ?>
+        <?php if($chatbotEnabled): ?>
+            <?php echo $__env->make('components.chatbot-widget', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+        <?php endif; ?>
         
         <!-- Navigation JavaScript -->
         <script>

@@ -1,6 +1,7 @@
 let postState = {
     forums: [],
-    selectedFiles: [],
+    selectedFiles: [], // For text posts
+    selectedFilesLink: [], // For link posts
     tags: [],
     pollOptions: []
 };
@@ -84,10 +85,16 @@ function initEventListeners() {
         tagsInput.addEventListener('keypress', handleTagInput);
     }
 
-    // File input
-    const attachmentInput = document.getElementById('attachmentInput');
-    if (attachmentInput) {
-        attachmentInput.addEventListener('change', handleFileSelect);
+    // File input for text posts
+    const attachmentInputPost = document.getElementById('attachmentInputPost');
+    if (attachmentInputPost) {
+        attachmentInputPost.addEventListener('change', (e) => handleFileSelect(e, 'post'));
+    }
+
+    // File input for link posts
+    const attachmentInputLink = document.getElementById('attachmentInputLink');
+    if (attachmentInputLink) {
+        attachmentInputLink.addEventListener('change', (e) => handleFileSelect(e, 'link'));
     }
 
     // Poll option add button
@@ -175,24 +182,34 @@ function handlePostTypeChange(e) {
         document.getElementById('contentGroup').style.display = 'block';
         document.getElementById('linkGroup').style.display = 'none';
         document.getElementById('pollGroup').style.display = 'none';
+        document.getElementById('attachmentSectionPost').style.display = 'block';
+        document.getElementById('attachmentSectionLink').style.display = 'none';
         document.getElementById('postContent').required = true;
         document.getElementById('postLink').required = false;
         // Remove required from poll inputs when hidden
         pollInputs.forEach(input => input.removeAttribute('required'));
+        // Render attachments for text posts
+        renderAttachments('post');
     } else if (postType === 'link') {
         document.getElementById('postTypeLink').classList.add('selected');
         document.getElementById('contentGroup').style.display = 'block';
         document.getElementById('linkGroup').style.display = 'block';
         document.getElementById('pollGroup').style.display = 'none';
+        document.getElementById('attachmentSectionPost').style.display = 'none';
+        document.getElementById('attachmentSectionLink').style.display = 'block';
         document.getElementById('postContent').required = true;
         document.getElementById('postLink').required = true;
         // Remove required from poll inputs when hidden
         pollInputs.forEach(input => input.removeAttribute('required'));
+        // Render attachments for link posts
+        renderAttachments('link');
     } else if (postType === 'poll') {
         document.getElementById('postTypePoll').classList.add('selected');
         document.getElementById('contentGroup').style.display = 'none';
         document.getElementById('linkGroup').style.display = 'none';
         document.getElementById('pollGroup').style.display = 'block';
+        document.getElementById('attachmentSectionPost').style.display = 'none';
+        document.getElementById('attachmentSectionLink').style.display = 'none';
         document.getElementById('postContent').required = false;
         document.getElementById('postLink').required = false;
         // Add required to poll inputs when visible
@@ -299,9 +316,12 @@ function renderTags() {
     `).join('');
 }
 
-function handleFileSelect(e) {
+function handleFileSelect(e, postType = 'post') {
     const files = Array.from(e.target.files);
     const maxSize = 50 * 1024 * 1024; // 50MB
+    
+    // Determine which file array to use
+    const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
     
     files.forEach(file => {
         // Validate file size
@@ -326,31 +346,45 @@ function handleFileSelect(e) {
             return;
         }
         
-        // Add to selected files
-        if (!postState.selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
-            postState.selectedFiles.push(file);
+        // Add to selected files if not already added
+        if (!fileArray.find(f => f.name === file.name && f.size === file.size)) {
+            fileArray.push(file);
         }
     });
     
-    renderAttachments();
-}
-
-function removeAttachment(index) {
-    postState.selectedFiles.splice(index, 1);
-    renderAttachments();
+    renderAttachments(postType);
     
-    // Update file input
-    const input = document.getElementById('attachmentInput');
+    // Update file input based on post type
+    const inputId = postType === 'link' ? 'attachmentInputLink' : 'attachmentInputPost';
+    const input = document.getElementById(inputId);
     if (input) {
         input.value = '';
     }
 }
 
-function renderAttachments() {
-    const container = document.getElementById('attachmentsPreview');
+function removeAttachment(index, postType = 'post') {
+    // Determine which file array to use
+    const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
+    fileArray.splice(index, 1);
+    renderAttachments(postType);
+    
+    // Update file input based on post type
+    const inputId = postType === 'link' ? 'attachmentInputLink' : 'attachmentInputPost';
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.value = '';
+    }
+}
+
+function renderAttachments(postType = 'post') {
+    // Determine which file array and container to use
+    const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
+    const containerId = postType === 'link' ? 'attachmentsPreviewLink' : 'attachmentsPreviewPost';
+    const container = document.getElementById(containerId);
+    
     if (!container) return;
 
-    if (postState.selectedFiles.length === 0) {
+    if (fileArray.length === 0) {
         container.innerHTML = '';
         return;
     }
@@ -359,7 +393,7 @@ function renderAttachments() {
     container.innerHTML = '';
 
     // Render each file
-    postState.selectedFiles.forEach((file, index) => {
+    fileArray.forEach((file, index) => {
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
         const fileIcon = getFileIcon(file.name);
         const isImage = file.type.startsWith('image/') || 
@@ -402,7 +436,7 @@ function renderAttachments() {
                 removeBtn.title = 'Remove';
                 removeBtn.onclick = (event) => {
                     event.stopPropagation();
-                    removeAttachment(index);
+                    removeAttachment(index, postType);
                 };
                 removeBtn.innerHTML = '<i class="fas fa-times"></i>';
                 
@@ -423,7 +457,7 @@ function renderAttachments() {
                     <i class="fas ${fileIcon}"></i>
                     <span>${escapeHtml(file.name)}</span>
                     <span class="file-size">(${fileSize} MB)</span>
-                    <span class="remove-btn" onclick="removeAttachment(${index})">
+                    <span class="remove-btn" onclick="removeAttachment(${index}, '${postType}')">
                         <i class="fas fa-times"></i>
                     </span>
                 `;
@@ -438,7 +472,7 @@ function renderAttachments() {
                 <i class="fas ${fileIcon}"></i>
                 <span>${escapeHtml(file.name)}</span>
                 <span class="file-size">(${fileSize} MB)</span>
-                <span class="remove-btn" onclick="removeAttachment(${index})">
+                <span class="remove-btn" onclick="removeAttachment(${index}, '${postType}')">
                     <i class="fas fa-times"></i>
                 </span>
             `;
@@ -523,10 +557,11 @@ async function handleFormSubmit(e) {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
     
     try {
-        // Upload files first if any
+        // Upload files first if any - use the correct file array based on post type
         let attachments = [];
-        if (postState.selectedFiles && postState.selectedFiles.length > 0) {
-            attachments = await uploadFiles();
+        const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
+        if (fileArray && fileArray.length > 0) {
+            attachments = await uploadFiles(postType);
         }
         
         // Prepare post data
@@ -540,7 +575,9 @@ async function handleFormSubmit(e) {
         
         // Only include content for post and link types
         if (postType === 'link') {
-            postData.content = link;
+            // Combine link URL and description (content) for link posts
+            // Format: URL on first line, description on following lines
+            postData.content = link + (content ? '\n\n' + content : '');
         } else if (postType === 'post') {
             postData.content = content;
         }
@@ -671,14 +708,17 @@ async function handleFormSubmit(e) {
     }
 }
 
-async function uploadFiles() {
+async function uploadFiles(postType = 'post') {
+    // Determine which file array to use
+    const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
+    
     // Early return if no files
-    if (!postState.selectedFiles || postState.selectedFiles.length === 0) {
+    if (!fileArray || fileArray.length === 0) {
         return [];
     }
     
     // Filter out any invalid files
-    const validFiles = postState.selectedFiles.filter(file => file instanceof File);
+    const validFiles = fileArray.filter(file => file instanceof File);
     if (validFiles.length === 0) {
         return [];
     }

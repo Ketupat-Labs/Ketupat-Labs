@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PostTag extends Model
 {
-    protected $table = 'post_tags';
+    protected $table = 'post_tag';
 
     protected $fillable = [
         'post_id',

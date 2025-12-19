@@ -16,6 +16,23 @@ class ChatbotController extends Controller
     public function chat(Request $request)
     {
         try {
+            // Get current user
+            $user = $this->getCurrentUser();
+            if (!$user) {
+                return response()->json([
+                    'status' => 401,
+                    'message' => 'Unauthorized',
+                ], 401);
+            }
+
+            // Check if chatbot is enabled for this user
+            if (isset($user->chatbot_enabled) && !$user->chatbot_enabled) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Chatbot is disabled in your settings',
+                ], 403);
+            }
+
             $request->validate([
                 'message' => 'required|string|max:2000',
                 'context' => 'nullable|string|max:5000', // Optional context from highlighted text
@@ -213,5 +230,22 @@ class ChatbotController extends Controller
         return "Saya faham soalan anda. Walau bagaimanapun, saya tidak dapat memberikan respons AI terperinci buat masa ini. " .
                "Sila pastikan kunci API OpenAI dikonfigurasikan dengan betul. " .
                "Buat masa ini, saya boleh membantu anda dengan soalan umum. Apa yang anda ingin tahu?";
+    }
+
+    /**
+     * Get current user from session
+     */
+    protected function getCurrentUser()
+    {
+        $user = null;
+        if (session('user_id')) {
+            $user = \App\Models\User::find(session('user_id'));
+        }
+        
+        if (!$user) {
+            $user = \Illuminate\Support\Facades\Auth::user();
+        }
+        
+        return $user;
     }
 }

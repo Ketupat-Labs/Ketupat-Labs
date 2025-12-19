@@ -34,6 +34,258 @@ function normalizeFileUrl(url) {
     return normalizedUrl;
 }
 
+// Helper function to extract YouTube video ID from URL
+function extractYouTubeVideoId(url) {
+    if (!url) return null;
+    
+    const patterns = [
+        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
+        /youtube\.com\/embed\/([^"&?\/\s]{11})/,
+        /youtube\.com\/v\/([^"&?\/\s]{11})/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to extract video ID from TikTok URL
+function extractTikTokVideoId(url) {
+    const patterns = [
+        /(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)/i,
+        /tiktok\.com\/.*\/video\/(\d+)/i
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to extract video ID from RedNote (Xiaohongshu) URL
+function extractRedNoteVideoId(url) {
+    const patterns = [
+        /xiaohongshu\.com\/explore\/([a-zA-Z0-9]+)/i,
+        /xhslink\.com\/([a-zA-Z0-9]+)/i
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to convert video URLs (YouTube, TikTok, RedNote, etc.) to embedded players
+function processVideoLinks(content) {
+    if (!content) return content;
+    
+    // Split content by newlines to separate URL from description
+    const lines = content.split('\n');
+    let urlLine = '';
+    let descriptionLines = [];
+    let urlLineIndex = -1;
+    let foundVideoUrl = false;
+    
+    // Find the first line that contains a video URL (YouTube, TikTok, RedNote, etc.)
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!foundVideoUrl && /(?:youtube\.com|youtu\.be|tiktok\.com|vm\.tiktok\.com|xiaohongshu\.com|xhslink\.com|vt\.tiktok\.com)/.test(line)) {
+            urlLine = line;
+            urlLineIndex = i;
+            foundVideoUrl = true;
+            // Get description from lines AFTER the URL (since link posts store URL first, then description)
+            // Skip empty lines immediately after URL (the '\n\n' separator)
+            let afterUrlLines = lines.slice(i + 1);
+            // Remove leading empty lines
+            while (afterUrlLines.length > 0 && afterUrlLines[0].trim() === '') {
+                afterUrlLines.shift();
+            }
+            descriptionLines = afterUrlLines;
+            break;
+        }
+    }
+    
+    // If no video URL found, check if there's a regular URL and create link preview
+    if (!foundVideoUrl) {
+        // Try to find any URL in the content
+        const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+        const urlMatch = content.match(urlRegex);
+        
+        if (urlMatch && urlMatch.length > 0) {
+            const firstUrl = urlMatch[0];
+            try {
+                const urlObj = new URL(firstUrl);
+                const domain = urlObj.hostname.replace('www.', '');
+                
+                // Extract description (everything after the URL)
+                const urlIndex = content.indexOf(firstUrl);
+                const description = content.substring(urlIndex + firstUrl.length).trim();
+                
+                // Create compact link preview
+                return createLinkPreview(firstUrl, domain, description);
+            } catch (e) {
+                // Invalid URL, just escape and return
+                return escapeHtml(content);
+            }
+        }
+        
+        // No URL found, just escape and return the content
+        return escapeHtml(content);
+    }
+    
+    // Process description - join lines and preserve paragraph breaks
+    const descriptionText = descriptionLines.join('\n').trim();
+    const escapedDescription = descriptionText 
+        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' + 
+          escapeHtml(descriptionText) + 
+          '</div>' 
+        : '';
+    
+    // Escape HTML to prevent XSS for the URL line
+    const escapedUrlLine = escapeHtml(urlLine);
+    let processedUrl = escapedUrlLine;
+    
+    // Process YouTube URLs
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&]t=(\d+[smh]?|[0-9]+m[0-9]+s)?)?[^\s<>"']*/gi;
+    processedUrl = processedUrl.replace(youtubeRegex, (match, videoId, startTime) => {
+        let timeInSeconds = null;
+        if (startTime) {
+            const cleanTime = startTime.toString().replace(/s$/, '');
+            if (cleanTime.includes('m')) {
+                const parts = cleanTime.match(/(\d+)m(?:(\d+))?/);
+                if (parts) {
+                    const minutes = parseInt(parts[1]) || 0;
+                    const seconds = parseInt(parts[2]) || 0;
+                    timeInSeconds = minutes * 60 + seconds;
+                }
+            } else {
+                timeInSeconds = parseInt(cleanTime) || null;
+            }
+        }
+        
+        const timeParam = timeInSeconds ? `?start=${timeInSeconds}` : '';
+        return `<div class="video-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden;">
+            <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                    src="https://www.youtube.com/embed/${videoId}${timeParam}" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+            </iframe>
+        </div>`;
+    });
+    
+    // Process TikTok URLs
+    const tiktokRegex = /(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
+    processedUrl = processedUrl.replace(tiktokRegex, (match) => {
+        const videoId = extractTikTokVideoId(match);
+        if (videoId) {
+            return `<div class="video-embed-container" style="position: relative; padding-bottom: 125%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden;">
+                <blockquote class="tiktok-embed" cite="${match}" data-video-id="${videoId}" style="max-width: 100%; min-width: 325px;">
+                    <section>
+                        <a href="${match}" target="_blank" title="@username">View on TikTok</a>
+                    </section>
+                </blockquote>
+                <script async src="https://www.tiktok.com/embed.js"></script>
+            </div>`;
+        }
+        return match;
+    });
+    
+    // Process RedNote (Xiaohongshu) URLs
+    const rednoteRegex = /(?:https?:\/\/)?(?:www\.)?(?:xiaohongshu\.com\/explore\/|xhslink\.com\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
+    processedUrl = processedUrl.replace(rednoteRegex, (match) => {
+        const videoId = extractRedNoteVideoId(match);
+        if (videoId) {
+            return `<div class="video-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0;">
+                <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                        src="${match}" 
+                        frameborder="0" 
+                        allowfullscreen
+                        scrolling="no">
+                </iframe>
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 8px; background: rgba(255,255,255,0.9); text-align: center;">
+                    <a href="${match}" target="_blank" style="color: #ff2442; text-decoration: none; font-size: 12px;">View on RedNote</a>
+                </div>
+            </div>`;
+        }
+        return match;
+    });
+    
+    // Check if the URL was actually processed (video embed created)
+    // If not, it means it's a non-video link, so create a link preview instead
+    const isVideoEmbed = processedUrl.includes('video-embed-container') || 
+                        processedUrl.includes('tiktok-embed') ||
+                        processedUrl.includes('iframe');
+    
+    if (!isVideoEmbed && urlLine) {
+        // It's a link but not a recognized video, create compact link preview
+        try {
+            const urlObj = new URL(urlLine);
+            const domain = urlObj.hostname.replace('www.', '');
+            return escapedDescription + createLinkPreview(urlLine, domain, '');
+        } catch (e) {
+            // Invalid URL, just return escaped content
+            return escapedDescription + escapeHtml(urlLine);
+        }
+    }
+    
+    // Return description + embed (description above the video)
+    return escapedDescription + processedUrl;
+}
+
+// Helper function to create a compact link preview (for non-video links)
+function createLinkPreview(url, domain, description) {
+    // Extract title from description or use domain
+    const title = description ? description.split('\n')[0].substring(0, 100) : domain;
+    const fullDescription = description ? description.substring(title.length).trim() : '';
+    
+    return `
+        <div class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
+             onclick="event.stopPropagation(); window.open('${escapeHtml(url)}', '_blank')" 
+             onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
+             onmouseout="this.style.boxShadow='none'">
+            <div style="padding: 12px; display: flex; align-items: center; color: #666; flex-shrink: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                </svg>
+            </div>
+            <div style="flex: 1; padding: 12px; padding-left: 0; min-width: 0;">
+                <div style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                    ${escapeHtml(title)}
+                </div>
+                ${fullDescription ? `
+                    <div style="font-size: 0.9em; color: #666; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                        ${escapeHtml(fullDescription.substring(0, 150))}${fullDescription.length > 150 ? '...' : ''}
+                    </div>
+                ` : ''}
+                <div style="font-size: 0.85em; color: #999; margin-top: 4px;">
+                    ${escapeHtml(domain)}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Keep backward compatibility
+function processYouTubeLinks(content) {
+    return processVideoLinks(content);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is logged in
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
@@ -427,7 +679,11 @@ function renderPosts(posts) {
                         <div class="post-header">
                             <div class="post-header-left">
                                 ${post.is_pinned ? '<span class="post-pinned"><i class="fas fa-thumbtack"></i> pinned</span>' : ''}
-                                <span class="post-author">${escapeHtml(post.author_name || post.author_username)}</span>
+                                ${post.author_id ? `
+                                    <span class="post-author" onclick="event.stopPropagation(); window.location.href = '/profile/' + ${post.author_id};" style="cursor: pointer;">${escapeHtml(post.author_name || post.author_username)}</span>
+                                ` : `
+                                    <span class="post-author">${escapeHtml(post.author_name || post.author_username)}</span>
+                                `}
                                 <span class="post-time">${formatTime(post.created_at)}</span>
                                 ${post.is_edited ? '<span class="post-time">(edited)</span>' : ''}
                             </div>
@@ -475,10 +731,10 @@ function renderPosts(posts) {
                         </div>
                         ` : `
                         <div class="post-preview-text">
-                            ${post.content ? escapeHtml(post.content) : ''}
+                            ${post.content ? processYouTubeLinks(post.content) : ''}
                         </div>
                         `}
-                        ${post.attachments ? `
+                        ${post.attachments && post.post_type !== 'link' ? `
                             <div style="margin-top: 12px;">
                                 ${(() => {
                 try {
@@ -606,16 +862,20 @@ async function joinForum() {
 }
 
 async function toggleMute() {
-    const action = forumState.isMuted ? 'unmute_forum' : 'mute_forum';
+    const endpoint = forumState.isMuted ? 'unmute' : 'mute';
+    const forumId = forumState.forumId;
 
     try {
-        const response = await fetch(`../api/forum_endpoints.php?action=${action}`, {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch(`/api/forum/${forumId}/${endpoint}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                forum_id: forumState.forumId
-            })
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            credentials: 'include'
         });
 
         const data = await response.json();
@@ -623,6 +883,7 @@ async function toggleMute() {
         if (data.status === 200) {
             forumState.isMuted = !forumState.isMuted;
             renderForumHeader();
+            alert(data.message || `Forum ${forumState.isMuted ? 'muted' : 'unmuted'} successfully`);
         } else {
             showError(data.message || 'Failed to update mute status');
         }
@@ -723,10 +984,10 @@ async function renderPostDetail(post) {
             </div>
             
             <div class="post-detail-content">
-                ${escapeHtml(post.content)}
+                ${post.content ? processYouTubeLinks(post.content) : ''}
             </div>
             
-            ${post.attachments ? `
+            ${post.attachments && post.post_type !== 'link' ? `
                 <div style="margin-bottom: 20px;">
                     <strong>Attachments:</strong>
                     ${(() => {

@@ -25,6 +25,8 @@ class User extends Authenticatable
         'school',
         'class',
         'bio',
+        'chatbot_enabled',
+        'allow_friend_requests',
     ];
 
     protected $hidden = [
@@ -58,7 +60,7 @@ class User extends Authenticatable
 
     public function enrolledClassrooms()
     {
-        return $this->belongsToMany(Classroom::class, 'class_students', 'student_id', 'classroom_id')
+        return $this->belongsToMany(Classroom::class, 'class_student', 'student_id', 'classroom_id')
             ->withPivot('enrolled_at');
     }
 
@@ -86,7 +88,7 @@ class User extends Authenticatable
     // Friend relationships
     public function friends()
     {
-        return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
+        return $this->belongsToMany(User::class, 'friend', 'user_id', 'friend_id')
             ->wherePivot('status', 'accepted')
             ->withPivot('accepted_at')
             ->withTimestamps();
@@ -133,7 +135,7 @@ class User extends Authenticatable
 
     public function badges()
     {
-        return $this->belongsToMany(Badge::class, 'user_badges', 'user_id', 'badge_code', 'id', 'code')
+        return $this->belongsToMany(Badge::class, 'user_badge', 'user_id', 'badge_code', 'id', 'code')
             ->withTimestamps();
     }
 }

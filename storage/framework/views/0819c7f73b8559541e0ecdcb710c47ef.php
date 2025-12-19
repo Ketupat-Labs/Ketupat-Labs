@@ -38,7 +38,7 @@
                         <div>
                             <p class="text-sm font-medium text-gray-500"><?php echo e(__('Available Lessons')); ?></p>
                             <p class="text-2xl font-bold mt-1" style="color: #2454FF;">
-                                <?php echo e(\App\Models\Lesson::where('is_published', true)->count()); ?>
+                                <?php echo e(\App\Models\Lesson::where('is_published', true)->where('is_public', true)->count()); ?>
 
                             </p>
                         </div>
@@ -144,38 +144,57 @@
                         </h3>
 
                         <div class="space-y-6">
-                            <?php $__empty_1 = true; $__currentLoopData = $recentAssignments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $assignment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+
+                            <?php $__empty_1 = true; $__currentLoopData = $mixedTimeline ?? $recentAssignments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                                <?php
+                                    $isActivity = $item instanceof \App\Models\ActivityAssignment;
+                                    $entity = $isActivity ? $item->activity : $item->lesson;
+                                ?>
                                 <div class="flex group">
                                     <div class="flex flex-col items-center mr-4">
                                         <div
-                                            class="w-2.5 h-2.5 bg-[#2454FF] rounded-full mt-2 group-hover:ring-2 ring-blue-100 transition-all">
+                                            class="w-2.5 h-2.5 <?php echo e($isActivity ? 'bg-purple-600' : 'bg-[#2454FF]'); ?> rounded-full mt-2 group-hover:ring-2 <?php echo e($isActivity ? 'ring-purple-100' : 'ring-blue-100'); ?> transition-all">
                                         </div>
                                         <div class="w-px h-full bg-gray-100 my-1 group-last:hidden"></div>
                                     </div>
                                     <div class="flex-1 pb-6 mb-2 border-b border-gray-50 last:border-0 last:pb-0">
                                         <div class="flex justify-between items-start mb-1">
                                             <span
-                                                class="text-[10px] font-bold text-[#2454FF] uppercase tracking-wider bg-blue-50 px-1.5 py-0.5 rounded">
-                                                <?php echo e($assignment->classroom->subject); ?>
+                                                class="text-[10px] font-bold <?php echo e($isActivity ? 'text-purple-600 bg-purple-50' : 'text-[#2454FF] bg-blue-50'); ?> uppercase tracking-wider px-1.5 py-0.5 rounded">
+                                                <?php echo e($item->classroom ? $item->classroom->subject : 'Public'); ?>
 
                                             </span>
                                             <span class="text-xs text-gray-400">
-                                                <?php echo e($assignment->assigned_at ? \Carbon\Carbon::parse($assignment->assigned_at)->diffForHumans() : __('Recently')); ?>
+                                                <?php echo e($item->assigned_at ? \Carbon\Carbon::parse($item->assigned_at)->diffForHumans() : __('Recently')); ?>
 
                                             </span>
                                         </div>
                                         <h4 class="text-sm font-bold text-gray-800 hover:text-[#2454FF] transition mt-1">
-                                            <a
-                                                href="<?php echo e(route('lesson.show', $assignment->lesson)); ?>"><?php echo e($assignment->lesson->title); ?></a>
+                                            <?php if(!$isActivity): ?>
+                                                <a href="<?php echo e(route('lesson.show', $entity)); ?>"><?php echo e($entity->title); ?></a>
+                                            <?php else: ?>
+                                                <a href="<?php echo e(route('activities.show', $entity)); ?>"><?php echo e($entity->title); ?></a>
+                                                <span class="text-xs font-normal text-gray-500 ml-1">(<?php echo e($entity->suggested_duration); ?>)</span>
+                                            <?php endif; ?>
                                         </h4>
-                                        <a href="<?php echo e(route('lesson.show', $assignment->lesson)); ?>"
-                                            class="text-xs font-semibold text-gray-500 hover:text-[#2454FF] flex items-center mt-2">
-                                            <?php echo e(__('Start')); ?> <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9 5l7 7-7 7"></path>
-                                            </svg>
-                                        </a>
+                                        
+                                        <?php if(!$isActivity): ?>
+                                            <a href="<?php echo e(route('lesson.show', $entity)); ?>"
+                                                class="text-xs font-semibold text-gray-500 hover:text-[#2454FF] flex items-center mt-2">
+                                                <?php echo e(__('Start')); ?> <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M9 5l7 7-7 7"></path>
+                                                </svg>
+                                            </a>
+                                        <?php else: ?>
+                                             <div class="flex flex-col mt-1">
+                                                <span class="text-xs text-gray-500"><?php echo e($entity->type); ?></span>
+                                                <?php if($item->due_date): ?>
+                                                    <span class="text-xs text-red-500 font-medium">Due: <?php echo e(\Carbon\Carbon::parse($item->due_date)->format('d M Y')); ?></span>
+                                                <?php endif; ?>
+                                             </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
@@ -279,18 +298,7 @@
                 <!-- Column 3: Discovery -->
                 <div class="space-y-6">
                     <!-- Public Lessons -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-sm font-bold text-gray-800"><?php echo e(__('Public Lessons')); ?></h4>
-                            <a href="<?php echo e(route('lesson.index')); ?>"
-                                class="text-xs font-semibold text-[#2454FF] hover:underline"><?php echo e(__('View All')); ?></a>
-                        </div>
-                        <div class="space-y-3">
-                            @php
-                            $publicLessons = \App\Models\Lesson::where('is_published', true)->latest()->take(6)->get();
 
-                        </div>
-                    </div>
                 </div>
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>

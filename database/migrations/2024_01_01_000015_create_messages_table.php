@@ -8,9 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('messages', function (Blueprint $table) {
+        Schema::create('message', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_id')->constrained('conversations')->onDelete('cascade');
+            $table->foreignId('conversation_id')->constrained('conversation')->onDelete('cascade');
             $table->foreignId('sender_id')->constrained('user')->onDelete('cascade');
             $table->text('content');
             $table->enum('message_type', ['text', 'image', 'file', 'system'])->default('text');
@@ -25,7 +25,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('messages');
+        Schema::dropIfExists('message');
     }
 };
 

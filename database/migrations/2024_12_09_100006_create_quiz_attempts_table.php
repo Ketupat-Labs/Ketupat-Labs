@@ -8,8 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('quiz_attempts')) {
-            Schema::create('quiz_attempts', function (Blueprint $table) {
+        if (!Schema::hasTable('quiz_attempt')) {
+            Schema::create('quiz_attempt', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('user')->onDelete('cascade');
             $table->unsignedBigInteger('lesson_id')->nullable();
@@ -20,14 +20,14 @@ return new class extends Migration
             $table->boolean('submitted')->default(false);
             $table->timestamps();
 
-            $table->foreign('lesson_id')->references('id')->on('lessons')->onDelete('cascade');
+            $table->foreign('lesson_id')->references('id')->on('lesson')->onDelete('cascade');
             });
         }
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('quiz_attempts');
+        Schema::dropIfExists('quiz_attempt');
     }
 };
 

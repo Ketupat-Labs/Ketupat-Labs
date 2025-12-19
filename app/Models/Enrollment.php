@@ -9,6 +9,8 @@ class Enrollment extends Model
 {
     use HasFactory;
 
+    protected $table = 'enrollment';
+
     protected $fillable = ['user_id', 'lesson_id', 'status', 'progress'];
 
     public function user()

@@ -10,6 +10,8 @@ class Lesson extends Model
 {
     use HasFactory;
 
+    protected $table = 'lesson';
+
     public function enrollments()
     {
         return $this->hasMany(Enrollment::class);
@@ -44,7 +46,7 @@ class Lesson extends Model
 
     public function classrooms()
     {
-        return $this->belongsToMany(Classroom::class, 'lesson_assignments', 'lesson_id', 'classroom_id')
+        return $this->belongsToMany(Classroom::class, 'lesson_assignment', 'lesson_id', 'classroom_id')
             ->withPivot('type', 'assigned_at');
     }
 

@@ -10,7 +10,7 @@ class UserBadge extends Model
 {
     use HasFactory;
 
-    protected $table = 'user_badges';
+    protected $table = 'user_badge';
 
     protected $fillable = [
         'user_id',

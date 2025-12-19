@@ -10,6 +10,8 @@ class Submission extends Model
 {
     use HasFactory;
 
+    protected $table = 'submission';
+
     protected $fillable = [
         'user_id',
         'lesson_id',

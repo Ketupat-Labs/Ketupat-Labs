@@ -29,6 +29,22 @@ class FriendController extends Controller
             ], 400);
         }
 
+        // Check if target user allows friend requests
+        $targetUser = User::find($friendId);
+        if (!$targetUser) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        if (isset($targetUser->allow_friend_requests) && !$targetUser->allow_friend_requests) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'This user does not accept friend requests',
+            ], 403);
+        }
+
         // Check if already friends
         if ($user->isFriendWith($friendId)) {
             return response()->json([
@@ -163,7 +179,7 @@ class FriendController extends Controller
             return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
         }
 
-        $friends = DB::table('friends')
+        $friends = DB::table('friend')
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)->where('status', 'accepted');
             })
@@ -227,7 +243,7 @@ class FriendController extends Controller
         }
 
         // Get accepted friends
-        $friends = DB::table('friends')
+        $friends = DB::table('friend')
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)->where('status', 'accepted');
             })
@@ -243,7 +259,7 @@ class FriendController extends Controller
             ->values();
 
         // Get pending friend requests (received)
-        $pendingRequests = DB::table('friends')
+        $pendingRequests = DB::table('friend')
             ->where('friend_id', $user->id)
             ->where('status', 'pending')
             ->get()
@@ -254,7 +270,7 @@ class FriendController extends Controller
             ->values();
 
         // Get sent friend requests
-        $sentRequests = DB::table('friends')
+        $sentRequests = DB::table('friend')
             ->where('user_id', $user->id)
             ->where('status', 'pending')
             ->get()

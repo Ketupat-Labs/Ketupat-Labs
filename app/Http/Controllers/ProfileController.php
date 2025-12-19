@@ -155,8 +155,49 @@ class ProfileController extends Controller
             return redirect()->route('login');
         }
         
+        // Handle avatar upload
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+            
+            // Validate file
+            if ($file->isValid() && in_array($file->getClientOriginalExtension(), ['jpg', 'jpeg', 'png', 'gif'])) {
+                // Delete old avatar if exists
+                if ($user->avatar_url && file_exists(public_path($user->avatar_url))) {
+                    @unlink(public_path($user->avatar_url));
+                }
+                
+                // Generate directory path: uploads/avatars/YYYY/MM/
+                $directory = public_path('uploads/avatars/' . date('Y/m/'));
+                
+                // Create directory if it doesn't exist
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0755, true);
+                }
+                
+                // Generate unique filename
+                $filename = 'avatar_' . $user->id . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                
+                // Store file
+                $file->move($directory, $filename);
+                
+                // Generate URL path (relative to public directory)
+                $avatarUrl = '/uploads/avatars/' . date('Y/m/') . $filename;
+                
+                // Update user avatar_url
+                $user->avatar_url = $avatarUrl;
+            }
+        } elseif ($request->has('remove_avatar') && $request->remove_avatar) {
+            // Remove avatar
+            if ($user->avatar_url && file_exists(public_path($user->avatar_url))) {
+                @unlink(public_path($user->avatar_url));
+            }
+            $user->avatar_url = null;
+        }
+        
         // Only update allowed fields (email is excluded)
         $validated = $request->validated();
+        // Remove avatar from validated array as we handle it separately
+        unset($validated['avatar'], $validated['remove_avatar']);
         $user->fill($validated);
         $user->save();
 

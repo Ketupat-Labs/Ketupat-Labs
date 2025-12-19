@@ -14,6 +14,268 @@ let commentState = {
     totalCount: 0
 };
 
+// Mention state
+let mentionState = {
+    isActive: false,
+    searchTerm: '',
+    users: [],
+    selectedIndex: -1,
+    mentionStart: -1,
+    currentTextarea: null
+};
+
+// Helper function to extract YouTube video ID from URL
+function extractYouTubeVideoId(url) {
+    if (!url) return null;
+    
+    const patterns = [
+        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
+        /youtube\.com\/embed\/([^"&?\/\s]{11})/,
+        /youtube\.com\/v\/([^"&?\/\s]{11})/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to extract video ID from TikTok URL
+function extractTikTokVideoId(url) {
+    const patterns = [
+        /(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)/i,
+        /tiktok\.com\/.*\/video\/(\d+)/i
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to extract video ID from RedNote (Xiaohongshu) URL
+function extractRedNoteVideoId(url) {
+    const patterns = [
+        /xiaohongshu\.com\/explore\/([a-zA-Z0-9]+)/i,
+        /xhslink\.com\/([a-zA-Z0-9]+)/i
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+// Helper function to convert video URLs (YouTube, TikTok, RedNote, etc.) to embedded players
+function processVideoLinks(content) {
+    if (!content) return content;
+    
+    // Split content by newlines to separate URL from description
+    const lines = content.split('\n');
+    let urlLine = '';
+    let descriptionLines = [];
+    let urlLineIndex = -1;
+    let foundVideoUrl = false;
+    
+    // Find the first line that contains a video URL (YouTube, TikTok, RedNote, etc.)
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!foundVideoUrl && /(?:youtube\.com|youtu\.be|tiktok\.com|vm\.tiktok\.com|xiaohongshu\.com|xhslink\.com|vt\.tiktok\.com)/.test(line)) {
+            urlLine = line;
+            urlLineIndex = i;
+            foundVideoUrl = true;
+            // Get description from lines AFTER the URL (since link posts store URL first, then description)
+            // Skip empty lines immediately after URL (the '\n\n' separator)
+            let afterUrlLines = lines.slice(i + 1);
+            // Remove leading empty lines
+            while (afterUrlLines.length > 0 && afterUrlLines[0].trim() === '') {
+                afterUrlLines.shift();
+            }
+            descriptionLines = afterUrlLines;
+            break;
+        }
+    }
+    
+    // If no video URL found, check if there's a regular URL and create link preview
+    if (!foundVideoUrl) {
+        // Try to find any URL in the content
+        const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+        const urlMatch = content.match(urlRegex);
+        
+        if (urlMatch && urlMatch.length > 0) {
+            const firstUrl = urlMatch[0];
+            try {
+                const urlObj = new URL(firstUrl);
+                const domain = urlObj.hostname.replace('www.', '');
+                
+                // Extract description (everything after the URL)
+                const urlIndex = content.indexOf(firstUrl);
+                const description = content.substring(urlIndex + firstUrl.length).trim();
+                
+                // Create compact link preview
+                return createLinkPreview(firstUrl, domain, description);
+            } catch (e) {
+                // Invalid URL, just escape and return
+                return escapeHtml(content);
+            }
+        }
+        
+        // No URL found, just escape and return the content
+        return escapeHtml(content);
+    }
+    
+    // Process description - join lines and preserve paragraph breaks
+    const descriptionText = descriptionLines.join('\n').trim();
+    const escapedDescription = descriptionText 
+        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' + 
+          escapeHtml(descriptionText) + 
+          '</div>' 
+        : '';
+    
+    // Escape HTML to prevent XSS for the URL line
+    const escapedUrlLine = escapeHtml(urlLine);
+    let processedUrl = escapedUrlLine;
+    
+    // Process YouTube URLs
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&]t=(\d+[smh]?|[0-9]+m[0-9]+s)?)?[^\s<>"']*/gi;
+    processedUrl = processedUrl.replace(youtubeRegex, (match, videoId, startTime) => {
+        let timeInSeconds = null;
+        if (startTime) {
+            const cleanTime = startTime.toString().replace(/s$/, '');
+            if (cleanTime.includes('m')) {
+                const parts = cleanTime.match(/(\d+)m(?:(\d+))?/);
+                if (parts) {
+                    const minutes = parseInt(parts[1]) || 0;
+                    const seconds = parseInt(parts[2]) || 0;
+                    timeInSeconds = minutes * 60 + seconds;
+                }
+            } else {
+                timeInSeconds = parseInt(cleanTime) || null;
+            }
+        }
+        
+        const timeParam = timeInSeconds ? `?start=${timeInSeconds}` : '';
+        return `<div class="video-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden;">
+            <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                    src="https://www.youtube.com/embed/${videoId}${timeParam}" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+            </iframe>
+        </div>`;
+    });
+    
+    // Process TikTok URLs
+    const tiktokRegex = /(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
+    processedUrl = processedUrl.replace(tiktokRegex, (match) => {
+        const videoId = extractTikTokVideoId(match);
+        if (videoId) {
+            return `<div class="video-embed-container" style="position: relative; padding-bottom: 125%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden;">
+                <blockquote class="tiktok-embed" cite="${match}" data-video-id="${videoId}" style="max-width: 100%; min-width: 325px;">
+                    <section>
+                        <a href="${match}" target="_blank" title="@username">View on TikTok</a>
+                    </section>
+                </blockquote>
+                <script async src="https://www.tiktok.com/embed.js"></script>
+            </div>`;
+        }
+        return match;
+    });
+    
+    // Process RedNote (Xiaohongshu) URLs
+    const rednoteRegex = /(?:https?:\/\/)?(?:www\.)?(?:xiaohongshu\.com\/explore\/|xhslink\.com\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
+    processedUrl = processedUrl.replace(rednoteRegex, (match) => {
+        const videoId = extractRedNoteVideoId(match);
+        if (videoId) {
+            return `<div class="video-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0;">
+                <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                        src="${match}" 
+                        frameborder="0" 
+                        allowfullscreen
+                        scrolling="no">
+                </iframe>
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 8px; background: rgba(255,255,255,0.9); text-align: center;">
+                    <a href="${match}" target="_blank" style="color: #ff2442; text-decoration: none; font-size: 12px;">View on RedNote</a>
+                </div>
+            </div>`;
+        }
+        return match;
+    });
+    
+    // Check if the URL was actually processed (video embed created)
+    // If not, it means it's a non-video link, so create a link preview instead
+    const isVideoEmbed = processedUrl.includes('video-embed-container') || 
+                        processedUrl.includes('tiktok-embed') ||
+                        processedUrl.includes('iframe');
+    
+    if (!isVideoEmbed && urlLine) {
+        // It's a link but not a recognized video, create compact link preview
+        try {
+            const urlObj = new URL(urlLine);
+            const domain = urlObj.hostname.replace('www.', '');
+            return escapedDescription + createLinkPreview(urlLine, domain, '');
+        } catch (e) {
+            // Invalid URL, just return escaped content
+            return escapedDescription + escapeHtml(urlLine);
+        }
+    }
+    
+    // Return description + embed (description above the video)
+    return escapedDescription + processedUrl;
+}
+
+// Helper function to create a compact link preview (for non-video links)
+function createLinkPreview(url, domain, description) {
+    // Extract title from description or use domain
+    const title = description ? description.split('\n')[0].substring(0, 100) : domain;
+    const fullDescription = description ? description.substring(title.length).trim() : '';
+    
+    return `
+        <div class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
+             onclick="event.stopPropagation(); window.open('${escapeHtml(url)}', '_blank')" 
+             onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
+             onmouseout="this.style.boxShadow='none'">
+            <div style="padding: 12px; display: flex; align-items: center; color: #666; flex-shrink: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                </svg>
+            </div>
+            <div style="flex: 1; padding: 12px; padding-left: 0; min-width: 0;">
+                <div style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                    ${escapeHtml(title)}
+                </div>
+                ${fullDescription ? `
+                    <div style="font-size: 0.9em; color: #666; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                        ${escapeHtml(fullDescription.substring(0, 150))}${fullDescription.length > 150 ? '...' : ''}
+                    </div>
+                ` : ''}
+                <div style="font-size: 0.85em; color: #999; margin-top: 4px;">
+                    ${escapeHtml(domain)}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Keep backward compatibility
+function processYouTubeLinks(content) {
+    return processVideoLinks(content);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is logged in
     if (sessionStorage.getItem('userLoggedIn') !== 'true') {
@@ -21,9 +283,287 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Load current user avatar if not in sessionStorage
+    loadCurrentUserAvatar();
+    
     initEventListeners();
+    initMentionHandlers();
     loadPostDetail();
 });
+
+// Load current user avatar from API
+async function loadCurrentUserAvatar() {
+    if (sessionStorage.getItem('userAvatar')) {
+        return; // Already loaded
+    }
+    
+    try {
+        const response = await fetch('/api/auth/me', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            credentials: 'include',
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.status === 200 && data.data && data.data.avatar_url) {
+                sessionStorage.setItem('userAvatar', data.data.avatar_url);
+                // Update comment input avatar if page is loaded
+                updateCommentInputAvatar();
+            }
+        }
+    } catch (error) {
+        console.error('Error loading user avatar:', error);
+    }
+}
+
+// Update comment input avatar display
+function updateCommentInputAvatar() {
+    const avatarElements = document.querySelectorAll('.comment-input-avatar');
+    avatarElements.forEach(el => {
+        const avatarUrl = getCurrentUserAvatar();
+        const userName = sessionStorage.getItem('userName') || sessionStorage.getItem('userEmail') || 'User';
+        
+        if (avatarUrl) {
+            el.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(userName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+        } else {
+            el.innerHTML = getUserInitials(userName);
+        }
+    });
+}
+
+function initMentionHandlers() {
+    // Use event delegation for dynamically created textareas
+    document.addEventListener('input', handleMentionInput);
+    document.addEventListener('keydown', handleMentionKeydown);
+    document.addEventListener('click', handleMentionClickOutside);
+}
+
+function handleMentionInput(event) {
+    const textarea = event.target;
+    if (!textarea || !textarea.classList.contains('comment-input')) {
+        return;
+    }
+
+    const value = textarea.value;
+    const cursorPos = textarea.selectionStart;
+    
+    // Find @ symbol before cursor
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex === -1) {
+        hideMentionDropdown();
+        return;
+    }
+    
+    // Check if @ is part of a word (not a mention)
+    const charBefore = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+    if (/\w/.test(charBefore)) {
+        hideMentionDropdown();
+        return;
+    }
+    
+    // Get text after @
+    const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+    
+    // Check if there's a space or newline after @ (not a mention)
+    if (textAfterAt.includes(' ') || textAfterAt.includes('\n')) {
+        hideMentionDropdown();
+        return;
+    }
+    
+    // Show mention dropdown
+    mentionState.isActive = true;
+    mentionState.searchTerm = textAfterAt;
+    mentionState.mentionStart = lastAtIndex;
+    mentionState.currentTextarea = textarea;
+    mentionState.selectedIndex = -1;
+    
+    loadMentionableUsers(textAfterAt);
+}
+
+function handleMentionKeydown(event) {
+    if (!mentionState.isActive || !mentionState.currentTextarea) {
+        return;
+    }
+    
+    const dropdown = document.getElementById('mentionDropdown');
+    if (!dropdown) return;
+    
+    const items = dropdown.querySelectorAll('.mention-item');
+    if (items.length === 0) return;
+    
+    switch (event.key) {
+        case 'ArrowDown':
+            event.preventDefault();
+            mentionState.selectedIndex = Math.min(mentionState.selectedIndex + 1, items.length - 1);
+            updateMentionSelection();
+            break;
+        case 'ArrowUp':
+            event.preventDefault();
+            mentionState.selectedIndex = Math.max(mentionState.selectedIndex - 1, -1);
+            updateMentionSelection();
+            break;
+        case 'Enter':
+        case 'Tab':
+            event.preventDefault();
+            if (mentionState.selectedIndex >= 0 && items[mentionState.selectedIndex]) {
+                selectMention(items[mentionState.selectedIndex].dataset.userId, items[mentionState.selectedIndex].dataset.username);
+            }
+            break;
+        case 'Escape':
+            event.preventDefault();
+            hideMentionDropdown();
+            break;
+    }
+}
+
+function handleMentionClickOutside(event) {
+    const dropdown = document.getElementById('mentionDropdown');
+    if (dropdown && !dropdown.contains(event.target) && 
+        event.target !== mentionState.currentTextarea &&
+        !event.target.closest('.mention-dropdown')) {
+        hideMentionDropdown();
+    }
+}
+
+async function loadMentionableUsers(search = '') {
+    try {
+        const params = new URLSearchParams({
+            search: search,
+            limit: '20'
+        });
+        
+        const response = await fetch(`/api/mentions/users?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            credentials: 'include',
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 200) {
+            mentionState.users = data.data.users || [];
+            showMentionDropdown();
+        }
+    } catch (error) {
+        console.error('Error loading mentionable users:', error);
+        hideMentionDropdown();
+    }
+}
+
+function showMentionDropdown() {
+    if (!mentionState.currentTextarea) return;
+    
+    let dropdown = document.getElementById('mentionDropdown');
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.id = 'mentionDropdown';
+        dropdown.className = 'mention-dropdown';
+        document.body.appendChild(dropdown);
+    }
+    
+    // Position dropdown near textarea
+    const rect = mentionState.currentTextarea.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = `${rect.bottom + window.scrollY + 5}px`;
+    dropdown.style.left = `${rect.left + window.scrollX}px`;
+    dropdown.style.width = `${Math.min(rect.width, 300)}px`;
+    dropdown.style.maxHeight = '200px';
+    dropdown.style.overflowY = 'auto';
+    dropdown.style.zIndex = '10000';
+    
+    // Render users
+    if (mentionState.users.length === 0) {
+        dropdown.innerHTML = '<div class="mention-item" style="padding: 8px 12px; color: #65676b;">No users found</div>';
+    } else {
+        dropdown.innerHTML = mentionState.users.map((user, index) => `
+            <div class="mention-item ${index === mentionState.selectedIndex ? 'selected' : ''}" 
+                 data-user-id="${user.id}" 
+                 data-username="${escapeHtml(user.username)}"
+                 data-full-name="${escapeHtml(user.full_name)}"
+                 onclick="selectMention(${user.id}, '${escapeHtml(user.username)}')"
+                 style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f0f2f5;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0;">
+                    ${user.avatar_url ? `<img src="${escapeHtml(user.avatar_url)}" alt="${escapeHtml(user.full_name)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` : getUserInitials(user.full_name)}
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 600; font-size: 14px; color: #050505;">${escapeHtml(user.full_name)}</div>
+                    <div style="font-size: 12px; color: #65676b;">@${escapeHtml(user.username)}${user.is_friend ? ' • Friend' : ''}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    dropdown.style.display = 'block';
+    updateMentionSelection();
+}
+
+function updateMentionSelection() {
+    const dropdown = document.getElementById('mentionDropdown');
+    if (!dropdown) return;
+    
+    const items = dropdown.querySelectorAll('.mention-item');
+    items.forEach((item, index) => {
+        if (index === mentionState.selectedIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+function selectMention(userId, username) {
+    if (!mentionState.currentTextarea) return;
+    
+    const textarea = mentionState.currentTextarea;
+    const value = textarea.value;
+    const start = mentionState.mentionStart;
+    const cursorPos = textarea.selectionStart;
+    
+    // Replace @searchTerm with @username
+    const beforeMention = value.substring(0, start);
+    const afterMention = value.substring(cursorPos);
+    const newValue = beforeMention + '@' + username + ' ' + afterMention;
+    
+    textarea.value = newValue;
+    
+    // Set cursor position after the mention
+    const newCursorPos = start + username.length + 2; // +2 for @ and space
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+    
+    hideMentionDropdown();
+    
+    // Trigger input event to update any listeners
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function hideMentionDropdown() {
+    mentionState.isActive = false;
+    mentionState.searchTerm = '';
+    mentionState.selectedIndex = -1;
+    mentionState.mentionStart = -1;
+    mentionState.currentTextarea = null;
+    
+    const dropdown = document.getElementById('mentionDropdown');
+    if (dropdown) {
+        dropdown.style.display = 'none';
+    }
+}
 
 function initEventListeners() {
     const logoutBtn = document.getElementById('btnLogout');
@@ -106,6 +646,13 @@ async function loadPostDetail() {
         });
         
         if (!response.ok) {
+            if (response.status === 401) {
+                // User not authenticated, redirect to login
+                console.error('Unauthorized - redirecting to login');
+                sessionStorage.removeItem('userLoggedIn');
+                window.location.href = '/login';
+                return;
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
@@ -121,7 +668,12 @@ async function loadPostDetail() {
         }
     } catch (error) {
         console.error('Error loading post details:', error);
-        showError('Failed to load post');
+        if (error.message.includes('401')) {
+            sessionStorage.removeItem('userLoggedIn');
+            window.location.href = '/login';
+        } else {
+            showError('Failed to load post');
+        }
     }
 }
 
@@ -154,6 +706,13 @@ function renderPostDetail(post) {
                         <div>
                             <div class="post-community-info">
                                 <span class="post-community-name">${escapeHtml(forumName)}</span>
+                                ${post.author_name || post.author_username ? `
+                                    <span class="post-time">•</span>
+                                    <span class="post-author" onclick="event.stopPropagation(); if (${post.author_id || 'null'}) { window.location.href = '/profile/' + ${post.author_id}; }" style="cursor: pointer;">
+                                        ${escapeHtml(post.author_name || post.author_username)}
+                                    </span>
+                                ` : ''}
+                                <span class="post-time">•</span>
                                 <span class="post-time">${formatTime(post.created_at)}</span>
                             </div>
                         </div>
@@ -197,20 +756,84 @@ function renderPostDetail(post) {
                     <div class="post-tags" style="margin-top: 0; margin-bottom: 6px;">
                         ${(() => {
                 try {
-                    const tags = JSON.parse(post.tags);
+                    // Tags can be either an array (from API) or a JSON string
+                    let tags = post.tags;
+                    if (typeof tags === 'string') {
+                        tags = JSON.parse(tags);
+                    }
                     return Array.isArray(tags) ? tags : [];
                 } catch (e) {
                     return [];
                 }
             })().map(tag => `
-                            <span class="post-tag">${escapeHtml(tag)}</span>
+                            <span class="post-tag">#${escapeHtml(tag)}</span>
                         `).join('')}
                     </div>
                 ` : ''}
+                ${post.post_type === 'poll' && post.poll_options ? `
+                        <div class="post-poll-container" style="margin-top: 16px;">
+                            <div style="font-weight: 600; margin-bottom: 12px; color: #1c1c1c; font-size: 16px;">Poll Options:</div>
+                            ${(() => {
+                                try {
+                                    const pollOptions = typeof post.poll_options === 'string' 
+                                        ? JSON.parse(post.poll_options) 
+                                        : post.poll_options;
+                                    if (!Array.isArray(pollOptions)) return '';
+                                    
+                                    // Get user's vote if exists
+                                    const userVote = post.user_poll_vote || null;
+                                    
+                                    return pollOptions.map((option, idx) => {
+                                        const optionId = option.id || idx;
+                                        const optionText = option.option_text || option.text || option.option_text || '';
+                                        const voteCount = option.vote_count || 0;
+                                        const totalVotes = post.total_poll_votes || pollOptions.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
+                                        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+                                        const isVoted = userVote === optionId;
+                                        const hasVoted = userVote !== null;
+                                        const isClickable = !hasVoted;
+                                        
+                                        return `
+                                            <div class="poll-option-item" style="padding: 12px; margin: 8px 0; background: ${isVoted ? '#e3f2fd' : '#f5f5f5'}; border: 2px solid ${isVoted ? '#1877f2' : '#e0e0e0'}; border-radius: 8px; cursor: ${isClickable ? 'pointer' : 'default'}; transition: all 0.2s; opacity: ${isClickable ? '1' : '0.8'};" 
+                                                 ${isClickable ? `onclick="votePoll(${post.id}, ${optionId})"` : `onclick="event.stopPropagation();"`}
+                                                 ${isClickable ? `onmouseover="this.style.background='${isVoted ? '#bbdefb' : '#eeeeee'}'" onmouseout="this.style.background='${isVoted ? '#e3f2fd' : '#f5f5f5'}'"` : ''}>
+                                                <div style="display: flex; align-items: center; gap: 12px;">
+                                                    <div style="flex: 1;">
+                                                        <div style="font-weight: ${isVoted ? '600' : '500'}; color: #1c1c1c; margin-bottom: 4px;">${escapeHtml(optionText)}</div>
+                                                        ${totalVotes > 0 ? `
+                                                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                                                                <div style="flex: 1; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                                                                    <div style="height: 100%; width: ${percentage}%; background: ${isVoted ? '#1877f2' : '#9e9e9e'}; transition: width 0.3s;"></div>
+                                                                </div>
+                                                                <span style="font-size: 13px; color: #666; min-width: 60px; text-align: right;">${percentage}%</span>
+                                                            </div>
+                                                        ` : ''}
+                                                    </div>
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                        ${isVoted ? '<i class="fas fa-check-circle" style="color: #1877f2;"></i>' : ''}
+                                                        <span style="font-size: 14px; color: #666; min-width: 40px; text-align: right;">${voteCount} vote${voteCount !== 1 ? 's' : ''}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('');
+                                } catch (e) {
+                                    console.error('Error parsing poll options:', e);
+                                    return '';
+                                }
+                            })()}
+                            ${post.total_poll_votes > 0 ? `
+                                <div style="margin-top: ${post.user_poll_vote ? '8px' : '12px'}; padding-top: ${post.user_poll_vote ? '0' : '12px'}; ${post.user_poll_vote ? '' : 'border-top: 1px solid #e0e0e0;'} color: #666; font-size: 14px;">
+                                    Total votes: ${post.total_poll_votes}
+                                </div>
+                            ` : ''}
+                        </div>
+                        ` : `
                 <div class="post-detail-body">
-                    ${escapeHtml(post.content)}
+                    ${post.content ? processYouTubeLinks(post.content || '') : ''}
                 </div>
-                ${post.attachments ? `
+                `}
+                ${post.attachments && post.post_type !== 'link' ? `
                     <div style="margin-bottom: 8px; margin-top: 8px;">
                         ${(() => {
                 try {
@@ -312,9 +935,9 @@ function renderPostDetail(post) {
                 <form id="commentForm" onsubmit="submitComment(event)">
                     <div class="comment-input-container">
                         <div class="comment-input-avatar">
-                            ${getCurrentUserInitials()}
+                            ${getCurrentUserAvatarHTML()}
                         </div>
-                        <div class="comment-input-wrapper">
+                        <div class="comment-input-wrapper" style="position: relative;">
                             <textarea id="commentInput" class="comment-input" placeholder="Add a comment..." required></textarea>
                             <button type="submit" class="comment-submit-btn">Comment</button>
                         </div>
@@ -382,7 +1005,7 @@ async function loadComments(postId, reset = false) {
             
             if (reset) {
                 commentState.comments = newComments;
-                } else {
+            } else {
                 // Append new comments to existing ones
                 commentState.comments = [...commentState.comments, ...newComments];
             }
@@ -393,9 +1016,19 @@ async function loadComments(postId, reset = false) {
             
             renderComments(commentState.comments);
             updateLoadMoreButton();
+        } else {
+            console.error('Failed to load comments:', data);
+            const container = document.getElementById('commentsContainer');
+            if (container) {
+                container.innerHTML = '<p style="color: #878a8c; text-align: center; padding: 20px;">Error loading comments</p>';
+            }
         }
     } catch (error) {
         console.error('Error loading comments:', error);
+        const container = document.getElementById('commentsContainer');
+        if (container) {
+            container.innerHTML = '<p style="color: #878a8c; text-align: center; padding: 20px;">Error loading comments. Please refresh the page.</p>';
+        }
     } finally {
         commentState.isLoading = false;
     }
@@ -438,7 +1071,10 @@ function sortCommentsWithReplies(comments, sortType) {
 
 function renderComments(comments) {
     const container = document.getElementById('commentsContainer');
-    if (!container) return;
+    if (!container) {
+        console.error('Comments container not found!');
+        return;
+    }
 
     if (!comments || comments.length === 0) {
         container.innerHTML = '<p style="color: #878a8c; text-align: center; padding: 20px;">No comments yet</p>';
@@ -591,18 +1227,24 @@ function renderCommentItem(comment, depth = 0, parentAuthor = null, isLastChild 
                     <!-- Comment Bubble -->
                     <div class="comment-bubble" style="background: #f0f2f5; border-radius: 18px; padding: 8px 12px; display: inline-block; max-width: 100%;">
                         <div class="comment-header-inline" style="display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px;">
-                            <span class="comment-author-name" style="font-size: 13px; font-weight: 600; color: #050505;">
-                        ${escapeHtml(comment.author_name || comment.author_username)}
-                    </span>
+                            ${comment.author_id ? `
+                                <span class="comment-author-name" onclick="event.stopPropagation(); window.location.href = '/profile/' + ${comment.author_id};" style="font-size: 13px; font-weight: 600; color: #050505; cursor: pointer;">
+                                    ${escapeHtml(comment.author_name || comment.author_username)}
+                                </span>
+                            ` : `
+                                <span class="comment-author-name" style="font-size: 13px; font-weight: 600; color: #050505;">
+                                    ${escapeHtml(comment.author_name || comment.author_username)}
+                                </span>
+                            `}
                         </div>
                         <div class="comment-body" id="commentBody_${comment.id}" style="font-size: 14px; color: #050505; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.38;">
                             ${comment.quoted_content && comment.quoted_author ? `
                                 <div style="background: #e4e6eb; border-left: 3px solid #1877f2; padding: 6px 10px; margin-bottom: 6px; border-radius: 4px; font-size: 13px;">
-                                    <span style="color: #1877f2; font-weight: 600;">@${escapeHtml(comment.quoted_author)}</span>
-                                    <div style="color: #65676b; margin-top: 4px; font-style: italic; max-height: 60px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(comment.quoted_content.length > 100 ? comment.quoted_content.substring(0, 100) + '...' : comment.quoted_content)}</div>
+                                    <span style="color: #1877f2; font-weight: 600; cursor: pointer;" onclick="event.stopPropagation(); searchUserProfile('${escapeHtml(comment.quoted_author)}'); return false;">@${escapeHtml(comment.quoted_author)}</span>
+                                    <div style="color: #65676b; margin-top: 4px; font-style: italic; max-height: 60px; overflow: hidden; text-overflow: ellipsis;">${formatCommentContent(comment.quoted_content.length > 100 ? comment.quoted_content.substring(0, 100) + '...' : comment.quoted_content)}</div>
                                 </div>
-                            ` : parentAuthor ? `<span style="color: #1877f2; font-weight: 600; font-size: 13px; margin-right: 4px;">@${escapeHtml(parentAuthor)}</span>` : ''}
-                            <span id="commentContent_${comment.id}">${formatCommentContent(comment.content)}</span>
+                            ` : parentAuthor ? `<span style="color: #1877f2; font-weight: 600; font-size: 13px; margin-right: 4px; cursor: pointer;" onclick="event.stopPropagation(); searchUserProfile('${escapeHtml(parentAuthor)}'); return false;">@${escapeHtml(parentAuthor)}</span>` : ''}
+                            <span id="commentContent_${comment.id}">${formatCommentContent(comment.content, comment.mentions)}</span>
                             ${comment.is_edited ? '<span style="font-style: italic; color: #65676b; margin-left: 4px; font-size: 12px;">(edited)</span>' : ''}
                         </div>
                     </div>
@@ -674,10 +1316,10 @@ function renderCommentItem(comment, depth = 0, parentAuthor = null, isLastChild 
                     <!-- Edit Form (hidden by default) -->
                     <div class="edit-comment-form" id="editForm_${comment.id}" style="display: none; margin-top: 8px;">
                         <div class="comment-input-container" style="display: flex; gap: 8px;">
-                            <div class="comment-input-avatar" style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px;">
-                        ${getCurrentUserInitials()}
+                            <div class="comment-input-avatar" style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; overflow: hidden;">
+                        ${getCurrentUserAvatarHTML()}
                     </div>
-                    <div class="comment-input-wrapper" style="flex: 1;">
+                    <div class="comment-input-wrapper" style="flex: 1; position: relative;">
                                 <textarea id="editInput_${comment.id}" class="comment-input" placeholder="Edit your comment..." style="width: 100%; padding: 8px 12px; border: 1px solid #ccd0d5; border-radius: 18px; font-size: 14px; font-family: inherit; resize: none; min-height: 36px; outline: none; background-color: #f0f2f5;" required>${escapeHtml(comment.content)}</textarea>
                         <div style="display: flex; gap: 8px; margin-top: 8px;">
                                     <button type="button" class="comment-submit-btn" onclick="event.stopPropagation(); saveCommentEdit(${comment.id})" style="padding: 6px 16px; font-size: 13px; background: #1877f2; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Save</button>
@@ -690,10 +1332,10 @@ function renderCommentItem(comment, depth = 0, parentAuthor = null, isLastChild 
             <!-- Reply Form (hidden by default) -->
                     <div class="reply-form-container" id="replyForm_${comment.id}" style="display: none; margin-top: 8px;">
                         <div class="comment-input-container" style="display: flex; gap: 8px;">
-                            <div class="comment-input-avatar" style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px;">
-                        ${getCurrentUserInitials()}
+                            <div class="comment-input-avatar" style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; overflow: hidden;">
+                        ${getCurrentUserAvatarHTML()}
                     </div>
-                    <div class="comment-input-wrapper" style="flex: 1;">
+                    <div class="comment-input-wrapper" style="flex: 1; position: relative;">
                                 <textarea id="replyInput_${comment.id}" class="comment-input" placeholder="Write a reply..." style="width: 100%; padding: 8px 12px; border: 1px solid #ccd0d5; border-radius: 18px; font-size: 14px; font-family: inherit; resize: none; min-height: 36px; outline: none; background-color: #f0f2f5;" required></textarea>
                         <div style="display: flex; gap: 8px; margin-top: 8px;">
                                     <button type="button" class="comment-submit-btn" onclick="event.stopPropagation(); submitReply(${comment.id}, ${postState.postId})" style="padding: 6px 16px; font-size: 13px; background: #1877f2; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Reply</button>
@@ -810,12 +1452,14 @@ async function submitComment(event) {
     }
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch('/api/forum/comment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
             },
             credentials: 'include',
             body: JSON.stringify({
@@ -828,9 +1472,11 @@ async function submitComment(event) {
 
         if (data.status === 200) {
             document.getElementById('commentInput').value = '';
+            // Reload comments to show the new comment
+            commentState.offset = 0;
             await loadComments(postState.postId, true);
         } else {
-            showError(data.message);
+            alert(data.message || 'Failed to post comment');
         }
     } catch (error) {
         console.error('Error posting comment:', error);
@@ -847,12 +1493,14 @@ async function submitReply(commentId, postId) {
     }
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch('/api/forum/comment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
             },
             credentials: 'include',
             body: JSON.stringify({
@@ -867,9 +1515,11 @@ async function submitReply(commentId, postId) {
         if (data.status === 200) {
             replyInput.value = '';
             toggleReplyForm(commentId); // Hide the form
-            await loadComments(postId);
+            // Reload comments to show the new reply
+            commentState.offset = 0;
+            await loadComments(postId, true);
         } else {
-            showError(data.message);
+            alert(data.message || 'Failed to post reply');
         }
     } catch (error) {
         console.error('Error posting reply:', error);
@@ -1034,6 +1684,20 @@ function getCurrentUserInitials() {
     return getUserInitials(userName);
 }
 
+function getCurrentUserAvatar() {
+    return sessionStorage.getItem('userAvatar') || null;
+}
+
+function getCurrentUserAvatarHTML() {
+    const avatarUrl = getCurrentUserAvatar();
+    const userName = sessionStorage.getItem('userName') || sessionStorage.getItem('userEmail') || 'User';
+    
+    if (avatarUrl) {
+        return `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(userName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+    }
+    return getUserInitials(userName);
+}
+
 function formatDate(dateString) {
     if (!dateString) return 'Unknown date';
     
@@ -1085,7 +1749,7 @@ function renderForumsToSidebar(forums) {
     if (!forums || forums.length === 0) {
         container.innerHTML = `
             <p style="padding: 12px; color: #878a8c; font-size: 14px;">
-                No forums yet. Create one to get started!
+                Tiada forum lagi. Cipta satu untuk bermula!
             </p>
         `;
         return;
@@ -1103,6 +1767,26 @@ function renderForumsToSidebar(forums) {
 async function loadTagsForForum() {
     if (!postState.post) return;
 
+    // First, try to show tags from the current post
+    if (postState.post.tags) {
+        try {
+            // Tags can be either an array (from API) or a JSON string
+            let tags = postState.post.tags;
+            if (typeof tags === 'string') {
+                tags = JSON.parse(tags);
+            }
+            
+            if (Array.isArray(tags) && tags.length > 0) {
+                // Show post tags in the sidebar
+                renderTagsToSidebar(tags);
+                return;
+            }
+        } catch (e) {
+            // If parsing fails, fall through to load popular tags
+        }
+    }
+
+    // If no post tags, load popular tags from the forum
     try {
         // Load tags dynamically from API
         const response = await fetch('/api/forum/tags?limit=20', {
@@ -1121,17 +1805,17 @@ async function loadTagsForForum() {
         
         const data = await response.json();
 
-        if (data.status === 200 && data.data && data.data.tags) {
+        if (data.status === 200 && data.data && data.data.tags && data.data.tags.length > 0) {
             const tags = data.data.tags.map(t => t.name).slice(0, 10);
             renderTagsToSidebar(tags);
         } else {
-            // Fallback: try to parse tags from the post
-            renderTagsFromPost();
+            // No tags available
+            renderTagsToSidebar([]);
         }
     } catch (error) {
         console.error('Error loading tags from API:', error);
-        // Fallback: try to parse tags from the post
-        renderTagsFromPost();
+        // Show empty state
+        renderTagsToSidebar([]);
     }
 }
 
@@ -1141,7 +1825,7 @@ function renderTagsToSidebar(tags) {
     if (!tags || tags.length === 0) {
         container.innerHTML = `
             <p style="padding: 8px 16px; color: #878a8c; font-size: 12px;">
-                No tags yet
+                Tiada tag lagi
             </p>
         `;
         return;
@@ -1158,7 +1842,7 @@ function renderTagsFromPost() {
     if (!postState.post || !postState.post.tags) {
         container.innerHTML = `
             <p style="padding: 8px 16px; color: #878a8c; font-size: 12px;">
-                No tags yet
+                Tiada tag lagi
             </p>
         `;
         return;
@@ -1170,7 +1854,7 @@ function renderTagsFromPost() {
         if (!Array.isArray(tags) || tags.length === 0) {
             container.innerHTML = `
                 <p style="padding: 8px 16px; color: #878a8c; font-size: 12px;">
-                    No tags yet
+                    Tiada tag lagi
                 </p>
             `;
             return;
@@ -1182,7 +1866,7 @@ function renderTagsFromPost() {
     } catch (e) {
         container.innerHTML = `
             <p style="padding: 8px 16px; color: #878a8c; font-size: 12px;">
-                No tags yet
+                Tiada tag lagi
             </p>
         `;
     }
@@ -1252,11 +1936,6 @@ function renderAboutCommunity(forum) {
                 <div class="forum-stat-label">POSTS</div>
             </div>
         </div>
-
-        <button class="btn-message-mods" style="margin-top: 16px; width: 100%;" onclick="messageMods()">
-            <i class="fas fa-comment"></i>
-            Message Mods
-        </button>
     `;
 }
 
@@ -1501,12 +2180,30 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Format comment content with basic text formatting
-function formatCommentContent(content) {
+// Format comment content with basic text formatting and mentions
+function formatCommentContent(content, mentions = null) {
     if (!content) return '';
     
     // Escape HTML first to prevent XSS
     let formatted = escapeHtml(content);
+    
+    // Process mentions first (before other formatting to avoid conflicts)
+    // Mentions format: @username
+    if (mentions && typeof mentions === 'object') {
+        // mentions is an object like { username: userId, ... }
+        Object.keys(mentions).forEach(username => {
+            const userId = mentions[username];
+            const mentionPattern = new RegExp(`@${escapeRegex(username)}(?![\\w@])`, 'g');
+            formatted = formatted.replace(mentionPattern, (match) => {
+                return `<a href="/profile/${userId}" class="mention-link" style="color: #1877f2; font-weight: 600; text-decoration: none; cursor: pointer;" onclick="event.stopPropagation(); window.location.href='/profile/${userId}'; return false;">${match}</a>`;
+            });
+        });
+    } else {
+        // Fallback: detect mentions without user IDs (will link to search)
+        formatted = formatted.replace(/@(\w+)/g, (match, username) => {
+            return `<span class="mention-link" style="color: #1877f2; font-weight: 600; cursor: pointer;" onclick="event.stopPropagation(); searchUserProfile('${username}'); return false;">${match}</span>`;
+        });
+    }
     
     // Convert markdown-style formatting to HTML
     // Bold: **text** or __text__
@@ -1517,14 +2214,18 @@ function formatCommentContent(content) {
     formatted = formatted.replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
     formatted = formatted.replace(/(?<!_)_([^_]+?)_(?!_)/g, '<em>$1</em>');
     
-    // Links: [text](url) or just URLs
-    formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #0079d3; text-decoration: underline;">$1</a>');
+    // Links: [text](url) or just URLs (but skip if already a mention link)
+    formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+        // Skip if this is inside a mention link
+        if (match.includes('mention-link')) return match;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #0079d3; text-decoration: underline;">${escapeHtml(text)}</a>`;
+    });
     
-    // Auto-detect URLs (http://, https://, www.)
+    // Auto-detect URLs (http://, https://, www.) - but skip if already a mention link
     const urlRegex = /(https?:\/\/[^\s<>]+|www\.[^\s<>]+)/g;
     formatted = formatted.replace(urlRegex, (url) => {
-        // Skip if already inside an <a> tag
-        if (url.includes('<a') || url.includes('</a>')) return url;
+        // Skip if already inside an <a> tag or mention link
+        if (url.includes('<a') || url.includes('</a>') || url.includes('mention-link')) return url;
         let href = url;
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
             href = 'https://' + url;
@@ -1536,6 +2237,39 @@ function formatCommentContent(content) {
     formatted = formatted.replace(/\n/g, '<br>');
     
     return formatted;
+}
+
+// Helper function to escape regex special characters
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Helper function to search for user profile by username
+async function searchUserProfile(username) {
+    try {
+        // Try to get user ID from username
+        const response = await fetch(`/api/user/search?username=${encodeURIComponent(username)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            credentials: 'include',
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.status === 200 && data.data && data.data.user_id) {
+                window.location.href = `/profile/${data.data.user_id}`;
+                return;
+            }
+        }
+    } catch (error) {
+        console.error('Error searching user:', error);
+    }
+    
+    // Fallback: show error or redirect to profile search
+    alert(`User @${username} not found`);
 }
 
 // Comment edit/delete functions
@@ -1953,12 +2687,64 @@ async function toggleHidePost(postId, hide) {
     }
 }
 
+// Vote on poll option
+async function votePoll(postId, optionId) {
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const response = await fetch('/api/forum/poll/vote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                post_id: postId,
+                option_id: optionId,
+            }),
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === 200) {
+            // Update post state with new poll data
+            if (postState.post && postState.post.id === postId) {
+                postState.post.poll_options = data.data.poll_options;
+                postState.post.user_poll_vote = data.data.user_poll_vote;
+                postState.post.total_poll_votes = data.data.total_poll_votes;
+                // Re-render the post
+                renderPostDetail(postState.post);
+            }
+        } else {
+            // Silently fail if user already voted (no error message shown)
+            if (data.status === 400 && data.message && data.message.includes('already voted')) {
+                // Just reload the post to get updated state
+                loadPostDetail();
+                return;
+            }
+            showError(data.message || 'Failed to vote');
+        }
+    } catch (error) {
+        console.error('Error voting on poll:', error);
+        showError('Failed to vote on poll');
+    }
+}
+
 // Make functions globally accessible
 window.openReportModal = openReportModal;
 window.closeReportModal = closeReportModal;
 window.submitReport = submitReport;
 window.toggleHidePost = toggleHidePost;
 window.goBackToReferrer = goBackToReferrer;
+window.selectMention = selectMention;
+window.searchUserProfile = searchUserProfile;
+window.votePoll = votePoll;
 
 
 

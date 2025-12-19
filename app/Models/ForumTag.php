@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ForumTag extends Model
 {
-    protected $table = 'forum_tags';
+    protected $table = 'forum_tag';
 
     protected $fillable = [
         'forum_id',

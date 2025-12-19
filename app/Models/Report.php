@@ -11,6 +11,8 @@ class Report extends Model
 {
     use HasFactory;
 
+    protected $table = 'report';
+
     protected $fillable = [
         'reporter_id',
         'reportable_type',

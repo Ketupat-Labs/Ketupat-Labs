@@ -780,7 +780,16 @@ body {
 }
 
 .post-author {
-    color: #787c7e;
+    transition: color 0.2s ease;
+    color: #0079d3;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.post-author:hover {
+    text-decoration: underline;
+    color: #005ba1;
 }
 
 .post-time {
@@ -1082,6 +1091,10 @@ body {
 }
 
 .form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--compuplay-blue);
+}
 
 /* Media Preview Styles */
 .post-media-container {

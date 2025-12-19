@@ -82,6 +82,7 @@ class ClassroomController extends Controller
             }
         }
 
+        // Group chat will be automatically created via model event
         Classroom::create([
             'teacher_id' => $user->id,
             'name' => $validated['name'],
@@ -106,8 +107,8 @@ class ClassroomController extends Controller
             abort(403);
         }
 
-        // Load students
-        $classroom->load('students');
+        // Load teacher and students with avatar_url
+        $classroom->load('teacher', 'students');
 
         // Load lessons with user's specific enrollment/status
         $classroom->load([
@@ -131,13 +132,16 @@ class ClassroomController extends Controller
         if ($isTeacher) {
             $availableStudents = \App\Models\User::where('role', 'student')
                 ->whereDoesntHave('enrolledClassrooms', function ($q) use ($classroom) {
-                    $q->where('classes.id', $classroom->id);
+                    $q->where('class.id', $classroom->id);
                 })
                 ->orderBy('full_name')
                 ->get();
         }
 
-        return view('classrooms.show', compact('classroom', 'availableStudents', 'user'));
+        // Check if forum exists for this classroom
+        $forum = \App\Models\Forum::where('class_id', $classroom->id)->first();
+
+        return view('classrooms.show', compact('classroom', 'availableStudents', 'user', 'forum'));
     }
 
     public function addStudent(Request $request, Classroom $classroom)
@@ -163,6 +167,27 @@ class ClassroomController extends Controller
         $classroom->students()->attach($student->id, [
             'enrolled_at' => now(),
         ]);
+
+        // Add student to forum if forum exists for this classroom
+        $forum = \App\Models\Forum::where('class_id', $classroom->id)->first();
+        if ($forum) {
+            // Check if student is already a member
+            if (!$forum->members()->where('user_id', $student->id)->exists()) {
+                $forum->members()->attach($student->id, ['role' => 'member']);
+                // Update member count
+                $forum->member_count = $forum->members()->count();
+                $forum->save();
+            }
+        }
+
+        // Add student to group chat if it exists for this classroom
+        $groupChat = $classroom->getClassroomGroupChat();
+        if ($groupChat) {
+            // Check if student is already a participant
+            if (!$groupChat->participants()->where('user_id', $student->id)->exists()) {
+                $groupChat->participants()->attach($student->id);
+            }
+        }
 
         // Backfill existing assignments for this student (US002-05 / US006-01)
         $assignments = $classroom->assignments; // Uses the new relationship
@@ -196,8 +221,86 @@ class ClassroomController extends Controller
         if (!$user || $user->role !== 'teacher' || $classroom->teacher_id !== $user->id)
             abort(403);
 
+        // Forum will be automatically deleted via model event
         $classroom->delete();
 
         return redirect()->route('classrooms.index')->with('success', 'Classroom deleted successfully.');
     }
+
+    /**
+     * Create forum for a classroom
+     */
+    public function createForum(Request $request, Classroom $classroom)
+    {
+        $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Check if user is the teacher of this classroom
+        if ($user->role !== 'teacher' || $classroom->teacher_id !== $user->id) {
+            return response()->json(['status' => 403, 'message' => 'Only the classroom teacher can create a forum'], 403);
+        }
+
+        // Check if forum already exists
+        $existingForum = \App\Models\Forum::where('class_id', $classroom->id)->first();
+        if ($existingForum) {
+            return response()->json([
+                'status' => 200,
+                'message' => 'Forum already exists',
+                'data' => ['forum_id' => $existingForum->id],
+            ]);
+        }
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Load students relationship to ensure all existing students are included
+            $classroom->load('students');
+            
+            // Create forum with class name + subject as title
+            $forumTitle = $classroom->name . ' ' . $classroom->subject;
+            
+            $forum = \App\Models\Forum::create([
+                'created_by' => $user->id,
+                'title' => $forumTitle,
+                'description' => '', // Blank description as requested
+                'category' => null,
+                'visibility' => 'class', // Visibility within the class
+                'class_id' => $classroom->id,
+                'member_count' => 1,
+                'post_count' => 0,
+            ]);
+
+            // Add teacher as admin member
+            $forum->members()->attach($user->id, ['role' => 'admin']);
+
+            // Add all existing classroom students as members
+            $students = $classroom->students;
+            foreach ($students as $student) {
+                // Check if student is already a member (to avoid duplicates)
+                if (!$forum->members()->where('user_id', $student->id)->exists()) {
+                    $forum->members()->attach($student->id, ['role' => 'member']);
+                }
+            }
+
+            // Update member count
+            $forum->member_count = $forum->members()->count();
+            $forum->save();
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Forum created successfully',
+                'data' => ['forum_id' => $forum->id],
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to create forum: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
 }

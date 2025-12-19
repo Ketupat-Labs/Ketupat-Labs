@@ -132,15 +132,25 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="agreeTerms" required>
-                                <span>Saya bersetuju dengan <a href="#">Terma & Syarat</a> dan <a href="#">Dasar Privasi</a></span>
+                        <!-- OTP Verification Section (hidden initially) -->
+                        <div class="form-group" id="otpVerificationSection" style="display: none;">
+                            <label for="registerOtp">
+                                <i class="fas fa-key"></i> Kod Pengesahan (OTP)
                             </label>
+                            <div class="otp-container">
+                                <input type="text" id="registerOtp" placeholder="Masukkan kod 6 digit" maxlength="6" pattern="[0-9]{6}">
+                                <button type="button" class="btn-resend-otp" id="resendOtpBtn" onclick="resendOtp()">
+                                    <i class="fas fa-redo"></i> Hantar Semula
+                                </button>
+                            </div>
+                            <p class="otp-help-text">Kod pengesahan telah dihantar ke emel anda. Sila semak peti masuk anda.</p>
                         </div>
 
-                        <button type="submit" class="btn-primary">
+                        <button type="submit" class="btn-primary" id="registerSubmitBtn">
                             <i class="fas fa-user-plus"></i> Daftar
+                        </button>
+                        <button type="button" class="btn-primary" id="verifyOtpBtn" style="display: none;" onclick="verifyOtp()">
+                            <i class="fas fa-check"></i> Sahkan Kod
                         </button>
                     </form>
 

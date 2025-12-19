@@ -112,31 +112,12 @@
                 <!-- Saved Posts Section -->
                 @if($isOwnProfile)
                     <div id="section-saved" class="section-content p-6">
-                        @if($savedPosts->count() > 0)
-                            <div class="space-y-4">
-                                @foreach($savedPosts as $post)
-                                    <div class="border-b border-gray-200 pb-4 last:border-b-0">
-                                        <div class="flex items-start justify-between">
-                                            <div class="flex-1">
-                                                <a href="{{ route('forum.post.detail', $post->id) }}" class="text-lg font-semibold text-blue-600 hover:text-blue-800">
-                                                    {{ $post->title }}
-                                                </a>
-                                                <p class="text-sm text-gray-600 mt-1">
-                                                    in <span class="font-medium">{{ $post->forum->title }}</span>
-                                                    <span class="mx-2">•</span>
-                                                    {{ $post->created_at->diffForHumans() }}
-                                                </p>
-                                                @if($post->content)
-                                                    <p class="text-gray-700 mt-2 line-clamp-2">{{ Str::limit(strip_tags($post->content), 150) }}</p>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
+                        <div id="savedPostsContent">
+                            <div class="text-center py-8">
+                                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                <p class="text-gray-500 mt-2">Loading saved posts...</p>
                             </div>
-                        @else
-                            <p class="text-gray-500 text-center py-8">No saved posts yet</p>
-                        @endif
+                        </div>
                     </div>
                 @endif
 
@@ -157,7 +138,9 @@
                                                 {{ $post->created_at->diffForHumans() }}
                                             </p>
                                             @if($post->content)
-                                                <p class="text-gray-700 mt-2 line-clamp-2">{{ Str::limit(strip_tags($post->content), 150) }}</p>
+                                                <div class="text-gray-700 mt-2 post-content-preview" data-content="{{ htmlspecialchars($post->content, ENT_QUOTES, 'UTF-8') }}">
+                                                    <p class="line-clamp-2">{{ Str::limit(strip_tags($post->content), 150) }}</p>
+                                                </div>
                                             @endif
                                         </div>
                                     </div>
@@ -287,144 +270,372 @@
         </div>
     </div>
 
+    <!-- Include Forum CSS for post styling -->
+    <link rel="stylesheet" href="{{ asset('Forum/CSS/forum.css') }}">
+    
+    <!-- Override forum.css global styles that affect the profile page -->
+    <style>
+        /* Reset forum.css global body styles that conflict with profile page */
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif !important;
+            background-color: #f9fafb !important;
+            color: #1f2937 !important;
+            line-height: 1.5 !important;
+        }
+        
+        /* Ensure the main layout structure is correct */
+        .min-h-screen {
+            display: block !important;
+        }
+        
+        .min-h-screen > div {
+            display: block !important;
+        }
+        
+        /* Ensure main content area is not affected by forum flex layouts */
+        main {
+            display: block !important;
+            width: 100% !important;
+        }
+        
+        /* Hide any sidebar elements that forum.css might create (only allow in saved posts) */
+        aside.reddit-sidebar:not(#savedPostsContent aside),
+        .reddit-sidebar:not(#savedPostsContent .reddit-sidebar),
+        .reddit-sidebar-right:not(#savedPostsContent .reddit-sidebar-right),
+        .reddit-container:not(#savedPostsContent .reddit-container),
+        .reddit-main:not(#savedPostsContent .reddit-main) {
+            display: none !important;
+        }
+        
+        /* Ensure profile page content container is properly sized */
+        .max-w-7xl {
+            width: 100% !important;
+            max-width: 1280px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding-left: 1.5rem !important;
+            padding-right: 1.5rem !important;
+        }
+        
+        /* Ensure navigation stays as top bar, not sidebar */
+        nav.bg-white {
+            position: relative !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        
+        /* Prevent forum.css from creating flex layouts that break profile page */
+        .min-h-screen,
+        .min-h-screen > div,
+        main {
+            flex-direction: column !important;
+        }
+        
+        /* Ensure responsive menu is hidden on desktop */
+        @media (min-width: 1024px) {
+            nav .hidden.lg\\:hidden {
+                display: none !important;
+            }
+        }
+    </style>
+    
+    <!-- Include Forum JS for post rendering functions -->
+    <script src="{{ asset('Forum/JS/forum.js') }}"></script>
+    <script src="{{ asset('assets/js/profile.js') }}"></script>
+    
     <script>
-        function showSection(sectionName) {
-            // Hide all sections
-            document.querySelectorAll('.section-content').forEach(section => {
-                section.classList.add('hidden');
-            });
+        // Load and render saved posts in forum format
+        async function loadSavedPosts() {
+            const container = document.getElementById('savedPostsContent');
+            if (!container) return;
             
-            // Remove active class from all tabs
-            document.querySelectorAll('.section-tab').forEach(tab => {
-                tab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                tab.classList.add('border-transparent', 'text-gray-500');
-            });
-            
-            // Show selected section
-            const section = document.getElementById('section-' + sectionName);
-            if (section) {
-                section.classList.remove('hidden');
-            }
-            
-            // Add active class to selected tab
-            const tab = document.getElementById('tab-' + sectionName);
-            if (tab) {
-                tab.classList.add('active', 'border-blue-500', 'text-blue-600');
-                tab.classList.remove('border-transparent', 'text-gray-500');
-            }
-        }
-
-        async function addFriend(friendId) {
             try {
-                const response = await fetch('/api/friends/add', {
-                    method: 'POST',
+                const response = await fetch('/api/forum/saved-posts', {
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
                     credentials: 'include',
-                    body: JSON.stringify({ friend_id: friendId })
                 });
-
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
-                if (data.status === 200) {
-                    alert('Friend request sent!');
-                    window.location.reload();
-                } else {
-                    alert(data.message || 'Failed to send friend request');
-                }
-            } catch (error) {
-                console.error('Error adding friend:', error);
-                alert('Failed to send friend request');
-            }
-        }
-
-        async function removeFriend(friendId) {
-            if (!confirm('Are you sure you want to remove this friend?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/friends/remove', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ friend_id: friendId })
-                });
-
-                const data = await response.json();
-                
-                if (data.status === 200) {
-                    alert('Friend removed');
-                    window.location.reload();
-                } else {
-                    alert(data.message || 'Failed to remove friend');
-                }
-            } catch (error) {
-                console.error('Error removing friend:', error);
-                alert('Failed to remove friend');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Profile Badge Filter Logic
-            let currentCategory = 'all';
-            let currentStatus = 'all';
-
-            const categoryBtns = document.querySelectorAll('#profileCategoryFilters .filter-btn');
-            const statusBtns = document.querySelectorAll('#profileStatusFilters .filter-btn');
-            const badgeItems = document.querySelectorAll('#profileBadgesGrid .badge-item');
-
-            function filterBadges() {
-                badgeItems.forEach(item => {
-                    const itemCategory = item.getAttribute('data-category');
-                    const itemStatus = item.getAttribute('data-status-type');
-
-                    const matchCategory = (currentCategory === 'all' || itemCategory === currentCategory);
-                    const matchStatus = (currentStatus === 'all' || itemStatus === currentStatus);
-
-                    if (matchCategory && matchStatus) {
-                        item.classList.remove('hidden');
+                if (data.status === 200 && data.data && data.data.posts) {
+                    const posts = data.data.posts;
+                    
+                    if (posts.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-8">
+                                <i class="fas fa-bookmark text-gray-400 text-4xl mb-4"></i>
+                                <p class="text-gray-500 text-lg">No saved posts yet</p>
+                                <p class="text-gray-400 text-sm mt-2">Posts you save will appear here</p>
+                            </div>
+                        `;
                     } else {
-                        item.classList.add('hidden');
+                        // Render posts using the same format as forum main page
+                        container.innerHTML = renderSavedPosts(posts);
                     }
-                });
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <p class="text-gray-500">Failed to load saved posts</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading saved posts:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-gray-500">Error loading saved posts</p>
+                    </div>
+                `;
             }
-
-            // Category Filter Events
-            categoryBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    categoryBtns.forEach(b => {
-                        b.classList.remove('active', 'border-blue-500', 'bg-blue-500', 'text-white');
-                        b.classList.add('border-gray-300', 'text-gray-600', 'bg-white');
-                    });
-                    this.classList.remove('border-gray-300', 'text-gray-600', 'bg-white');
-                    this.classList.add('active', 'border-blue-500', 'bg-blue-500', 'text-white');
-                    currentCategory = this.getAttribute('data-filter');
-                    filterBadges();
-                });
+        }
+        
+        // Render saved posts in the same format as forum main page
+        function renderSavedPosts(posts) {
+            if (posts.length === 0) {
+                return `
+                    <div class="text-center py-8">
+                        <i class="fas fa-bookmark text-gray-400 text-4xl mb-4"></i>
+                        <p class="text-gray-500 text-lg">No saved posts yet</p>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="reddit-content">
+                    ${posts.map(post => `
+                        <div class="reddit-post-card" onclick="if(typeof openPost === 'function') { openPost(${post.id}); } else { window.location.href='/forum/post/${post.id}'; }">
+                            <div class="post-content-section">
+                                <div class="post-header">
+                                    <div class="post-header-left">
+                                        <span class="post-community">${escapeHtml(post.forum_name || 'Forum')}</span>
+                                        <span class="post-time">•</span>
+                                        <span class="post-time">${formatTime(post.created_at)}</span>
+                                        ${post.is_pinned ? '<span class="post-pinned"><i class="fas fa-thumbtack"></i> disematkan</span>' : ''}
+                                    </div>
+                                </div>
+                                <div class="post-title">
+                                    ${escapeHtml(post.title)}
+                                </div>
+                                ${post.post_type === 'poll' && post.poll_options ? `
+                                <div class="post-preview-text" style="margin-top: 12px;">
+                                    <div style="font-weight: 600; margin-bottom: 8px; color: #666;">Poll Options:</div>
+                                    ${post.poll_options.map((option, idx) => `
+                                        <div style="padding: 8px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; display: flex; align-items: center; gap: 8px;">
+                                            <span style="font-weight: 600; color: #ff4500;">${idx + 1}.</span>
+                                            <span>${escapeHtml(option.text)}</span>
+                                            ${option.vote_count > 0 ? `<span style="margin-left: auto; color: #666; font-size: 0.9em;">${option.vote_count} vote${option.vote_count !== 1 ? 's' : ''}</span>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ` : `
+                                <div class="post-preview-text">
+                                    ${post.content ? (typeof processVideoLinks === 'function' ? processVideoLinks(post.content) : escapeHtml(post.content)) : ''}
+                                </div>
+                                `}
+                                ${post.attachments && post.attachments.length > 0 && post.post_type !== 'link' ? `
+                                    <div style="margin-top: 12px;">
+                                        ${(() => {
+                                            try {
+                                                const attachments = Array.isArray(post.attachments) ? post.attachments : [];
+                                                if (attachments.length === 0) return '';
+                                                
+                                                const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                                                const imageAttachments = [];
+                                                const otherAttachments = [];
+                                                
+                                                attachments.forEach(att => {
+                                                    const ext = (att.name || '').split('.').pop().toLowerCase();
+                                                    if (imageExts.includes(ext)) {
+                                                        imageAttachments.push(att);
+                                                    } else {
+                                                        otherAttachments.push(att);
+                                                    }
+                                                });
+                                                
+                                                let html = '';
+                                                
+                                                if (imageAttachments.length > 0) {
+                                                    html += '<div class="post-image-preview" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">';
+                                                    imageAttachments.forEach(att => {
+                                                        const normalizedUrl = (typeof normalizeFileUrl === 'function' ? normalizeFileUrl(att.url) : (att.url.startsWith('/') ? att.url : '/' + att.url));
+                                                        html += `
+                                                            <div style="position: relative; max-width: 300px; max-height: 300px;">
+                                                                <img src="${normalizedUrl}" alt="${escapeHtml(att.name)}" 
+                                                                     style="max-width: 100%; max-height: 300px; object-fit: contain; border-radius: 4px; cursor: pointer;" 
+                                                                     onclick="event.stopPropagation(); window.open('${normalizedUrl}', '_blank');"
+                                                                     onerror="this.style.display='none';">
+                                                            </div>
+                                                        `;
+                                                    });
+                                                    html += '</div>';
+                                                }
+                                                
+                                                if (otherAttachments.length > 0) {
+                                                    html += '<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">';
+                                                    otherAttachments.forEach(att => {
+                                                        const normalizedUrl = (typeof normalizeFileUrl === 'function' ? normalizeFileUrl(att.url) : (att.url.startsWith('/') ? att.url : '/' + att.url));
+                                                        const fileIcon = (typeof getFileIcon === 'function' ? getFileIcon(att.name) : 'fa-file');
+                                                        html += `
+                                                            <a href="${normalizedUrl}" target="_blank" class="attachment-file" onclick="event.stopPropagation();">
+                                                                <i class="fas ${fileIcon}"></i>
+                                                                ${escapeHtml(att.name)}
+                                                            </a>
+                                                        `;
+                                                    });
+                                                    html += '</div>';
+                                                }
+                                                
+                                                return html;
+                                            } catch (e) {
+                                                return '';
+                                            }
+                                        })()}
+                                    </div>
+                                ` : ''}
+                                ${post.tags && post.tags.length > 0 ? `
+                                    <div class="post-tags" style="margin-top: 8px;">
+                                        ${post.tags.map(tag => `
+                                            <span class="post-tag">#${escapeHtml(tag)}</span>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                                <div class="post-footer">
+                                    <button class="post-footer-btn vote-btn-inline ${post.user_reacted ? 'active' : ''}" onclick="event.stopPropagation(); if(typeof toggleReaction === 'function') { toggleReaction(${post.id}); } else { window.location.href='/forum/post/${post.id}'; }">
+                                        <i class="${post.user_reacted ? 'fas' : 'far'} fa-heart"></i>
+                                        ${post.reaction_count || 0}
+                                    </button>
+                                    <button class="post-footer-btn" onclick="event.stopPropagation(); if(typeof openPost === 'function') { openPost(${post.id}); } else { window.location.href='/forum/post/${post.id}'; }">
+                                        <i class="far fa-comment"></i>
+                                        ${post.reply_count || 0} Comments
+                                    </button>
+                                    <button class="post-footer-btn ${post.is_bookmarked ? 'active' : ''}" onclick="event.stopPropagation(); toggleSavedPostBookmark(${post.id})">
+                                        <i class="${post.is_bookmarked ? 'fas' : 'far'} fa-bookmark"></i>
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // Helper functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatTime(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString();
+        }
+        
+        function toggleSavedPostBookmark(postId) {
+            fetch('/api/forum/bookmark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                credentials: 'include',
+                body: JSON.stringify({ post_id: postId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 200) {
+                    loadSavedPosts(); // Reload saved posts
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling bookmark:', error);
             });
-
-            // Status Filter Events
-            statusBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    statusBtns.forEach(b => {
-                        b.classList.remove('active', 'border-blue-500', 'bg-blue-500', 'text-white');
-                        b.classList.add('border-gray-300', 'text-gray-600', 'bg-white');
-                    });
-                    this.classList.remove('border-gray-300', 'text-gray-600', 'bg-white');
-                    this.classList.add('active', 'border-blue-500', 'bg-blue-500', 'text-white');
-                    currentStatus = this.getAttribute('data-filter');
-                    filterBadges();
+        }
+        
+        // Load saved posts when the saved section is shown
+        let savedPostsLoaded = false;
+        const originalShowSection = window.showSection;
+        window.showSection = function(sectionName) {
+            if (typeof originalShowSection === 'function') {
+                originalShowSection(sectionName);
+            } else {
+                // Fallback implementation
+                document.querySelectorAll('.section-content').forEach(section => {
+                    section.classList.add('hidden');
                 });
+                document.querySelectorAll('.section-tab').forEach(tab => {
+                    tab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                    tab.classList.add('border-transparent', 'text-gray-500');
+                });
+                const section = document.getElementById('section-' + sectionName);
+                if (section) {
+                    section.classList.remove('hidden');
+                }
+                const tab = document.getElementById('tab-' + sectionName);
+                if (tab) {
+                    tab.classList.add('active', 'border-blue-500', 'text-blue-600');
+                    tab.classList.remove('border-transparent', 'text-gray-500');
+                }
+            }
+            
+            // Load saved posts when saved section is shown
+            if (sectionName === 'saved' && !savedPostsLoaded) {
+                savedPostsLoaded = true;
+                loadSavedPosts();
+            }
+        };
+        
+        // Load saved posts on page load if saved section is active
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedSection = document.getElementById('section-saved');
+            if (savedSection && !savedSection.classList.contains('hidden')) {
+                loadSavedPosts();
+                savedPostsLoaded = true;
+            }
+            
+            // Ensure responsive menu is closed on profile page
+            const responsiveMenu = document.querySelector('nav [x-data]');
+            if (responsiveMenu && window.Alpine) {
+                // Close any open responsive menu
+                const menuDiv = document.querySelector('nav .hidden.lg\\:hidden');
+                if (menuDiv) {
+                    menuDiv.classList.add('hidden');
+                }
+            }
+            
+            // Remove any sidebar elements that might have been created
+            const sidebars = document.querySelectorAll('aside.reddit-sidebar:not(#savedPostsContent aside)');
+            sidebars.forEach(sidebar => sidebar.remove());
+            
+            const redditContainers = document.querySelectorAll('.reddit-container:not(#savedPostsContent .reddit-container)');
+            redditContainers.forEach(container => {
+                if (!container.closest('#savedPostsContent')) {
+                    container.remove();
+                }
             });
         });
     </script>

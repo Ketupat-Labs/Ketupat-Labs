@@ -8,9 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('conversation_participants', function (Blueprint $table) {
+        Schema::create('conversation_participant', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_id')->constrained('conversations')->onDelete('cascade');
+            $table->foreignId('conversation_id')->constrained('conversation')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('user')->onDelete('cascade');
             $table->boolean('is_archived')->default(false);
             $table->timestamps();
@@ -22,7 +22,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('conversation_participants');
+        Schema::dropIfExists('conversation_participant');
     }
 };
 

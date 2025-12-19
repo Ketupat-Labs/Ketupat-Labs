@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Conversation extends Model
 {
-    protected $table = 'conversations';
+    protected $table = 'conversation';
 
     protected $fillable = [
         'type',
@@ -29,8 +29,8 @@ class Conversation extends Model
 
     public function participants(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'conversation_participants', 'conversation_id', 'user_id')
-            ->withPivot('is_archived')
+        return $this->belongsToMany(User::class, 'conversation_participant', 'conversation_id', 'user_id')
+            ->withPivot('is_archived', 'last_read_at')
             ->withTimestamps();
     }
 

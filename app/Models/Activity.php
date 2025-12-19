@@ -11,6 +11,8 @@ class Activity extends Model
 {
     use HasFactory;
 
+    protected $table = 'activity';
+
     protected $fillable = [
         'teacher_id',
         'title',
