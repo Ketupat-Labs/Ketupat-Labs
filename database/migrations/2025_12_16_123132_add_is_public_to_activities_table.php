@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('activity_assignments', function (Blueprint $table) {
-            $table->dateTime('due_date')->nullable()->after('status');
-            $table->text('notes')->nullable()->after('due_date');
+        Schema::table('activities', function (Blueprint $table) {
+            $table->boolean('is_public')->default(false);
         });
     }
 
@@ -22,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('activity_assignments', function (Blueprint $table) {
-            $table->dropColumn(['due_date', 'notes']);
+        Schema::table('activities', function (Blueprint $table) {
+            $table->dropColumn('is_public');
         });
     }
 };

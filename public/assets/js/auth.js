@@ -4,13 +4,13 @@ let currentRole = 'cikgu';
 // Switch between roles
 function switchRole(role) {
     currentRole = role;
-    
+
     // Update tab buttons
     document.querySelectorAll('.role-tab').forEach(tab => {
         tab.classList.remove('active');
     });
     document.querySelector(`[data-role="${role}"]`).classList.add('active');
-    
+
     // Update form placeholders or labels if needed
     updateFormForRole(role);
 }
@@ -26,7 +26,7 @@ function updateFormForRole(role) {
 function togglePassword(inputId, iconId) {
     const passwordInput = document.getElementById(inputId);
     const passwordIcon = document.getElementById(iconId);
-    
+
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         passwordIcon.classList.remove('fa-eye');
@@ -42,7 +42,7 @@ function togglePassword(inputId, iconId) {
 function switchToRegister() {
     document.getElementById('loginForm').classList.remove('active');
     document.getElementById('registerForm').classList.add('active');
-    
+
     // Clear any error messages
     hideMessage('loginError');
     hideMessage('registerError');
@@ -53,7 +53,7 @@ function switchToRegister() {
 function switchToLogin() {
     document.getElementById('registerForm').classList.remove('active');
     document.getElementById('loginForm').classList.add('active');
-    
+
     // Clear any error messages
     hideMessage('loginError');
     hideMessage('registerError');
@@ -87,45 +87,45 @@ function hideMessage(elementId) {
 }
 
 // Login Form Handler
-document.getElementById('loginFormElement').addEventListener('submit', async function(e) {
+document.getElementById('loginFormElement').addEventListener('submit', async function (e) {
     e.preventDefault();
-    
+
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const rememberMe = document.getElementById('rememberMe').checked;
-    
+
     // Hide previous errors
     hideMessage('loginError');
-    
+
     // Basic validation
     if (!email || !password) {
         showError('loginError', 'Sila isi semua medan yang diperlukan');
         return;
     }
-    
+
     try {
         // Show loading state
         const submitButton = document.querySelector('#loginFormElement button[type="submit"]');
         const originalButtonText = submitButton.innerHTML;
         submitButton.disabled = true;
         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
-        
+
         const { response, data } = await apiPost(API_ENDPOINTS.login, {
-            email, 
-            password, 
+            email,
+            password,
             role: currentRole,
-            remember_me: rememberMe 
+            remember_me: rememberMe
         });
-        
-        console.log('Login response:', { 
+
+        console.log('Login response:', {
             response: {
-                status: response.status, 
+                status: response.status,
                 ok: response.ok,
                 statusText: response.statusText
-            }, 
-            data: data 
+            },
+            data: data
         });
-        
+
         // Check response - handle both success and error cases
         console.log('Login check:', {
             responseOk: response?.ok,
@@ -135,17 +135,17 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
             hasDataObject: data?.data ? Object.keys(data.data) : null,
             fullData: data
         });
-        
+
         // Success if HTTP status is 200 and JSON status is 200
         if (response && response.ok && data) {
             // Check for successful login - either status 200 or just successful HTTP response
             const isSuccess = (data.status === 200) || (response.status === 200 && !data.status);
-            
+
             if (isSuccess) {
                 // Get user data from response
                 const userData = data.data || data;
                 const userId = userData.user_id || userData.id;
-                
+
                 if (userId) {
                     // Store user session in sessionStorage
                     sessionStorage.setItem('userLoggedIn', 'true');
@@ -153,7 +153,7 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
                     sessionStorage.setItem('userRole', userData.role || currentRole);
                     sessionStorage.setItem('userName', userData.name || userData.full_name || email);
                     sessionStorage.setItem('userId', userId);
-                    
+
                     console.log('Login successful! User data stored in sessionStorage');
                     console.log('Stored data:', {
                         userId: userId,
@@ -161,17 +161,16 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
                         name: userData.name || userData.full_name,
                         role: userData.role || currentRole
                     });
-                    
-                    // Redirect to dashboard using form submission
-                    // This ensures SameSite='lax' cookies are sent properly
-                    // Form submissions are treated as top-level navigations
-                    console.log('Login successful! Redirecting to dashboard...');
-                    
+
+                    // Redirect to intended page or dashboard
+                    const redirectUrl = data.redirect_url || '/dashboard';
+                    console.log('Login successful! Redirecting to:', redirectUrl);
+
                     // Create a form and submit it to trigger a proper navigation
                     // This ensures cookies are sent with the request
                     const form = document.createElement('form');
                     form.method = 'GET';
-                    form.action = '/dashboard';
+                    form.action = redirectUrl;
                     form.style.display = 'none';
                     document.body.appendChild(form);
                     form.submit();
@@ -186,12 +185,12 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
                 }
             }
         }
-        
+
         // Handle error cases
         // Restore button
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonText;
-        
+
         const errorMessage = data?.message || 'Emel atau kata laluan tidak betul. Sila cuba lagi.';
         console.error('Login failed - showing error:', {
             errorMessage,
@@ -203,14 +202,14 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
         showError('loginError', errorMessage);
     } catch (error) {
         console.error('Login error:', error);
-        
+
         // Restore button
         const submitButton = document.querySelector('#loginFormElement button[type="submit"]');
         if (submitButton) {
             submitButton.disabled = false;
             submitButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Log Masuk';
         }
-        
+
         // Show more specific error messages
         if (error.response && error.response.status === 404) {
             showError('loginError', 'API endpoint tidak dijumpai. Sila pastikan server sedang berjalan.');
@@ -227,52 +226,52 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
 });
 
 // Registration Form Handler
-document.getElementById('registerFormElement').addEventListener('submit', async function(e) {
+document.getElementById('registerFormElement').addEventListener('submit', async function (e) {
     e.preventDefault();
-    
+
     const name = document.getElementById('registerName').value;
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('registerConfirmPassword').value;
     const agreeTerms = document.getElementById('agreeTerms').checked;
-    
+
     // Hide previous messages
     hideMessage('registerError');
     hideMessage('registerSuccess');
-    
+
     // Validation
     if (!name || !email || !password || !confirmPassword) {
         showError('registerError', 'Sila isi semua medan yang diperlukan');
         return;
     }
-    
+
     if (password.length < 8) {
         showError('registerError', 'Kata laluan mesti sekurang-kurangnya 8 aksara');
         return;
     }
-    
+
     if (password !== confirmPassword) {
         showError('registerError', 'Kata laluan tidak sepadan');
         return;
     }
-    
+
     if (!agreeTerms) {
         showError('registerError', 'Sila bersetuju dengan Terma & Syarat');
         return;
     }
-    
+
     try {
         const { response, data } = await apiPost(API_ENDPOINTS.register, {
-            name, 
-            email, 
-            password, 
-            role: currentRole 
+            name,
+            email,
+            password,
+            role: currentRole
         });
-        
+
         // Success if status is 200
         if (data.status === 200) {
             showSuccess('registerSuccess', 'Pendaftaran berjaya! Sila log masuk.');
-            
+
             // Store user info if available
             if (data.data) {
                 sessionStorage.setItem('userEmail', data.data.email || email);
@@ -282,10 +281,10 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
                     sessionStorage.setItem('userId', data.data.user_id);
                 }
             }
-            
+
             // Clear form
             document.getElementById('registerFormElement').reset();
-            
+
             // Switch to login after 2 seconds
             setTimeout(() => {
                 switchToLogin();
@@ -296,7 +295,7 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
         }
     } catch (error) {
         console.error('Registration error:', error);
-        
+
         // Show more specific error messages
         if (error.response && error.response.status === 404) {
             showError('registerError', 'API endpoint tidak dijumpai. Sila pastikan server sedang berjalan.');
@@ -320,7 +319,7 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
     if (window.location.pathname !== '/login' && !window.location.pathname.includes('/login')) {
         return;
     }
-    
+
     try {
         // Make a direct fetch call to avoid the error throwing in apiCall
         const response = await fetch(API_ENDPOINTS.me, {
@@ -332,9 +331,9 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
             },
             credentials: 'include',
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data) {
             // User is authenticated on server, redirect to dashboard
             sessionStorage.setItem('userLoggedIn', 'true');

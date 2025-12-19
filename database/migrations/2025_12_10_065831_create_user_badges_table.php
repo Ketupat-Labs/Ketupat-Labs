@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      */
@@ -15,12 +16,15 @@ return new class extends Migration {
                 $table->id();
                 $table->foreignId('user_id')->constrained('user')->onDelete('cascade');
                 $table->string('badge_code');
-                $table->string('badge_name')->nullable();
-                $table->string('badge_type')->nullable();
-                $table->timestamp('earned_at')->useCurrent();
+                $table->string('status')->default('locked'); // earned, locked, redeemed
+                $table->timestamp('earned_at')->nullable();
                 $table->timestamps();
-
+                
+                $table->index('user_id');
                 $table->index('badge_code');
+                
+                // Optional: Foreign key if you want to enforce referential integrity
+                // $table->foreign('badge_code')->references('code')->on('badges')->onDelete('cascade');
             });
         }
     }

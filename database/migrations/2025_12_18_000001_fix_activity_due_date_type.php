@@ -6,24 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('activity_assignments', function (Blueprint $table) {
-            $table->dateTime('due_date')->nullable()->after('status');
-            $table->text('notes')->nullable()->after('due_date');
+            $table->dateTime('due_date')->nullable()->change();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('activity_assignments', function (Blueprint $table) {
-            $table->dropColumn(['due_date', 'notes']);
+            $table->date('due_date')->nullable()->change();
         });
     }
 };

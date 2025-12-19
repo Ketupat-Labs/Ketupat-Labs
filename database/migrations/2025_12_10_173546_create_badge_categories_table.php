@@ -4,21 +4,24 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        Schema::create('badge_categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('code')->unique(); // Ensure unique code
-            $table->text('description')->nullable();
-            $table->string('icon')->nullable();
-            $table->string('color')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('badge_categories')) {
+            Schema::create('badge_categories', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('code')->unique(); // Changed from slug to code to match SQL
+                $table->text('description')->nullable();
+                $table->string('icon')->nullable();
+                $table->string('color')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**
