@@ -1,0 +1,29 @@
+{
+  "resources/css/block-editor.css": {
+    "file": "assets/block-editor-D0ghm9k3.css",
+    "src": "resources/css/block-editor.css",
+    "isEntry": true,
+    "name": "block-editor",
+    "names": [
+      "block-editor.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-BQ5URVbW.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "css": [
+      "assets/block-editor-D0ghm9k3.css"
+    ]
+  },
+  "resources/sass/app.scss": {
+    "file": "assets/app-CpEEPCb_.css",
+    "src": "resources/sass/app.scss",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  }
+}
