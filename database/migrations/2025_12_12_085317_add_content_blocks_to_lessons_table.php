@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('lessons', function (Blueprint $table) {
+        Schema::table('lesson', function (Blueprint $table) {
             // Add JSON column for block-based content after the existing content column
             $table->json('content_blocks')->nullable()->after('content');
         });
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('lessons', function (Blueprint $table) {
+        Schema::table('lesson', function (Blueprint $table) {
             $table->dropColumn('content_blocks');
         });
     }

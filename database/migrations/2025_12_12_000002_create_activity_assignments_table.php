@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('activity_assignments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('activity_id')->constrained()->onDelete('cascade');
-            $table->foreignId('classroom_id')->constrained('classes')->onDelete('cascade'); // classes table
+            $table->foreignId('activity_id')->constrained('activities')->onDelete('cascade');
+            $table->foreignId('classroom_id')->constrained('classes')->onDelete('cascade'); // classes table (renamed from classrooms in 12_10)
             $table->timestamp('assigned_at')->useCurrent();
             $table->string('status')->default('assigned');
             $table->timestamps();

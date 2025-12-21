@@ -10,7 +10,7 @@ return new class extends Migration {
         if (!Schema::hasTable('class_student')) {
             Schema::create('class_student', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('classroom_id')->constrained('class')->onDelete('cascade');
+            $table->foreignId('classroom_id')->constrained('classrooms')->onDelete('cascade');
             $table->foreignId('student_id')->constrained('user')->onDelete('cascade');
             $table->timestamp('enrolled_at')->nullable();
             $table->timestamps();

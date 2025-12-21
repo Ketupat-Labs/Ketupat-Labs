@@ -10,7 +10,7 @@ return new class extends Migration {
         if (!Schema::hasTable('lesson_assignment')) {
             Schema::create('lesson_assignment', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('classroom_id')->constrained('class')->onDelete('cascade');
+                $table->foreignId('classroom_id')->constrained('classrooms')->onDelete('cascade');
                 $table->foreignId('lesson_id')->constrained('lesson')->onDelete('cascade');
                 $table->string('type')->nullable();
                 $table->timestamp('assigned_at')->nullable();

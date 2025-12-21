@@ -1,0 +1,261 @@
+PHP Warning:  Module "openssl" is already loaded in Unknown on line 0
+
+Warning: Module "openssl" is already loaded in Unknown on line 0
+
+  Dropping all tables  694.04ms DONE
+
+   INFO  Preparing database.  
+
+  Creating migration table  25.08ms DONE
+
+   INFO  Running migrations.  
+
+  0001_01_01_000001_create_cache_table  40.69ms DONE
+  0001_01_01_000002_create_jobs_table  155.85ms DONE
+  2024_01_01_000001_create_sessions_table  76.24ms DONE
+  2024_01_01_000002_create_users_table  67.20ms DONE
+  2024_01_01_000003_create_forums_table  122.32ms DONE
+  2024_01_01_000004_create_forum_tags_table  117.41ms DONE
+  2024_01_01_000005_create_forum_posts_table  230.05ms DONE
+  2024_01_01_000006_create_post_attachments_table  114.42ms DONE
+  2024_01_01_000007_create_post_tags_table  97.97ms DONE
+  2024_01_01_000008_create_comments_table  406.68ms DONE
+  2024_01_01_000009_create_reactions_table  143.52ms DONE
+  2024_01_01_000010_create_saved_posts_table  225.76ms DONE
+  2024_01_01_000011_create_muted_users_table  279.46ms DONE
+  2024_01_01_000012_create_forum_members_table  261.47ms DONE
+  2024_01_01_000013_create_conversations_table  103.38ms DONE
+  2024_01_01_000014_create_conversation_participants_table  209.58ms DONE
+  2024_01_01_000015_create_messages_table  197.16ms DONE
+  2024_01_01_000016_create_notifications_table  149.13ms DONE
+  2024_01_02_000000_create_personal_access_tokens_table  61.80ms DONE
+  2024_12_09_100000_create_classrooms_table  114.21ms DONE
+  2024_12_09_100001_create_lessons_table  160.49ms DONE
+  2024_12_09_100002_create_enrollments_table  176.98ms DONE
+  2024_12_09_100003_create_lesson_assignments_table  192.39ms DONE
+  2024_12_09_100004_create_class_students_table  181.87ms DONE
+  2024_12_09_100005_create_submissions_table  196.17ms DONE
+  2024_12_09_100006_create_quiz_attempts_table  186.84ms DONE
+  2024_12_09_100007_create_students_table  53.60ms DONE
+  2024_12_09_100008_create_student_answers_table  200.39ms DONE
+  2024_12_09_100009_add_points_to_users_table  36.55ms DONE
+  2024_12_11_000001_create_ai_generated_content_table  199.39ms DONE
+  2025_12_09_211011_fix_class_students_table_structure  420.77ms DONE
+  2025_12_10_065817_add_profile_fields_to_users_table  60.82ms DONE
+  2025_12_10_065824_create_friends_table  272.28ms DONE
+  2025_12_10_065831_create_user_badges_table  146.39ms DONE
+  2025_12_10_092237_add_edit_fields_to_comments_table  36.62ms DONE
+  2025_12_10_093737_create_reports_table  223.21ms DONE
+  2025_12_10_093823_add_is_hidden_to_forum_posts_table  124.69ms DONE
+  2025_12_10_160000_rename_classrooms_to_classes  19.45ms DONE
+  2025_12_10_173546_create_badge_categories_table  34.92ms DONE
+  2025_12_10_173553_create_badges_table  159.24ms DONE
+  2025_12_11_035009_fix_forum_post_type_column  234.96ms DONE
+  2025_12_11_134025_create_document_table  19.68ms DONE
+  2025_12_12_000001_create_activities_table  101.85ms DONE
+  2025_12_12_000002_create_activity_assignments_table  187.42ms DONE
+  2025_12_12_000003_add_details_to_activity_assignments_table  24.89ms DONE
+  2025_12_12_085317_add_content_blocks_to_lessons_table  15.80ms DONE
+  2025_12_14_000000_add_completed_items_to_enrollments_table  10.01ms DONE
+  2025_12_16_000001_create_activity_submissions_table  212.54ms DONE
+  2025_12_16_110946_add_is_public_to_lessons_table  14.92ms DONE
+  2025_12_16_123132_add_is_public_to_activities_table  12.15ms DONE
+  2025_12_18_000001_fix_activity_due_date_type  5.41ms DONE
+  2025_12_18_123823_add_is_muted_to_forum_member_table  13.02ms DONE
+  2025_12_18_154434_add_settings_to_users_table  22.27ms DONE
+  2025_12_18_161806_add_attachment_type_to_post_attachments_table  16.19ms DONE
+  2025_12_19_074448_rename_plural_tables_to_singular  305.02ms DONE
+  2025_12_19_111953_add_last_read_at_to_conversation_participant_table  8.67ms DONE
+  2025_12_19_120055_add_is_public_to_activity_table  15.13ms DONE
+  2025_12_19_142421_create_email_verification_otp_table  46.34ms DONE
+  2025_12_19_143054_create_message_user_deleted_table  196.03ms DONE
+  2025_12_19_150901_rename_all_plural_tables_to_singular  125.71ms DONE
+  2025_12_20_094649_add_results_to_activity_submission_table  8.04ms DONE
+  2025_12_20_110710_drop_plural_duplicate_tables  3.52ms DONE
+  2025_12_20_181100_update_activity_submission_for_public_access  163.72ms DONE
+  2025_12_20_230000_ensure_singular_tables  2.24ms DONE
+  2025_12_20_231500_add_progress_to_user_badge  32.62ms DONE
+  2025_12_20_233000_add_status_to_user_badge_table  31.35ms DONE
+  2025_12_20_add_first_login_to_user_table  14.27ms DONE
+
+
+   INFO  Seeding database.  
+
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'name' in 'field list' (Connection: mysql, SQL: insert into `user` (`name`, `email`, `email_verified_at`, `password`, `remember_token`, `updated_at`, `created_at`) values (Test User, test@example.com, 2025-12-20 23:09:26, $2y$12$MwGvsWWoh79.wgUdBaK3Q.EGWM03xgFNPHcmbIIKZFefdxL3cOhgO, Mj7FMYM02X, 2025-12-20 23:09:26, 2025-12-20 23:09:26))
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:825
+    821Γûò                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822Γûò                 );
+    823Γûò             }
+    824Γûò 
+  Γ₧£ 825Γûò             throw new QueryException(
+    826Γûò                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827Γûò             );
+    828Γûò         }
+    829Γûò     }
+
+  1   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:47
+      PDOException::("SQLSTATE[42S22]: Column not found: 1054 Unknown column 'name' in 'field list'")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:47
+      PDO::prepare("insert into `user` (`name`, `email`, `email_verified_at`, `password`, `remember_token`, `updated_at`, `created_at`) values (?, ?, ?, ?, ?, ?, ?)")
+
+  3   vendor\laravel\framework\src\Illuminate\Database\Connection.php:812
+      Illuminate\Database\MySqlConnection::Illuminate\Database\{closure}("insert into `user` (`name`, `email`, `email_verified_at`, `password`, `remember_token`, `updated_at`, `created_at`) values (?, ?, ?, ?, ?, ?, ?)")
+
+  4   vendor\laravel\framework\src\Illuminate\Database\Connection.php:779
+      Illuminate\Database\Connection::runQueryCallback("insert into `user` (`name`, `email`, `email_verified_at`, `password`, `remember_token`, `updated_at`, `created_at`) values (?, ?, ?, ?, ?, ?, ?)", Object(Closure))
+
+  5   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:42
+      Illuminate\Database\Connection::run("insert into `user` (`name`, `email`, `email_verified_at`, `password`, `remember_token`, `updated_at`, `created_at`) values (?, ?, ?, ?, ?, ?, ?)", Object(Closure))
+
+  6   vendor\laravel\framework\src\Illuminate\Database\Query\Processors\MySqlProcessor.php:35
+      Illuminate\Database\MySqlConnection::insert("insert into `user` (`name`, `email`, `email_verified_at`, `password`, `remember_token`, `updated_at`, `created_at`) values (?, ?, ?, ?, ?, ?, ?)", "id")
+
+  7   vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3766
+      Illuminate\Database\Query\Processors\MySqlProcessor::processInsertGetId(Object(Illuminate\Database\Query\Builder), "insert into `user` (`name`, `email`, `email_verified_at`, `password`, `remember_token`, `updated_at`, `created_at`) values (?, ?, ?, ?, ?, ?, ?)", "id")
+
+  8   vendor\laravel\framework\src\Illuminate\Database\Eloquent\Builder.php:2120
+      Illuminate\Database\Query\Builder::insertGetId("id")
+
+  9   vendor\laravel\framework\src\Illuminate\Database\Eloquent\Model.php:1359
+      Illuminate\Database\Eloquent\Builder::__call("insertGetId")
+
+  10  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Model.php:1324
+      Illuminate\Database\Eloquent\Model::insertAndSetId(Object(Illuminate\Database\Eloquent\Builder))
+
+  11  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Model.php:1163
+      Illuminate\Database\Eloquent\Model::performInsert(Object(Illuminate\Database\Eloquent\Builder))
+
+  12  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Factories\Factory.php:352
+      Illuminate\Database\Eloquent\Model::save()
+
+  13  vendor\laravel\framework\src\Illuminate\Collections\Traits\EnumeratesValues.php:261
+      Illuminate\Database\Eloquent\Factories\Factory::Illuminate\Database\Eloquent\Factories\{closure}(Object(App\Models\User))
+
+  14  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Factories\Factory.php:347
+      Illuminate\Support\Collection::each(Object(Closure))
+
+  15  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Factories\Factory.php:303
+      Illuminate\Database\Eloquent\Factories\Factory::store(Object(Illuminate\Support\Collection))
+
+  16  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Factories\Factory.php:297
+      Illuminate\Database\Eloquent\Factories\Factory::create([])
+
+  17  database\seeders\DatabaseSeeder.php:19
+      Illuminate\Database\Eloquent\Factories\Factory::create(["Test User", "test@example.com"])
+
+  18  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      Database\Seeders\DatabaseSeeder::run()
+
+  19  vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::Illuminate\Container\{closure}()
+
+  20  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:95
+      Illuminate\Container\Util::unwrapIfClosure(Object(Closure))
+
+  21  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:35
+      Illuminate\Container\BoundMethod::callBoundMethod(Object(Illuminate\Foundation\Application), Object(Closure))
+
+  22  vendor\laravel\framework\src\Illuminate\Container\Container.php:696
+      Illuminate\Container\BoundMethod::call(Object(Illuminate\Foundation\Application), [])
+
+  23  vendor\laravel\framework\src\Illuminate\Database\Seeder.php:188
+      Illuminate\Container\Container::call([])
+
+  24  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Concerns\HasEvents.php:454
+      Illuminate\Database\Seeder::Illuminate\Database\{closure}()
+
+  25  vendor\laravel\framework\src\Illuminate\Database\Console\Seeds\WithoutModelEvents.php:17
+      Illuminate\Database\Eloquent\Model::withoutEvents(Object(Closure))
+
+  26  vendor\laravel\framework\src\Illuminate\Database\Seeder.php:197
+      Database\Seeders\DatabaseSeeder::Illuminate\Database\Console\Seeds\{closure}()
+
+  27  vendor\laravel\framework\src\Illuminate\Database\Console\Seeds\SeedCommand.php:70
+      Illuminate\Database\Seeder::__invoke()
+
+  28  vendor\laravel\framework\src\Illuminate\Database\Eloquent\Concerns\GuardsAttributes.php:155
+      Illuminate\Database\Console\Seeds\SeedCommand::Illuminate\Database\Console\Seeds\{closure}()
+
+  29  vendor\laravel\framework\src\Illuminate\Database\Console\Seeds\SeedCommand.php:69
+      Illuminate\Database\Eloquent\Model::unguarded(Object(Closure))
+
+  30  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      Illuminate\Database\Console\Seeds\SeedCommand::handle()
+
+  31  vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::Illuminate\Container\{closure}()
+
+  32  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:95
+      Illuminate\Container\Util::unwrapIfClosure(Object(Closure))
+
+  33  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:35
+      Illuminate\Container\BoundMethod::callBoundMethod(Object(Illuminate\Foundation\Application), Object(Closure))
+
+  34  vendor\laravel\framework\src\Illuminate\Container\Container.php:696
+      Illuminate\Container\BoundMethod::call(Object(Illuminate\Foundation\Application), [])
+
+  35  vendor\laravel\framework\src\Illuminate\Console\Command.php:213
+      Illuminate\Container\Container::call()
+
+  36  vendor\symfony\console\Command\Command.php:341
+      Illuminate\Console\Command::execute(Object(Symfony\Component\Console\Input\ArrayInput), Object(Illuminate\Console\OutputStyle))
+
+  37  vendor\laravel\framework\src\Illuminate\Console\Command.php:182
+      Symfony\Component\Console\Command\Command::run(Object(Symfony\Component\Console\Input\ArrayInput), Object(Illuminate\Console\OutputStyle))
+
+  38  vendor\laravel\framework\src\Illuminate\Console\Concerns\CallsCommands.php:68
+      Illuminate\Console\Command::run(Object(Symfony\Component\Console\Input\ArrayInput), Object(Illuminate\Console\OutputStyle))
+
+  39  vendor\laravel\framework\src\Illuminate\Console\Concerns\CallsCommands.php:29
+      Illuminate\Console\Command::runCommand("db:seed", ["Database\Seeders\DatabaseSeeder", "db:seed"], Object(Illuminate\Console\OutputStyle))
+
+  40  vendor\laravel\framework\src\Illuminate\Database\Console\Migrations\FreshCommand.php:122
+      Illuminate\Console\Command::call("db:seed", ["Database\Seeders\DatabaseSeeder"])
+
+  41  vendor\laravel\framework\src\Illuminate\Database\Console\Migrations\FreshCommand.php:98
+      Illuminate\Database\Console\Migrations\FreshCommand::runSeeder()
+
+  42  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      Illuminate\Database\Console\Migrations\FreshCommand::handle()
+
+  43  vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::Illuminate\Container\{closure}()
+
+  44  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:95
+      Illuminate\Container\Util::unwrapIfClosure(Object(Closure))
+
+  45  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:35
+      Illuminate\Container\BoundMethod::callBoundMethod(Object(Illuminate\Foundation\Application), Object(Closure))
+
+  46  vendor\laravel\framework\src\Illuminate\Container\Container.php:696
+      Illuminate\Container\BoundMethod::call(Object(Illuminate\Foundation\Application), [])
+
+  47  vendor\laravel\framework\src\Illuminate\Console\Command.php:213
+      Illuminate\Container\Container::call()
+
+  48  vendor\symfony\console\Command\Command.php:341
+      Illuminate\Console\Command::execute(Object(Symfony\Component\Console\Input\ArgvInput), Object(Illuminate\Console\OutputStyle))
+
+  49  vendor\laravel\framework\src\Illuminate\Console\Command.php:182
+      Symfony\Component\Console\Command\Command::run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Illuminate\Console\OutputStyle))
+
+  50  vendor\symfony\console\Application.php:1102
+      Illuminate\Console\Command::run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  51  vendor\symfony\console\Application.php:356
+      Symfony\Component\Console\Application::doRunCommand(Object(Illuminate\Database\Console\Migrations\FreshCommand), Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  52  vendor\symfony\console\Application.php:195
+      Symfony\Component\Console\Application::doRun(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  53  vendor\laravel\framework\src\Illuminate\Foundation\Console\Kernel.php:198
+      Symfony\Component\Console\Application::run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  54  artisan:35
+      Illuminate\Foundation\Console\Kernel::handle(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+

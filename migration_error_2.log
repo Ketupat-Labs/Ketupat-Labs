@@ -1,0 +1,231 @@
+PHP Warning:  Module "openssl" is already loaded in Unknown on line 0
+
+Warning: Module "openssl" is already loaded in Unknown on line 0
+
+  Dropping all tables  683.77ms DONE
+
+   INFO  Preparing database.  
+
+  Creating migration table  23.16ms DONE
+
+   INFO  Running migrations.  
+
+  0001_01_01_000001_create_cache_table  38.52ms DONE
+  0001_01_01_000002_create_jobs_table  124.55ms DONE
+  2024_01_01_000001_create_sessions_table  74.30ms DONE
+  2024_01_01_000002_create_users_table  77.07ms DONE
+  2024_01_01_000003_create_forums_table  161.01ms DONE
+  2024_01_01_000004_create_forum_tags_table  120.90ms DONE
+  2024_01_01_000005_create_forum_posts_table  249.19ms DONE
+  2024_01_01_000006_create_post_attachments_table  123.74ms DONE
+  2024_01_01_000007_create_post_tags_table  111.95ms DONE
+  2024_01_01_000008_create_comments_table  479.28ms DONE
+  2024_01_01_000009_create_reactions_table  167.62ms DONE
+  2024_01_01_000010_create_saved_posts_table  242.23ms DONE
+  2024_01_01_000011_create_muted_users_table  290.62ms DONE
+  2024_01_01_000012_create_forum_members_table  310.89ms DONE
+  2024_01_01_000013_create_conversations_table  111.99ms DONE
+  2024_01_01_000014_create_conversation_participants_table  241.90ms DONE
+  2024_01_01_000015_create_messages_table  202.98ms DONE
+  2024_01_01_000016_create_notifications_table  142.94ms DONE
+  2024_01_02_000000_create_personal_access_tokens_table  74.92ms DONE
+  2024_12_09_100000_create_classrooms_table  148.74ms DONE
+  2024_12_09_100001_create_lessons_table  201.87ms DONE
+  2024_12_09_100002_create_enrollments_table  198.91ms DONE
+  2024_12_09_100003_create_lesson_assignments_table  193.02ms DONE
+  2024_12_09_100004_create_class_students_table  207.38ms DONE
+  2024_12_09_100005_create_submissions_table  193.02ms DONE
+  2024_12_09_100006_create_quiz_attempts_table  266.27ms DONE
+  2024_12_09_100007_create_students_table  21.65ms DONE
+  2024_12_09_100008_create_student_answers_table  189.45ms DONE
+  2024_12_09_100009_add_points_to_users_table  32.54ms DONE
+  2024_12_11_000001_create_ai_generated_content_table  207.71ms DONE
+  2025_12_09_211011_fix_class_students_table_structure  195.20ms DONE
+  2025_12_10_065817_add_profile_fields_to_users_table  49.73ms DONE
+  2025_12_10_065824_create_friends_table  297.88ms DONE
+  2025_12_10_065831_create_user_badges_table  156.24ms DONE
+  2025_12_10_092237_add_edit_fields_to_comments_table  53.29ms DONE
+  2025_12_10_093737_create_reports_table  258.76ms DONE
+  2025_12_10_093823_add_is_hidden_to_forum_posts_table  148.14ms DONE
+  2025_12_10_160000_rename_classrooms_to_classes  20.01ms DONE
+  2025_12_10_173546_create_badge_categories_table  44.61ms DONE
+  2025_12_10_173553_create_badges_table  181.86ms DONE
+  2025_12_11_035009_fix_forum_post_type_column  250.19ms DONE
+  2025_12_11_134025_create_document_table  21.19ms DONE
+  2025_12_12_000001_create_activities_table  115.80ms DONE
+  2025_12_12_000002_create_activity_assignments_table  206.39ms DONE
+  2025_12_12_000003_add_details_to_activity_assignments_table  24.90ms DONE
+  2025_12_12_085317_add_content_blocks_to_lessons_table  22.22ms DONE
+  2025_12_14_000000_add_completed_items_to_enrollments_table  14.81ms DONE
+  2025_12_16_000001_create_activity_submissions_table  203.88ms DONE
+  2025_12_16_110946_add_is_public_to_lessons_table  13.40ms DONE
+  2025_12_16_123132_add_is_public_to_activities_table  12.61ms DONE
+  2025_12_18_000001_fix_activity_due_date_type  10.19ms DONE
+  2025_12_18_123823_add_is_muted_to_forum_member_table  12.37ms DONE
+  2025_12_18_154434_add_settings_to_users_table  58.89ms DONE
+  2025_12_18_161806_add_attachment_type_to_post_attachments_table  125.38ms DONE
+  2025_12_19_074448_rename_plural_tables_to_singular  450.11ms DONE
+  2025_12_19_111953_add_last_read_at_to_conversation_participant_table  11.97ms DONE
+  2025_12_19_120055_add_is_public_to_activity_table  19.09ms DONE
+  2025_12_19_142421_create_email_verification_otp_table  46.13ms DONE
+  2025_12_19_143054_create_message_user_deleted_table  239.79ms DONE
+  2025_12_19_150901_rename_all_plural_tables_to_singular  150.77ms DONE
+  2025_12_20_094649_add_results_to_activity_submission_table  13.52ms DONE
+  2025_12_20_110710_drop_plural_duplicate_tables  5.10ms DONE
+  2025_12_20_181100_update_activity_submission_for_public_access  289.15ms DONE
+  2025_12_20_230000_ensure_singular_tables  1.69ms DONE
+  2025_12_20_231500_add_progress_to_user_badge  40.13ms DONE
+  2025_12_20_233000_add_status_to_user_badge_table  31.73ms DONE
+  2025_12_20_add_first_login_to_user_table  19.75ms DONE
+  2025_12_21_000000_remove_duplicate_badges  4.12ms FAIL
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[HY000]: General error: 1364 Field 'name' doesn't have a default value (Connection: mysql, SQL: insert into `badge` (`code`, `name_bm`, `category_code`, `points_required`) values (friendly, Rakan Baik, social, 5))
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:825
+    821Γûò                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822Γûò                 );
+    823Γûò             }
+    824Γûò 
+  Γ₧£ 825Γûò             throw new QueryException(
+    826Γûò                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827Γûò             );
+    828Γûò         }
+    829Γûò     }
+
+  1   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:53
+      PDOException::("SQLSTATE[HY000]: General error: 1364 Field 'name' doesn't have a default value")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:53
+      PDOStatement::execute()
+
+  3   vendor\laravel\framework\src\Illuminate\Database\Connection.php:812
+      Illuminate\Database\MySqlConnection::Illuminate\Database\{closure}("insert into `badge` (`code`, `name_bm`, `category_code`, `points_required`) values (?, ?, ?, ?)")
+
+  4   vendor\laravel\framework\src\Illuminate\Database\Connection.php:779
+      Illuminate\Database\Connection::runQueryCallback("insert into `badge` (`code`, `name_bm`, `category_code`, `points_required`) values (?, ?, ?, ?)", Object(Closure))
+
+  5   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:42
+      Illuminate\Database\Connection::run("insert into `badge` (`code`, `name_bm`, `category_code`, `points_required`) values (?, ?, ?, ?)", Object(Closure))
+
+  6   vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3717
+      Illuminate\Database\MySqlConnection::insert("insert into `badge` (`code`, `name_bm`, `category_code`, `points_required`) values (?, ?, ?, ?)")
+
+  7   vendor\laravel\framework\src\Illuminate\Database\Query\Builder.php:3869
+      Illuminate\Database\Query\Builder::insert()
+
+  8   database\migrations\2025_12_21_000000_remove_duplicate_badges.php:33
+      Illuminate\Database\Query\Builder::updateOrInsert(["friendly"], ["Rakan Baik", "social"])
+
+  9   vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:507
+      Illuminate\Database\Migrations\Migration@anonymous\C:\Users\Aina Syafina\Desktop\Ketupat-Labs\database\migrations\2025_12_21_000000_remove_duplicate_badges.php:8$18e::up()
+
+  10  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:432
+      Illuminate\Database\Migrations\Migrator::runMethod(Object(Illuminate\Database\MySqlConnection), Object(Illuminate\Database\Migrations\Migration@anonymous\C:\Users\Aina Syafina\Desktop\Ketupat-Labs\database\migrations\2025_12_21_000000_remove_duplicate_badges.php:8$18e), "up")
+
+  11  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:441
+      Illuminate\Database\Migrations\Migrator::Illuminate\Database\Migrations\{closure}()
+
+  12  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:244
+      Illuminate\Database\Migrations\Migrator::runMigration(Object(Illuminate\Database\Migrations\Migration@anonymous\C:\Users\Aina Syafina\Desktop\Ketupat-Labs\database\migrations\2025_12_21_000000_remove_duplicate_badges.php:8$18e), "up")
+
+  13  vendor\laravel\framework\src\Illuminate\Console\View\Components\Task.php:40
+      Illuminate\Database\Migrations\Migrator::Illuminate\Database\Migrations\{closure}()
+
+  14  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:798
+      Illuminate\Console\View\Components\Task::render("2025_12_21_000000_remove_duplicate_badges", Object(Closure))
+
+  15  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:244
+      Illuminate\Database\Migrations\Migrator::write("Illuminate\Console\View\Components\Task", "2025_12_21_000000_remove_duplicate_badges", Object(Closure))
+
+  16  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:211
+      Illuminate\Database\Migrations\Migrator::runUp("C:\Users\Aina Syafina\Desktop\Ketupat-Labs\database\migrations/2025_12_21_000000_remove_duplicate_badges.php")
+
+  17  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:138
+      Illuminate\Database\Migrations\Migrator::runPending([])
+
+  18  vendor\laravel\framework\src\Illuminate\Database\Console\Migrations\MigrateCommand.php:117
+      Illuminate\Database\Migrations\Migrator::run([])
+
+  19  vendor\laravel\framework\src\Illuminate\Database\Migrations\Migrator.php:658
+      Illuminate\Database\Console\Migrations\MigrateCommand::Illuminate\Database\Console\Migrations\{closure}()
+
+  20  vendor\laravel\framework\src\Illuminate\Database\Console\Migrations\MigrateCommand.php:110
+      Illuminate\Database\Migrations\Migrator::usingConnection(Object(Closure))
+
+  21  vendor\laravel\framework\src\Illuminate\Database\Console\Migrations\MigrateCommand.php:89
+      Illuminate\Database\Console\Migrations\MigrateCommand::runMigrations()
+
+  22  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      Illuminate\Database\Console\Migrations\MigrateCommand::handle()
+
+  23  vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::Illuminate\Container\{closure}()
+
+  24  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:95
+      Illuminate\Container\Util::unwrapIfClosure(Object(Closure))
+
+  25  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:35
+      Illuminate\Container\BoundMethod::callBoundMethod(Object(Illuminate\Foundation\Application), Object(Closure))
+
+  26  vendor\laravel\framework\src\Illuminate\Container\Container.php:696
+      Illuminate\Container\BoundMethod::call(Object(Illuminate\Foundation\Application), [])
+
+  27  vendor\laravel\framework\src\Illuminate\Console\Command.php:213
+      Illuminate\Container\Container::call()
+
+  28  vendor\symfony\console\Command\Command.php:341
+      Illuminate\Console\Command::execute(Object(Symfony\Component\Console\Input\ArrayInput), Object(Illuminate\Console\OutputStyle))
+
+  29  vendor\laravel\framework\src\Illuminate\Console\Command.php:182
+      Symfony\Component\Console\Command\Command::run(Object(Symfony\Component\Console\Input\ArrayInput), Object(Illuminate\Console\OutputStyle))
+
+  30  vendor\laravel\framework\src\Illuminate\Console\Concerns\CallsCommands.php:68
+      Illuminate\Console\Command::run(Object(Symfony\Component\Console\Input\ArrayInput), Object(Illuminate\Console\OutputStyle))
+
+  31  vendor\laravel\framework\src\Illuminate\Console\Concerns\CallsCommands.php:29
+      Illuminate\Console\Command::runCommand("migrate", ["migrate"], Object(Illuminate\Console\OutputStyle))
+
+  32  vendor\laravel\framework\src\Illuminate\Database\Console\Migrations\FreshCommand.php:82
+      Illuminate\Console\Command::call("migrate", [])
+
+  33  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:36
+      Illuminate\Database\Console\Migrations\FreshCommand::handle()
+
+  34  vendor\laravel\framework\src\Illuminate\Container\Util.php:43
+      Illuminate\Container\BoundMethod::Illuminate\Container\{closure}()
+
+  35  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:95
+      Illuminate\Container\Util::unwrapIfClosure(Object(Closure))
+
+  36  vendor\laravel\framework\src\Illuminate\Container\BoundMethod.php:35
+      Illuminate\Container\BoundMethod::callBoundMethod(Object(Illuminate\Foundation\Application), Object(Closure))
+
+  37  vendor\laravel\framework\src\Illuminate\Container\Container.php:696
+      Illuminate\Container\BoundMethod::call(Object(Illuminate\Foundation\Application), [])
+
+  38  vendor\laravel\framework\src\Illuminate\Console\Command.php:213
+      Illuminate\Container\Container::call()
+
+  39  vendor\symfony\console\Command\Command.php:341
+      Illuminate\Console\Command::execute(Object(Symfony\Component\Console\Input\ArgvInput), Object(Illuminate\Console\OutputStyle))
+
+  40  vendor\laravel\framework\src\Illuminate\Console\Command.php:182
+      Symfony\Component\Console\Command\Command::run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Illuminate\Console\OutputStyle))
+
+  41  vendor\symfony\console\Application.php:1102
+      Illuminate\Console\Command::run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  42  vendor\symfony\console\Application.php:356
+      Symfony\Component\Console\Application::doRunCommand(Object(Illuminate\Database\Console\Migrations\FreshCommand), Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  43  vendor\symfony\console\Application.php:195
+      Symfony\Component\Console\Application::doRun(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  44  vendor\laravel\framework\src\Illuminate\Foundation\Console\Kernel.php:198
+      Symfony\Component\Console\Application::run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
+  45  artisan:35
+      Illuminate\Foundation\Console\Kernel::handle(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+
