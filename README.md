@@ -1,6 +1,6 @@
 # CompuPlay - Quick Setup Guide
 
-## One-Command Database Setup
+## 🚀 One-Command Database Setup
 
 After cloning this repository, follow these simple steps:
 
