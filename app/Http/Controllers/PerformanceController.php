@@ -17,43 +17,53 @@ class PerformanceController extends Controller
         $user = auth()->user();
         $classrooms = collect();
         $selectedClass = null;
-        $selectedLessonId = $request->get('lesson_id', 'all'); // Initialize selectedLessonId
+        $selectedClassId = null;
+        $selectedLessonId = $request->get('lesson_id', 'all');
+        $lessons = collect();
+        $activities = collect();
+        $filterItems = collect();
+        $selectedFilter = $request->get('filter_id', 'all');
+        $data = [];
+        $mode = 'all';
+        $students = collect();
 
         if ($user->role === 'teacher') {
              $classrooms = Classroom::where('teacher_id', $user->id)->get();
              $selectedClassId = $request->get('class_id', $classrooms->first()->id ?? null);
              $selectedClass = $classrooms->find($selectedClassId);
-             if (!$selectedClass) return view('performance.index', ['classrooms' => [], 'lessons' => [], 'data' => []]);
              
-             // Get students in this class
-             $students = $selectedClass->students; // Relationship must exist
-             // Or explicitly: $students = User::whereHas('enrolledClassrooms', function($q) use ($selectedClassId) { $q->where('class_id', $selectedClassId); })->get();
-             // Assuming $selectedClass->students relationship works based on previous code context. 
-             // Wait, previous code didn't show student fetching logic, likely omitted in my view? 
-             // Let's deduce: $selectedClass->students is standard ManyToMany.
-             
-             // Fallback if relation not standard:
-             if(!$students->count()){
-                 $students = \App\Models\User::whereHas('enrollments', function($q) use ($selectedClassId){
-                     // Actually enrollment is usually per classroom? 
-                     // Let's assume User <-> Classroom via 'classes' table or similar. 
-                     // User model has enrolledClassrooms()
-                 })->get(); 
-                 // Let's stick to what was likely there or standard: $selectedClass->students
+             if ($selectedClass) {
+                 $students = $selectedClass->students;
+                 
+                 // Fallback if relation not standard
+                 if(!$students->count()){
+                     $students = \App\Models\User::whereHas('enrollments', function($q) use ($selectedClassId){
+                         $q->where('classroom_id', $selectedClassId);
+                     })->get(); 
+                 }
+                 
+                 $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClass) {
+                     $q->where('classroom_id', $selectedClass->id);
+                 })->get();
              }
-             
         } else {
              // STUDENT VIEW
              $classrooms = $user->enrolledClassrooms;
-             $selectedClass = $classrooms->first(); // Default to first class
-             $students = collect([$user]); // Only show themselves
+             $selectedClass = $classrooms->first();
+             $selectedClassId = $selectedClass ? $selectedClass->id : null;
+             $students = collect([$user]);
+             
+             if ($selectedClass) {
+                 $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClass) {
+                     $q->where('classroom_id', $selectedClass->id);
+                 })->get();
+             }
         }
 
-        // Common Data Gathering
+        // Fetch Lessons
         if ($user->role === 'teacher') {
             $lessons = Lesson::where('is_published', true)->get();
         } else {
-            // Student: Only Public OR Assigned Lessons
             $lessons = Lesson::where('is_published', true)
                 ->where(function($q) use ($user) {
                      $q->where('is_public', true)
@@ -62,55 +72,23 @@ class PerformanceController extends Controller
                        });
                 })->get();
         }
-        
-        // Get Activities assigned to this classroom (or all if teacher)
-        $activities = collect();
-        if ($selectedClass) {
-            $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClass) {
-                $q->where('classroom_id', $selectedClass->id);
-            })->get();
-            
-            // For teacher preview logic ... (keep existing)
-            if($user->role === 'teacher') {
-                 $students = $selectedClass->students;
-                 $teacherSubmissionsCount = \App\Models\ActivitySubmission::where('user_id', $user->id)->count();
-                 if ($teacherSubmissionsCount > 0) {
-                     $hasRelevantSubmission = \App\Models\ActivitySubmission::where('user_id', $user->id)
-                        ->with('assignment')
-                        ->get()
-                        ->contains(function ($submission) use ($activities) {
-                            return $submission->assignment && $activities->contains('id', $submission->assignment->activity_id);
-                        });
-                     if ($hasRelevantSubmission) $students->push($user);
-                 }
-            }
-        }
 
         // Combine for Dropdown
-        $filterItems = collect();
         foreach($lessons as $l) $filterItems->push(['id' => 'lesson-'.$l->id, 'name' => $l->title]);
         foreach($activities as $a) $filterItems->push(['id' => 'activity-'.$a->id, 'name' => $a->title]);
-        $filterItems = $filterItems->values(); // Ensure clean array for JSON
+        $filterItems = $filterItems->values();
 
-        $data = [];
-        $selectedFilter = $request->get('filter_id', 'all');
-        
-        // Determine Mode and Filter Collections
+        // Determine Mode
         if (str_starts_with($selectedFilter, 'activity-')) {
             $activityId = (int) str_replace('activity-', '', $selectedFilter);
-            // Filter activities to just this one
             $activities = $activities->where('id', $activityId);
-            // Hide lessons entirely for this view
             $lessons = collect();
-            $mode = 'activity_detail'; // NEW: Use specific detail view
+            $mode = 'activity_detail';
         } elseif (str_starts_with($selectedFilter, 'lesson-')) {
             $lessonId = (int) str_replace('lesson-', '', $selectedFilter);
-            // Use the detailed lesson view logic (Mode B)
             $selectedLessonId = $lessonId;
-            $mode = 'single';
-            $mode = 'lesson_detail'; // Renamed from 'single'
+            $mode = 'lesson_detail';
         } else {
-            // 'all'
             $mode = 'all';
         }
 
