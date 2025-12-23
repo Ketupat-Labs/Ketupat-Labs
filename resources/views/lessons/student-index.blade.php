@@ -1,23 +1,28 @@
 <x-app-layout>
-<div class="py-12 bg-gray-50">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8" x-data="{ 
-        search: '',
-        fuzzyMatch(text, query) {
-            text = (text || '').toLowerCase();
-            query = (query || '').toLowerCase().trim();
-            if (!query) return true;
-            let i = 0, n = -1, l;
-            for (; l = query[i++];) {
-                if (!~(n = text.indexOf(l, n + 1))) return false;
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Pelajaran Tersedia') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12 bg-gray-50">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8" x-data="{ 
+            search: '',
+            fuzzyMatch(text, query) {
+                text = (text || '').toLowerCase();
+                query = (query || '').toLowerCase().trim();
+                if (!query) return true;
+                let i = 0, n = -1, l;
+                for (; l = query[i++];) {
+                    if (!~(n = text.indexOf(l, n + 1))) return false;
+                }
+                return true;
             }
-            return true;
-        }
-    }">
-        <div class="mb-6 px-4 sm:px-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-extrabold text-[#2454FF] tracking-tight">Pelajaran Tersedia</h1>
-                <p class="text-gray-600 mt-2">Layari dan akses semua pelajaran yang diterbitkan</p>
-            </div>
+        }">
+            <div class="mb-8 px-4 sm:px-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 pb-6">
+                <div>
+                    <p class="text-base text-gray-900">Layari dan akses semua pelajaran yang diterbitkan</p>
+                </div>
             <!-- Search Bar -->
             <div class="w-full sm:w-72">
                 <div class="relative">

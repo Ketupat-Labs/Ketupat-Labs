@@ -2,13 +2,13 @@
     <x-slot name="header">
         <div class="flex flex-col">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Student Submissions') }}
+                {{ __('Penyerahan Pelajar') }}
             </h2>
             @if(isset($lesson))
                 <p class="text-sm text-gray-500 mt-1">
-                    For Lesson: <span class="font-medium text-gray-700">{{ $lesson->title }}</span>
+                    Untuk Pelajaran: <span class="font-medium text-gray-700">{{ $lesson->title }}</span>
                     @if(isset($classroom))
-                        in <span class="font-medium text-gray-700">{{ $classroom->name }}</span>
+                        dalam <span class="font-medium text-gray-700">{{ $classroom->name }}</span>
                     @endif
                 </p>
             @endif
@@ -38,7 +38,7 @@
                     @endif
 
                     @if($submissions->isEmpty())
-                        <p class="text-gray-500 text-center py-4">No submissions found.</p>
+                        <p class="text-gray-500 text-center py-4">Tiada penyerahan dijumpai.</p>
                     @else
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
@@ -46,19 +46,19 @@
                                     <tr>
                                         <th scope="col"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Student</th>
+                                            Pelajar</th>
                                         <th scope="col"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Assignment</th>
+                                            Tugasan</th>
                                         <th scope="col"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Status</th>
                                         <th scope="col"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Submitted At</th>
+                                            Dihantar Pada</th>
                                         <th scope="col"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Action</th>
+                                            Tindakan</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
@@ -87,14 +87,14 @@
                                                 <div class="flex flex-col space-y-2">
                                                     @if($submission->file_path)
                                                         <a href="{{ route('submission.file', $submission->id) }}" target="_blank"
-                                                            class="text-indigo-600 hover:text-indigo-900 block mb-2">View File</a>
+                                                            class="text-indigo-600 hover:text-indigo-900 block mb-2">Lihat Fail</a>
                                                     @else
-                                                        <span class="text-gray-400 block mb-2">No File</span>
+                                                        <span class="text-gray-400 block mb-2">Tiada Fail</span>
                                                     @endif
 
                                                     <a href="{{ route('submission.grading', $submission->id) }}"
                                                         class="inline-block bg-[#2454FF] hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-xs">
-                                                        Grade Submission
+                                                        Gred Penyerahan
                                                     </a>
                                                 </div>
                                             </td>

@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Assign Lessons') }}
+            {{ __('Tugaskan Pelajaran') }}
         </h2>
     </x-slot>
 
@@ -894,12 +894,12 @@
 
                         <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                             <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                Edit Assignment: <span id="lesson-edit-title" class="font-bold text-blue-600"></span>
+                                Sunting Tugasan: <span id="lesson-edit-title" class="font-bold text-blue-600"></span>
                             </h3>
                             <div class="mt-4">
                                 <!-- Search Input (Purely Visual for now in vanilla adapter) -->
                                 <div class="mb-2">
-                                    <input type="text" placeholder="Search classes..." 
+                                    <input type="text" placeholder="Cari kelas..." 
                                         onkeyup="const val = this.value.toLowerCase(); document.querySelectorAll('.lesson-class-item').forEach(el => el.style.display = el.textContent.toLowerCase().includes(val) ? 'flex' : 'none')"
                                         class="w-full border-gray-300 rounded-md text-sm p-2 focus:ring-blue-500 focus:border-blue-500">
                                 </div>
@@ -910,7 +910,7 @@
                                         <input id="lesson-edit-public" name="is_public" type="checkbox" value="1"
                                             class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
                                         <label for="lesson-edit-public" class="ml-2 block text-sm font-bold text-green-900 cursor-pointer w-full">
-                                            Public (All Students)
+                                            Awam (Semua Pelajar)
                                         </label>
                                     </div>
 
@@ -925,17 +925,17 @@
                                         </div>
                                     @endforeach
                                 </div>
-                                <p class="text-xs text-gray-500 mt-2">Uncheck to remove assignment. Check to add.</p>
+                                <p class="text-xs text-gray-500 mt-2">Nyah-tanda untuk membuang tugasan. Tanda untuk menambah.</p>
                             </div>
                         </div>
                         <div class="bg-gray-50 px-4 py-3 sm:px-6 flex justify-end gap-3">
                             <button type="button" onclick="window.closeLessonEdit()" 
                                 class="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Cancel
+                                Batal
                             </button>
                             <button type="submit" 
                                 class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#2454FF] text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Reassign
+                                Tugaskan Semula
                             </button>
                         </div>
                     </form>

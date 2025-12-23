@@ -1,19 +1,19 @@
 <x-app-layout>
-<div class="py-8 bg-gray-50 min-h-screen">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">Edit Lesson</h1>
-                <p class="mt-2 text-sm text-gray-600">{{ $lesson->title }}</p>
-            </div>
-            <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to Lessons
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Edit Pelajaran') }}
+            </h2>
+            <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Kembali ke Senarai Pelajaran
             </a>
         </div>
+    </x-slot>
+
+    <div class="py-12 bg-gray-50 min-h-screen">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <p class="mb-8 text-sm text-gray-600 font-medium">{{ $lesson->title }}</p>
 
         @if ($errors->any())
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6">
@@ -123,13 +123,13 @@
             <!-- Submit Buttons -->
             <div class="flex items-center justify-between pt-6 border-t border-gray-300">
                 <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition">
-                    Cancel
+                    Batal
                 </a>
                 <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition duration-150 flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    Update Lesson
+                    Kemaskini Pelajaran
                 </button>
             </div>
         </form>

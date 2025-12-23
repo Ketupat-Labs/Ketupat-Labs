@@ -1,21 +1,25 @@
 <x-app-layout>
-<div class="py-12 bg-gray-50">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
-            <div class="flex justify-between items-start pb-4 border-b border-gray-200 mb-4">
-                <h2 class="text-3xl font-extrabold text-[#2454FF]">
-                    {{ $lesson->title }} <span class="text-base text-gray-500">({{ $lesson->topic }})</span>
-                </h2>
-                <a href="{{ route('lessons.index') }}" class="text-[#5FAD56] hover:text-green-700 font-medium">
-                    &larr; Back to Lesson List
-                </a>
-            </div>
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ $lesson->title }} <span class="text-sm text-gray-500 font-normal">({{ $lesson->topic }})</span>
+            </h2>
+            <a href="{{ route('lessons.index') }}" class="text-[#5FAD56] hover:text-green-700 font-medium flex items-center gap-2 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Kembali ke Senarai Pelajaran
+            </a>
+        </div>
+    </x-slot>
+
+    <div class="py-12 bg-gray-50">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
 
             {{-- PROGRESS TRACKING --}}
             <div class="progress-bar-area bg-gray-200 h-6 rounded-full mb-6">
                 <div id="progress-fill" class="progress-fill h-full text-center text-white bg-[#5FAD56] rounded-full transition-all duration-300"
                     style="width: 0%;">
-                    <span id="progress-text">0% Complete</span>
+                    <span id="progress-text">0% Selesai</span>
                 </div>
             </div>
 
