@@ -27,20 +27,20 @@ let mentionState = {
 // Helper function to extract YouTube video ID from URL
 function extractYouTubeVideoId(url) {
     if (!url) return null;
-    
+
     const patterns = [
         /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
         /youtube\.com\/embed\/([^"&?\/\s]{11})/,
         /youtube\.com\/v\/([^"&?\/\s]{11})/
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
@@ -50,14 +50,14 @@ function extractTikTokVideoId(url) {
         /(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)/i,
         /tiktok\.com\/.*\/video\/(\d+)/i
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
@@ -67,28 +67,28 @@ function extractRedNoteVideoId(url) {
         /xiaohongshu\.com\/explore\/([a-zA-Z0-9]+)/i,
         /xhslink\.com\/([a-zA-Z0-9]+)/i
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
 // Helper function to convert video URLs (YouTube, TikTok, RedNote, etc.) to embedded players
 function processVideoLinks(content) {
     if (!content) return content;
-    
+
     // Split content by newlines to separate URL from description
     const lines = content.split('\n');
     let urlLine = '';
     let descriptionLines = [];
     let urlLineIndex = -1;
     let foundVideoUrl = false;
-    
+
     // Find the first line that contains a video URL (YouTube, TikTok, RedNote, etc.)
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -107,47 +107,54 @@ function processVideoLinks(content) {
             break;
         }
     }
-    
+
     // If no video URL found, check if there's a regular URL and create link preview
     if (!foundVideoUrl) {
         // Try to find any URL in the content
         const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
         const urlMatch = content.match(urlRegex);
-        
+
         if (urlMatch && urlMatch.length > 0) {
             const firstUrl = urlMatch[0];
             try {
                 const urlObj = new URL(firstUrl);
                 const domain = urlObj.hostname.replace('www.', '');
-                
+
                 // Extract description (everything after the URL)
                 const urlIndex = content.indexOf(firstUrl);
                 const description = content.substring(urlIndex + firstUrl.length).trim();
-                
-                // Create compact link preview
-                return createLinkPreview(firstUrl, domain, description);
+
+                // Display description as separate paragraph, then link preview
+                const descriptionHtml = description
+                    ? '<div class="post-description" style="margin-bottom: 16px; color: #333; line-height: 1.6; white-space: pre-wrap;">' +
+                      escapeHtml(description) +
+                      '</div>'
+                    : '';
+
+                // Create compact link preview (without description inside)
+                return descriptionHtml + createLinkPreview(firstUrl, domain, '');
             } catch (e) {
                 // Invalid URL, just escape and return
                 return escapeHtml(content);
             }
         }
-        
+
         // No URL found, just escape and return the content
         return escapeHtml(content);
     }
-    
+
     // Process description - join lines and preserve paragraph breaks
     const descriptionText = descriptionLines.join('\n').trim();
-    const escapedDescription = descriptionText 
-        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' + 
-          escapeHtml(descriptionText) + 
-          '</div>' 
+    const escapedDescription = descriptionText
+        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' +
+        escapeHtml(descriptionText) +
+        '</div>'
         : '';
-    
+
     // Escape HTML to prevent XSS for the URL line
     const escapedUrlLine = escapeHtml(urlLine);
     let processedUrl = escapedUrlLine;
-    
+
     // Process YouTube URLs
     const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&]t=(\d+[smh]?|[0-9]+m[0-9]+s)?)?[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(youtubeRegex, (match, videoId, startTime) => {
@@ -165,7 +172,7 @@ function processVideoLinks(content) {
                 timeInSeconds = parseInt(cleanTime) || null;
             }
         }
-        
+
         const timeParam = timeInSeconds ? `?start=${timeInSeconds}` : '';
         return `<div class="video-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden;">
             <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
@@ -176,7 +183,7 @@ function processVideoLinks(content) {
             </iframe>
         </div>`;
     });
-    
+
     // Process TikTok URLs
     const tiktokRegex = /(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(tiktokRegex, (match) => {
@@ -193,7 +200,7 @@ function processVideoLinks(content) {
         }
         return match;
     });
-    
+
     // Process RedNote (Xiaohongshu) URLs
     const rednoteRegex = /(?:https?:\/\/)?(?:www\.)?(?:xiaohongshu\.com\/explore\/|xhslink\.com\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(rednoteRegex, (match) => {
@@ -213,13 +220,13 @@ function processVideoLinks(content) {
         }
         return match;
     });
-    
+
     // Check if the URL was actually processed (video embed created)
     // If not, it means it's a non-video link, so create a link preview instead
-    const isVideoEmbed = processedUrl.includes('video-embed-container') || 
-                        processedUrl.includes('tiktok-embed') ||
-                        processedUrl.includes('iframe');
-    
+    const isVideoEmbed = processedUrl.includes('video-embed-container') ||
+        processedUrl.includes('tiktok-embed') ||
+        processedUrl.includes('iframe');
+
     if (!isVideoEmbed && urlLine) {
         // It's a link but not a recognized video, create compact link preview
         try {
@@ -231,19 +238,76 @@ function processVideoLinks(content) {
             return escapedDescription + escapeHtml(urlLine);
         }
     }
-    
+
     // Return description + embed (description above the video)
     return escapedDescription + processedUrl;
 }
 
+// Cache for link previews to avoid multiple requests
+const linkPreviewCache = {};
+
+// Fetch link preview data
+async function fetchLinkPreview(url) {
+    // Check cache first
+    if (linkPreviewCache[url]) {
+        return linkPreviewCache[url];
+    }
+
+    const apiBaseUrl = window.location.origin;
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/link-preview?url=${encodeURIComponent(url)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.status === 200 && data.data) {
+                // Cache the result
+                linkPreviewCache[url] = data.data;
+                return data.data;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching link preview:', error);
+    }
+
+    // Return fallback
+    return {
+        title: new URL(url).hostname,
+        site_name: new URL(url).hostname,
+    };
+}
+
 // Helper function to create a compact link preview (for non-video links)
+// Note: description parameter is kept for backward compatibility but is no longer used
+// Description should be displayed separately as a paragraph before calling this function
 function createLinkPreview(url, domain, description) {
-    // Extract title from description or use domain
-    const title = description ? description.split('\n')[0].substring(0, 100) : domain;
-    const fullDescription = description ? description.substring(title.length).trim() : '';
+    // Use domain as initial title (will be updated async)
+    const containerId = 'link-preview-' + Math.random().toString(36).substr(2, 9);
     
+    // Fetch preview asynchronously and update
+    fetchLinkPreview(url).then(preview => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const titleLink = container.querySelector('.link-preview-title a');
+            if (titleLink && preview.title) {
+                titleLink.textContent = preview.title;
+            }
+            const siteElement = container.querySelector('.link-preview-site');
+            if (siteElement && preview.site_name) {
+                siteElement.textContent = preview.site_name;
+            }
+        }
+    });
+
     return `
-        <div class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
+        <div id="${containerId}" class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
              onclick="event.stopPropagation(); window.open('${escapeHtml(url)}', '_blank')" 
              onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
              onmouseout="this.style.boxShadow='none'">
@@ -255,15 +319,12 @@ function createLinkPreview(url, domain, description) {
                 </svg>
             </div>
             <div style="flex: 1; padding: 12px; padding-left: 0; min-width: 0;">
-                <div style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                    ${escapeHtml(title)}
+                <div class="link-preview-title" style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #1877f2; text-decoration: none;" onclick="event.stopPropagation();">
+                        ${escapeHtml(domain)}
+                    </a>
                 </div>
-                ${fullDescription ? `
-                    <div style="font-size: 0.9em; color: #666; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                        ${escapeHtml(fullDescription.substring(0, 150))}${fullDescription.length > 150 ? '...' : ''}
-                    </div>
-                ` : ''}
-                <div style="font-size: 0.85em; color: #999; margin-top: 4px;">
+                <div class="link-preview-site" style="font-size: 0.85em; color: #999; margin-top: 4px;">
                     ${escapeHtml(domain)}
                 </div>
             </div>
@@ -285,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load current user avatar if not in sessionStorage
     loadCurrentUserAvatar();
-    
+
     initEventListeners();
     initMentionHandlers();
     loadPostDetail();
@@ -296,7 +357,7 @@ async function loadCurrentUserAvatar() {
     if (sessionStorage.getItem('userAvatar')) {
         return; // Already loaded
     }
-    
+
     try {
         const response = await fetch('/api/auth/me', {
             method: 'GET',
@@ -306,7 +367,7 @@ async function loadCurrentUserAvatar() {
             },
             credentials: 'include',
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             if (data.status === 200 && data.data && data.data.avatar_url) {
@@ -326,7 +387,7 @@ function updateCommentInputAvatar() {
     avatarElements.forEach(el => {
         const avatarUrl = getCurrentUserAvatar();
         const userName = sessionStorage.getItem('userName') || sessionStorage.getItem('userEmail') || 'User';
-        
+
         if (avatarUrl) {
             el.innerHTML = `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(userName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
         } else {
@@ -337,66 +398,92 @@ function updateCommentInputAvatar() {
 
 function initMentionHandlers() {
     // Use event delegation for dynamically created textareas
+    // Remove existing listeners first to avoid duplicates
+    document.removeEventListener('input', handleMentionInput);
+    document.removeEventListener('keydown', handleMentionKeydown);
+    document.removeEventListener('click', handleMentionClickOutside);
+    
+    // Add event listeners
     document.addEventListener('input', handleMentionInput);
     document.addEventListener('keydown', handleMentionKeydown);
     document.addEventListener('click', handleMentionClickOutside);
+    
+    console.log('Mention handlers initialized');
 }
 
 function handleMentionInput(event) {
     const textarea = event.target;
-    if (!textarea || !textarea.classList.contains('comment-input')) {
+    
+    // Check if it's a textarea with comment-input class
+    if (!textarea || textarea.tagName !== 'TEXTAREA' || !textarea.classList.contains('comment-input')) {
+        // If mention is active but focus moved away, hide it
+        if (mentionState.isActive && mentionState.currentTextarea && mentionState.currentTextarea !== textarea) {
+            hideMentionDropdown();
+        }
         return;
     }
 
     const value = textarea.value;
-    const cursorPos = textarea.selectionStart;
-    
+    const cursorPos = textarea.selectionStart || 0;
+
     // Find @ symbol before cursor
     const textBeforeCursor = value.substring(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
+
     if (lastAtIndex === -1) {
         hideMentionDropdown();
         return;
     }
-    
+
     // Check if @ is part of a word (not a mention)
     const charBefore = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
     if (/\w/.test(charBefore)) {
         hideMentionDropdown();
         return;
     }
-    
+
     // Get text after @
     const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-    
+
     // Check if there's a space or newline after @ (not a mention)
     if (textAfterAt.includes(' ') || textAfterAt.includes('\n')) {
         hideMentionDropdown();
         return;
     }
-    
+
     // Show mention dropdown
     mentionState.isActive = true;
     mentionState.searchTerm = textAfterAt;
     mentionState.mentionStart = lastAtIndex;
     mentionState.currentTextarea = textarea;
     mentionState.selectedIndex = -1;
-    
+
+    console.log('Mention detected, loading users for search:', textAfterAt);
+    // Always load users when @ is detected
     loadMentionableUsers(textAfterAt);
 }
 
 function handleMentionKeydown(event) {
+    // Check if the event target is a comment input textarea
+    const textarea = event.target;
+    if (!textarea || !textarea.classList.contains('comment-input')) {
+        // If mention is active but focus moved away, hide it
+        if (mentionState.isActive && mentionState.currentTextarea !== textarea) {
+            hideMentionDropdown();
+        }
+        return;
+    }
+
     if (!mentionState.isActive || !mentionState.currentTextarea) {
         return;
     }
-    
+
     const dropdown = document.getElementById('mentionDropdown');
     if (!dropdown) return;
-    
+
     const items = dropdown.querySelectorAll('.mention-item');
     if (items.length === 0) return;
-    
+
     switch (event.key) {
         case 'ArrowDown':
             event.preventDefault();
@@ -424,7 +511,7 @@ function handleMentionKeydown(event) {
 
 function handleMentionClickOutside(event) {
     const dropdown = document.getElementById('mentionDropdown');
-    if (dropdown && !dropdown.contains(event.target) && 
+    if (dropdown && !dropdown.contains(event.target) &&
         event.target !== mentionState.currentTextarea &&
         !event.target.closest('.mention-dropdown')) {
         hideMentionDropdown();
@@ -437,7 +524,7 @@ async function loadMentionableUsers(search = '') {
             search: search,
             limit: '20'
         });
-        
+
         const response = await fetch(`/api/mentions/users?${params.toString()}`, {
             method: 'GET',
             headers: {
@@ -447,26 +534,36 @@ async function loadMentionableUsers(search = '') {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             mentionState.users = data.data.users || [];
+            // Always show dropdown when mention is active, even if no users found
+            showMentionDropdown();
+        } else {
+            // Still show dropdown with empty state
+            mentionState.users = [];
             showMentionDropdown();
         }
     } catch (error) {
         console.error('Error loading mentionable users:', error);
-        hideMentionDropdown();
+        // Show dropdown with error state
+        mentionState.users = [];
+        showMentionDropdown();
     }
 }
 
 function showMentionDropdown() {
-    if (!mentionState.currentTextarea) return;
-    
+    if (!mentionState.currentTextarea) {
+        console.log('Cannot show mention dropdown: no current textarea');
+        return;
+    }
+
     let dropdown = document.getElementById('mentionDropdown');
     if (!dropdown) {
         dropdown = document.createElement('div');
@@ -474,7 +571,7 @@ function showMentionDropdown() {
         dropdown.className = 'mention-dropdown';
         document.body.appendChild(dropdown);
     }
-    
+
     // Position dropdown near textarea
     const rect = mentionState.currentTextarea.getBoundingClientRect();
     dropdown.style.position = 'fixed';
@@ -484,10 +581,15 @@ function showMentionDropdown() {
     dropdown.style.maxHeight = '200px';
     dropdown.style.overflowY = 'auto';
     dropdown.style.zIndex = '10000';
-    
+    dropdown.style.display = 'block';
+    dropdown.style.background = 'white';
+    dropdown.style.border = '1px solid #e4e6eb';
+    dropdown.style.borderRadius = '8px';
+    dropdown.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+
     // Render users
     if (mentionState.users.length === 0) {
-        dropdown.innerHTML = '<div class="mention-item" style="padding: 8px 12px; color: #65676b;">No users found</div>';
+        dropdown.innerHTML = '<div class="mention-item" style="padding: 8px 12px; color: #65676b;">No users found. Start typing to search.</div>';
     } else {
         dropdown.innerHTML = mentionState.users.map((user, index) => `
             <div class="mention-item ${index === mentionState.selectedIndex ? 'selected' : ''}" 
@@ -501,20 +603,20 @@ function showMentionDropdown() {
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: 600; font-size: 14px; color: #050505;">${escapeHtml(user.full_name)}</div>
-                    <div style="font-size: 12px; color: #65676b;">@${escapeHtml(user.username)}${user.is_friend ? ' • Friend' : ''}</div>
+                    <div style="font-size: 12px; color: #65676b;">@${escapeHtml(user.username)}${user.is_dm_contact ? ' • DM Contact' : ''}</div>
                 </div>
             </div>
         `).join('');
     }
-    
-    dropdown.style.display = 'block';
+
     updateMentionSelection();
+    console.log('Mention dropdown shown with', mentionState.users.length, 'users');
 }
 
 function updateMentionSelection() {
     const dropdown = document.getElementById('mentionDropdown');
     if (!dropdown) return;
-    
+
     const items = dropdown.querySelectorAll('.mention-item');
     items.forEach((item, index) => {
         if (index === mentionState.selectedIndex) {
@@ -528,26 +630,26 @@ function updateMentionSelection() {
 
 function selectMention(userId, username) {
     if (!mentionState.currentTextarea) return;
-    
+
     const textarea = mentionState.currentTextarea;
     const value = textarea.value;
     const start = mentionState.mentionStart;
     const cursorPos = textarea.selectionStart;
-    
+
     // Replace @searchTerm with @username
     const beforeMention = value.substring(0, start);
     const afterMention = value.substring(cursorPos);
     const newValue = beforeMention + '@' + username + ' ' + afterMention;
-    
+
     textarea.value = newValue;
-    
+
     // Set cursor position after the mention
     const newCursorPos = start + username.length + 2; // +2 for @ and space
     textarea.setSelectionRange(newCursorPos, newCursorPos);
     textarea.focus();
-    
+
     hideMentionDropdown();
-    
+
     // Trigger input event to update any listeners
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
@@ -558,7 +660,7 @@ function hideMentionDropdown() {
     mentionState.selectedIndex = -1;
     mentionState.mentionStart = -1;
     mentionState.currentTextarea = null;
-    
+
     const dropdown = document.getElementById('mentionDropdown');
     if (dropdown) {
         dropdown.style.display = 'none';
@@ -611,16 +713,16 @@ async function loadPostDetail() {
     // Extract post ID from URL path (e.g., /forum/post/12)
     let postId = null;
     const pathParts = window.location.pathname.split('/').filter(part => part);
-    
+
     // Look for 'post' in the path and get the ID after it
     const postIndex = pathParts.indexOf('post');
     if (postIndex !== -1 && postIndex + 1 < pathParts.length) {
         postId = pathParts[postIndex + 1];
     }
-    
+
     // Fallback to query parameter if path extraction fails
     if (!postId) {
-    const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(window.location.search);
         postId = urlParams.get('id');
     }
 
@@ -644,7 +746,7 @@ async function loadPostDetail() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 // User not authenticated, redirect to login
@@ -655,7 +757,7 @@ async function loadPostDetail() {
             }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200 && data.data && data.data.posts && data.data.posts.length > 0) {
@@ -687,15 +789,6 @@ function renderPostDetail(post) {
     container.innerHTML = `
         <!-- Post Card -->
         <div class="post-detail-card">
-            <div class="post-vote-section">
-                <button class="vote-btn like ${post.user_reacted ? 'active' : ''}" onclick="toggleReaction(${post.id})">
-                    <i class="${post.user_reacted ? 'fas' : 'far'} fa-heart"></i>
-                </button>
-                <div class="vote-count">${post.reaction_count || 0}</div>
-                <button class="vote-btn" style="display: none;">
-                    <i class="fas fa-heart"></i>
-                </button>
-            </div>
             <div class="post-content-section">
                 <div class="post-detail-header">
                     <div class="post-detail-header-left">
@@ -770,30 +863,46 @@ function renderPostDetail(post) {
                         `).join('')}
                     </div>
                 ` : ''}
+                ${post.lesson_id ? `
+                    <div class="post-lesson-attachment" style="margin-top: 24px; margin-bottom: 24px; padding: 16px; border: 1px solid #e0e0e0; border-radius: 12px; background: #f0f7ff; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div style="background: #1877f2; padding: 12px; border-radius: 50%; color: white; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-chalkboard-teacher" style="font-size: 20px;"></i>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; color: #333; font-size: 16px; margin-bottom: 2px;">Lesson Attached</div>
+                                <div style="font-size: 14px; color: #666;">This post contains a reusable lesson plan.</div>
+                            </div>
+                        </div>
+                        <button class="btn-save-lesson" onclick="saveSharedLesson(${post.lesson_id})" style="padding: 10px 20px; background: #1877f2; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: background 0.2s; box-shadow: 0 2px 4px rgba(24, 119, 242, 0.2);">
+                            <i class="fas fa-download"></i> Save to Inventory
+                        </button>
+                    </div>
+                ` : ''}
                 ${post.post_type === 'poll' && post.poll_options ? `
                         <div class="post-poll-container" style="margin-top: 16px;">
                             <div style="font-weight: 600; margin-bottom: 12px; color: #1c1c1c; font-size: 16px;">Poll Options:</div>
                             ${(() => {
-                                try {
-                                    const pollOptions = typeof post.poll_options === 'string' 
-                                        ? JSON.parse(post.poll_options) 
-                                        : post.poll_options;
-                                    if (!Array.isArray(pollOptions)) return '';
-                                    
-                                    // Get user's vote if exists
-                                    const userVote = post.user_poll_vote || null;
-                                    
-                                    return pollOptions.map((option, idx) => {
-                                        const optionId = option.id || idx;
-                                        const optionText = option.option_text || option.text || option.option_text || '';
-                                        const voteCount = option.vote_count || 0;
-                                        const totalVotes = post.total_poll_votes || pollOptions.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
-                                        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-                                        const isVoted = userVote === optionId;
-                                        const hasVoted = userVote !== null;
-                                        const isClickable = !hasVoted;
-                                        
-                                        return `
+                try {
+                    const pollOptions = typeof post.poll_options === 'string'
+                        ? JSON.parse(post.poll_options)
+                        : post.poll_options;
+                    if (!Array.isArray(pollOptions)) return '';
+
+                    // Get user's vote if exists
+                    const userVote = post.user_poll_vote || null;
+
+                    return pollOptions.map((option, idx) => {
+                        const optionId = option.id || idx;
+                        const optionText = option.option_text || option.text || option.option_text || '';
+                        const voteCount = option.vote_count || 0;
+                        const totalVotes = post.total_poll_votes || pollOptions.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
+                        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+                        const isVoted = userVote === optionId;
+                        const hasVoted = userVote !== null;
+                        const isClickable = !hasVoted;
+
+                        return `
                                             <div class="poll-option-item" style="padding: 12px; margin: 8px 0; background: ${isVoted ? '#e3f2fd' : '#f5f5f5'}; border: 2px solid ${isVoted ? '#1877f2' : '#e0e0e0'}; border-radius: 8px; cursor: ${isClickable ? 'pointer' : 'default'}; transition: all 0.2s; opacity: ${isClickable ? '1' : '0.8'};" 
                                                  ${isClickable ? `onclick="votePoll(${post.id}, ${optionId})"` : `onclick="event.stopPropagation();"`}
                                                  ${isClickable ? `onmouseover="this.style.background='${isVoted ? '#bbdefb' : '#eeeeee'}'" onmouseout="this.style.background='${isVoted ? '#e3f2fd' : '#f5f5f5'}'"` : ''}>
@@ -816,12 +925,12 @@ function renderPostDetail(post) {
                                                 </div>
                                             </div>
                                         `;
-                                    }).join('');
-                                } catch (e) {
-                                    console.error('Error parsing poll options:', e);
-                                    return '';
-                                }
-                            })()}
+                    }).join('');
+                } catch (e) {
+                    console.error('Error parsing poll options:', e);
+                    return '';
+                }
+            })()}
                             ${post.total_poll_votes > 0 ? `
                                 <div style="margin-top: ${post.user_poll_vote ? '8px' : '12px'}; padding-top: ${post.user_poll_vote ? '0' : '12px'}; ${post.user_poll_vote ? '' : 'border-top: 1px solid #e0e0e0;'} color: #666; font-size: 14px;">
                                     Total votes: ${post.total_poll_votes}
@@ -952,9 +1061,9 @@ function renderPostDetail(post) {
     commentState.offset = 0;
     commentState.hasMore = true;
     commentState.sort = 'recent';
-    
+
     loadComments(post.id, true);
-    
+
     // Initialize infinite scroll after a short delay to ensure container exists
     setTimeout(() => {
         initInfiniteScroll();
@@ -963,27 +1072,27 @@ function renderPostDetail(post) {
 
 async function loadComments(postId, reset = false) {
     if (commentState.isLoading) return;
-    
+
     commentState.isLoading = true;
-    
+
     if (reset) {
         commentState.offset = 0;
         commentState.comments = [];
         commentState.hasMore = true;
     }
-    
+
     try {
         const params = new URLSearchParams({
             sort: commentState.sort,
             limit: commentState.limit.toString(),
             offset: commentState.offset.toString()
         });
-        
+
         // If loading initial comments and sort is 'top', use top_limit
         if (reset && commentState.sort === 'top' && commentState.offset === 0) {
             params.append('top_limit', commentState.topLimit.toString());
         }
-        
+
         const response = await fetch(`/api/forum/post/${postId}/comments?${params.toString()}`, {
             method: 'GET',
             headers: {
@@ -993,27 +1102,27 @@ async function loadComments(postId, reset = false) {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200) {
             const newComments = data.data.comments || [];
-            
+
             if (reset) {
                 commentState.comments = newComments;
             } else {
                 // Append new comments to existing ones
                 commentState.comments = [...commentState.comments, ...newComments];
             }
-            
+
             commentState.hasMore = data.data.has_more || false;
             commentState.totalCount = data.data.total || 0;
             commentState.offset = commentState.comments.length;
-            
+
             renderComments(commentState.comments);
             updateLoadMoreButton();
         } else {
@@ -1043,7 +1152,7 @@ function sortCommentsWithReplies(comments, sortType) {
         // Sort replies within this comment thread
         if (comment.replies && comment.replies.length > 0) {
             const sortedReplies = sortCommentsWithReplies(comment.replies, sortType);
-            
+
             // Apply sort to replies based on sortType
             if (sortType === 'top' || sortType === 'popular') {
                 sortedReplies.sort((a, b) => {
@@ -1061,10 +1170,10 @@ function sortCommentsWithReplies(comments, sortType) {
                     return new Date(b.created_at) - new Date(a.created_at);
                 });
             }
-            
+
             comment.replies = sortedReplies;
         }
-        
+
         return comment;
     });
 }
@@ -1134,14 +1243,14 @@ function renderComments(comments) {
     container.innerHTML = sortedComments.map((comment, index) => {
         return renderCommentItem(comment, 0, null, index === sortedComments.length - 1);
     }).join('');
-    
+
     // Restore scroll position or scroll to bottom if was at bottom
     if (wasAtBottom) {
         window.scrollTo(0, document.documentElement.scrollHeight);
     } else {
         window.scrollTo(0, scrollTop);
     }
-    
+
     // Add load more button if there are more comments
     updateLoadMoreButton();
 }
@@ -1149,13 +1258,13 @@ function renderComments(comments) {
 function updateLoadMoreButton() {
     const container = document.getElementById('commentsContainer');
     if (!container) return;
-    
+
     // Remove existing load more button and all loaded message
     const existingBtn = document.getElementById('loadMoreCommentsBtn');
     if (existingBtn) existingBtn.remove();
     const allLoadedMsg = document.querySelector('.all-comments-loaded');
     if (allLoadedMsg) allLoadedMsg.remove();
-    
+
     // Add load more button if there are more comments
     if (commentState.hasMore && !commentState.isLoading) {
         const remaining = commentState.totalCount - commentState.comments.length;
@@ -1188,18 +1297,18 @@ async function loadMoreComments() {
 function initInfiniteScroll() {
     // Remove existing scroll listener if any
     window.removeEventListener('scroll', handleInfiniteScroll);
-    
+
     // Add scroll listener to window instead of container
     window.addEventListener('scroll', handleInfiniteScroll);
 }
 
 function handleInfiniteScroll() {
     if (!commentState.hasMore || commentState.isLoading) return;
-    
+
     // Check if user scrolled near bottom of the page (within 500px)
     const scrollBottom = window.innerHeight + window.scrollY;
     const documentHeight = document.documentElement.scrollHeight;
-    
+
     if (documentHeight - scrollBottom < 500) {
         loadMoreComments();
     }
@@ -1289,9 +1398,9 @@ function renderCommentItem(comment, depth = 0, parentAuthor = null, isLastChild 
                     ${hasReplies && isExpanded && depth === 0 ? `
                         <div class="comment-replies" style="margin-top: 8px;">
                             ${comment.replies.map((reply, index) => {
-                                // All replies are at level 1, no parentAuthor (quote box will show)
-                                return renderCommentItem(reply, 1, null, index === comment.replies.length - 1);
-                            }).join('')}
+        // All replies are at level 1, no parentAuthor (quote box will show)
+        return renderCommentItem(reply, 1, null, index === comment.replies.length - 1);
+    }).join('')}
                             <button class="hide-replies-btn" onclick="toggleReplies(${comment.id})" style="margin-top: 4px; margin-left: 4px; background: transparent; border: none; color: #1877f2; cursor: pointer; font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 4px;">
                                 <i class="fas fa-chevron-up" style="font-size: 10px; margin-right: 4px;"></i>
                                 Hide replies
@@ -1303,9 +1412,9 @@ function renderCommentItem(comment, depth = 0, parentAuthor = null, isLastChild 
                     ${hasNestedReplies && isNestedExpanded && depth === 1 ? `
                         <div class="comment-replies" style="margin-top: 8px;">
                             ${comment.nested_replies.map((nestedReply, index) => {
-                                // All nested replies are at level 1, no parentAuthor (quote box will show)
-                                return renderCommentItem(nestedReply, 1, null, index === comment.nested_replies.length - 1);
-                            }).join('')}
+        // All nested replies are at level 1, no parentAuthor (quote box will show)
+        return renderCommentItem(nestedReply, 1, null, index === comment.nested_replies.length - 1);
+    }).join('')}
                             <button class="hide-replies-btn" onclick="toggleReplies('nested_${comment.id}')" style="margin-top: 4px; margin-left: 4px; background: transparent; border: none; color: #1877f2; cursor: pointer; font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 4px;">
                                 <i class="fas fa-chevron-up" style="font-size: 10px; margin-right: 4px;"></i>
                                 Hide replies
@@ -1353,13 +1462,13 @@ function renderCommentItem(comment, depth = 0, parentAuthor = null, isLastChild 
 function toggleReplies(commentId) {
     // Handle both regular comment IDs and nested reply IDs (strings like 'nested_123')
     const id = typeof commentId === 'string' ? commentId : commentId;
-    
+
     if (expandedReplies.has(id)) {
         expandedReplies.delete(id);
     } else {
         expandedReplies.add(id);
     }
-    
+
     // Re-render comments to show/hide replies (only if it's a top-level comment)
     // For nested replies, we just need to re-render the current view
     if (typeof id === 'number' || (typeof id === 'string' && !id.startsWith('nested_'))) {
@@ -1472,9 +1581,33 @@ async function submitComment(event) {
 
         if (data.status === 200) {
             document.getElementById('commentInput').value = '';
+            
+            // Update post reply count
+            if (postState.post) {
+                postState.post.reply_count = (postState.post.reply_count || 0) + 1;
+                // Update the comment count display
+                const commentCountElement = document.querySelector('.comments-header span');
+                if (commentCountElement) {
+                    commentCountElement.textContent = `${postState.post.reply_count} Comments`;
+                }
+            }
+            
+            // Preserve expanded replies state before reloading
+            const currentExpanded = Array.from(expandedReplies);
+            
             // Reload comments to show the new comment
             commentState.offset = 0;
             await loadComments(postState.postId, true);
+            
+            // Restore expanded replies state after reloading
+            currentExpanded.forEach(id => {
+                expandedReplies.add(id);
+            });
+            
+            // Re-render comments to show expanded state
+            if (currentExpanded.length > 0) {
+                renderComments(commentState.comments);
+            }
         } else {
             alert(data.message || 'Failed to post comment');
         }
@@ -1515,9 +1648,35 @@ async function submitReply(commentId, postId) {
         if (data.status === 200) {
             replyInput.value = '';
             toggleReplyForm(commentId); // Hide the form
+            
+            // Update post reply count
+            if (postState.post) {
+                postState.post.reply_count = (postState.post.reply_count || 0) + 1;
+                // Update the comment count display
+                const commentCountElement = document.querySelector('.comments-header span');
+                if (commentCountElement) {
+                    commentCountElement.textContent = `${postState.post.reply_count} Comments`;
+                }
+            }
+            
+            // Preserve expanded replies state before reloading
+            const currentExpanded = Array.from(expandedReplies);
+            // Make sure the parent comment is expanded so we can see the new reply
+            if (!currentExpanded.includes(commentId)) {
+                currentExpanded.push(commentId);
+            }
+            
             // Reload comments to show the new reply
             commentState.offset = 0;
             await loadComments(postId, true);
+            
+            // Restore expanded replies state after reloading
+            currentExpanded.forEach(id => {
+                expandedReplies.add(id);
+            });
+            
+            // Re-render comments to show expanded state
+            renderComments(commentState.comments);
         } else {
             alert(data.message || 'Failed to post reply');
         }
@@ -1612,22 +1771,22 @@ function formatTime(dateString) {
     if (!dateString) {
         return 'Unknown';
     }
-    
+
     const date = new Date(dateString);
-    
+
     // Check if date is valid (not NaN and not epoch 0)
     if (isNaN(date.getTime()) || date.getTime() === 0) {
         return 'Unknown';
     }
-    
+
     const now = new Date();
     const diff = now - date;
-    
+
     // If date is in the future or diff is negative, return formatted date
     if (diff < 0) {
         return date.toLocaleDateString();
     }
-    
+
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
@@ -1691,7 +1850,7 @@ function getCurrentUserAvatar() {
 function getCurrentUserAvatarHTML() {
     const avatarUrl = getCurrentUserAvatar();
     const userName = sessionStorage.getItem('userName') || sessionStorage.getItem('userEmail') || 'User';
-    
+
     if (avatarUrl) {
         return `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(userName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
     }
@@ -1700,14 +1859,14 @@ function getCurrentUserAvatarHTML() {
 
 function formatDate(dateString) {
     if (!dateString) return 'Unknown date';
-    
+
     const date = new Date(dateString);
-    
+
     // Check if date is valid
     if (isNaN(date.getTime())) {
         return 'Unknown date';
     }
-    
+
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return date.toLocaleDateString('en-US', options);
 }
@@ -1728,11 +1887,11 @@ async function loadForumsToSidebar() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200) {
@@ -1775,7 +1934,7 @@ async function loadTagsForForum() {
             if (typeof tags === 'string') {
                 tags = JSON.parse(tags);
             }
-            
+
             if (Array.isArray(tags) && tags.length > 0) {
                 // Show post tags in the sidebar
                 renderTagsToSidebar(tags);
@@ -1798,11 +1957,11 @@ async function loadTagsForForum() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200 && data.data && data.data.tags && data.data.tags.length > 0) {
@@ -1885,11 +2044,11 @@ async function loadAboutCommunity() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200) {
@@ -1951,14 +2110,14 @@ function getCurrentUserId() {
 function togglePostOptions(postId) {
     const menu = document.getElementById(`postOptions_${postId}`);
     if (!menu) return;
-    
+
     // Close all other menus
     document.querySelectorAll('.post-options-menu').forEach(m => {
         if (m.id !== `postOptions_${postId}`) {
             m.classList.add('hidden');
         }
     });
-    
+
     menu.classList.toggle('hidden');
 }
 
@@ -1966,7 +2125,7 @@ async function confirmDeletePost(postId) {
     if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/forum/post/${postId}`, {
             method: 'DELETE',
@@ -1977,9 +2136,9 @@ async function confirmDeletePost(postId) {
             },
             credentials: 'include',
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Redirect back to forum or forum detail page
             if (postState.post && postState.post.forum_id) {
@@ -2001,7 +2160,7 @@ async function openShareModal(postId, postTitle, forumName) {
     document.querySelectorAll('.post-options-menu').forEach(menu => {
         menu.classList.add('hidden');
     });
-    
+
     // Create or get share modal
     let modal = document.getElementById('sharePostModal');
     if (!modal) {
@@ -2030,15 +2189,15 @@ async function openShareModal(postId, postTitle, forumName) {
         `;
         document.body.appendChild(modal);
     }
-    
+
     // Update modal with current post info
     modal.querySelector('.share-post-title').textContent = postTitle;
     modal.querySelector('.share-post-forum').textContent = forumName;
     modal.dataset.postId = postId;
-    
+
     // Show modal
     modal.classList.add('active');
-    
+
     // Load conversations
     await loadShareConversations();
 }
@@ -2053,9 +2212,9 @@ function closeShareModal() {
 async function loadShareConversations() {
     const container = document.getElementById('shareConversationsList');
     if (!container) return;
-    
+
     container.innerHTML = '<div class="loading">Loading conversations...</div>';
-    
+
     try {
         const response = await fetch('/api/messaging/conversations', {
             method: 'GET',
@@ -2066,16 +2225,16 @@ async function loadShareConversations() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data && data.data.conversations) {
             const conversations = data.data.conversations;
-            
+
             if (conversations.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -2086,17 +2245,17 @@ async function loadShareConversations() {
                 `;
                 return;
             }
-            
+
             container.innerHTML = conversations.map(conv => {
-                const displayName = conv.type === 'group' 
-                    ? conv.name 
+                const displayName = conv.type === 'group'
+                    ? conv.name
                     : (conv.other_full_name || conv.other_username || 'Unknown');
                 const avatar = conv.type === 'group'
                     ? '<i class="fas fa-users"></i>'
-                    : (conv.other_avatar 
+                    : (conv.other_avatar
                         ? `<img src="${conv.other_avatar}" alt="${displayName}">`
                         : `<div class="avatar-initial">${displayName.charAt(0).toUpperCase()}</div>`);
-                
+
                 return `
                     <div class="share-conversation-item" onclick="shareToConversation(${conv.id}, '${conv.type}')">
                         <div class="share-conversation-avatar">${avatar}</div>
@@ -2119,19 +2278,16 @@ async function loadShareConversations() {
 async function shareToConversation(conversationId, conversationType) {
     const modal = document.getElementById('sharePostModal');
     if (!modal) return;
-    
+
     const postId = modal.dataset.postId;
     const postTitle = modal.querySelector('.share-post-title')?.textContent || '';
     const forumName = modal.querySelector('.share-post-forum')?.textContent || '';
     const postUrl = `${window.location.origin}/forum/post/${postId}`;
-    
-    // Create a preview message with post details
-    const previewMessage = `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}\n\n${postUrl}`;
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        
-        // Send the message with post preview
+
+        // Send the message with shared_post type - post_id stored in attachment_url
         const response = await fetch('/api/messaging/send', {
             method: 'POST',
             headers: {
@@ -2143,23 +2299,25 @@ async function shareToConversation(conversationId, conversationType) {
             credentials: 'include',
             body: JSON.stringify({
                 conversation_id: parseInt(conversationId),
-                content: previewMessage,
-                message_type: 'text'
+                content: `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}`,
+                message_type: 'shared_post',
+                attachment_url: postId.toString(), // Store post_id in attachment_url
+                attachment_name: postUrl // Store post URL in attachment_name for fallback
             })
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'Failed to send message' }));
             alert(errorData.message || 'Failed to share post');
             return;
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Close the share modal
             closeShareModal();
-            
+
             // Navigate to messaging page with the conversation selected
             window.location.href = `/messaging?conversation=${conversationId}`;
         } else {
@@ -2183,10 +2341,10 @@ document.addEventListener('click', (e) => {
 // Format comment content with basic text formatting and mentions
 function formatCommentContent(content, mentions = null) {
     if (!content) return '';
-    
+
     // Escape HTML first to prevent XSS
     let formatted = escapeHtml(content);
-    
+
     // Process mentions first (before other formatting to avoid conflicts)
     // Mentions format: @username
     if (mentions && typeof mentions === 'object') {
@@ -2204,23 +2362,23 @@ function formatCommentContent(content, mentions = null) {
             return `<span class="mention-link" style="color: #1877f2; font-weight: 600; cursor: pointer;" onclick="event.stopPropagation(); searchUserProfile('${username}'); return false;">${match}</span>`;
         });
     }
-    
+
     // Convert markdown-style formatting to HTML
     // Bold: **text** or __text__
     formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     formatted = formatted.replace(/__(.+?)__/g, '<strong>$1</strong>');
-    
+
     // Italic: *text* or _text_ (but not if it's part of **bold**)
     formatted = formatted.replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
     formatted = formatted.replace(/(?<!_)_([^_]+?)_(?!_)/g, '<em>$1</em>');
-    
+
     // Links: [text](url) or just URLs (but skip if already a mention link)
     formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
         // Skip if this is inside a mention link
         if (match.includes('mention-link')) return match;
         return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #0079d3; text-decoration: underline;">${escapeHtml(text)}</a>`;
     });
-    
+
     // Auto-detect URLs (http://, https://, www.) - but skip if already a mention link
     const urlRegex = /(https?:\/\/[^\s<>]+|www\.[^\s<>]+)/g;
     formatted = formatted.replace(urlRegex, (url) => {
@@ -2232,10 +2390,10 @@ function formatCommentContent(content, mentions = null) {
         }
         return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="color: #0079d3; text-decoration: underline;">${escapeHtml(url)}</a>`;
     });
-    
+
     // Line breaks
     formatted = formatted.replace(/\n/g, '<br>');
-    
+
     return formatted;
 }
 
@@ -2256,7 +2414,7 @@ async function searchUserProfile(username) {
             },
             credentials: 'include',
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             if (data.status === 200 && data.data && data.data.user_id) {
@@ -2267,7 +2425,7 @@ async function searchUserProfile(username) {
     } catch (error) {
         console.error('Error searching user:', error);
     }
-    
+
     // Fallback: show error or redirect to profile search
     alert(`User @${username} not found`);
 }
@@ -2276,7 +2434,7 @@ async function searchUserProfile(username) {
 function toggleCommentEdit(commentId) {
     const editForm = document.getElementById(`editForm_${commentId}`);
     const commentBody = document.getElementById(`commentBody_${commentId}`);
-    
+
     if (editForm && commentBody) {
         if (editForm.style.display === 'none' || !editForm.style.display) {
             editForm.style.display = 'block';
@@ -2297,7 +2455,7 @@ function toggleCommentEdit(commentId) {
 function cancelCommentEdit(commentId) {
     const editForm = document.getElementById(`editForm_${commentId}`);
     const commentBody = document.getElementById(`commentBody_${commentId}`);
-    
+
     if (editForm && commentBody) {
         editForm.style.display = 'none';
         commentBody.style.display = 'block';
@@ -2307,13 +2465,13 @@ function cancelCommentEdit(commentId) {
 async function saveCommentEdit(commentId) {
     const editInput = document.getElementById(`editInput_${commentId}`);
     if (!editInput) return;
-    
+
     const content = editInput.value.trim();
     if (!content) {
         alert('Comment cannot be empty');
         return;
     }
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch(`/api/forum/comment/${commentId}`, {
@@ -2327,9 +2485,9 @@ async function saveCommentEdit(commentId) {
             credentials: 'include',
             body: JSON.stringify({ content })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Reload comments to show updated content
             await loadComments(postState.postId, true);
@@ -2346,7 +2504,7 @@ function confirmDeleteComment(commentId) {
     if (!confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
         return;
     }
-    
+
     deleteComment(commentId);
 }
 
@@ -2363,9 +2521,9 @@ async function deleteComment(commentId) {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Reload comments to reflect deletion
             await loadComments(postState.postId, true);
@@ -2444,7 +2602,7 @@ function trackVisitedPost(postId) {
 function goBackToReferrer() {
     const urlParams = new URLSearchParams(window.location.search);
     const referrer = urlParams.get('referrer');
-    
+
     if (referrer) {
         // Decode and navigate to the referrer page
         const referrerPath = decodeURIComponent(referrer);
@@ -2461,7 +2619,7 @@ async function openReportModal(postId, postTitle) {
     document.querySelectorAll('.post-options-menu').forEach(menu => {
         menu.classList.add('hidden');
     });
-    
+
     // Create or get report modal
     let modal = document.getElementById('reportPostModal');
     if (!modal) {
@@ -2520,7 +2678,7 @@ async function openReportModal(postId, postTitle) {
             </div>
         `;
         document.body.appendChild(modal);
-        
+
         // Add character counter
         const detailsInput = document.getElementById('reportDetails');
         const charCount = document.getElementById('reportCharCount');
@@ -2530,11 +2688,11 @@ async function openReportModal(postId, postTitle) {
             });
         }
     }
-    
+
     // Update modal with current post info
     modal.querySelector('.report-post-title').textContent = postTitle;
     modal.dataset.postId = postId;
-    
+
     // Reset form
     const form = modal.querySelector('form');
     if (form) form.reset();
@@ -2548,7 +2706,7 @@ async function openReportModal(postId, postTitle) {
         errorDiv.style.display = 'none';
         errorDiv.textContent = '';
     }
-    
+
     // Show modal
     modal.classList.add('active');
 }
@@ -2563,12 +2721,12 @@ function closeReportModal() {
 async function submitReport() {
     const modal = document.getElementById('reportPostModal');
     if (!modal) return;
-    
+
     const postId = modal.dataset.postId;
     const selectedReason = modal.querySelector('input[name="reportReason"]:checked');
     const detailsInput = document.getElementById('reportDetails');
     const errorDiv = document.getElementById('reportError');
-    
+
     if (!selectedReason) {
         if (errorDiv) {
             errorDiv.textContent = 'Please select a reason for reporting';
@@ -2576,10 +2734,10 @@ async function submitReport() {
         }
         return;
     }
-    
+
     const reason = selectedReason.value;
     const details = detailsInput ? detailsInput.value.trim() : '';
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch('/api/forum/post/report', {
@@ -2597,19 +2755,19 @@ async function submitReport() {
                 details: details
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             closeReportModal();
             alert('Post reported successfully. Thank you for helping keep our community safe.');
-            
+
             // Show warning if multiple reports
             if (data.data && data.data.report_count >= 3) {
                 // Optionally show a warning banner
                 showReportWarning(postId, data.data.report_count);
             }
-            
+
             // Reload post to update report count display
             if (postState.postId) {
                 await loadPostDetail();
@@ -2655,7 +2813,7 @@ async function toggleHidePost(postId, hide) {
     if (!confirm(`Are you sure you want to ${hide ? 'hide' : 'unhide'} this post?`)) {
         return;
     }
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch(`/api/forum/post/${postId}/hide`, {
@@ -2671,9 +2829,9 @@ async function toggleHidePost(postId, hide) {
                 hide: hide
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             alert(data.message || `Post ${hide ? 'hidden' : 'unhidden'} successfully`);
             // Reload post detail
@@ -2705,13 +2863,13 @@ async function votePoll(postId, optionId) {
                 option_id: optionId,
             }),
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Update post state with new poll data
             if (postState.post && postState.post.id === postId) {
@@ -2734,6 +2892,43 @@ async function votePoll(postId, optionId) {
         console.error('Error voting on poll:', error);
         showError('Failed to vote on poll');
     }
+}
+
+window.toggleReaction = toggleReaction;
+window.toggleBookmark = toggleBookmark;
+window.togglePostOptions = togglePostOptions;
+window.confirmDeletePost = confirmDeletePost;
+window.openShareModal = openShareModal;
+window.closeShareModal = closeShareModal;
+window.shareToConversation = shareToConversation;
+window.openReportModal = openReportModal;
+window.closeReportModal = closeReportModal;
+window.submitReport = submitReport;
+window.toggleHidePost = toggleHidePost;
+window.votePoll = votePoll;
+window.saveSharedLesson = saveSharedLesson;
+
+// Helper to save shared lesson
+function saveSharedLesson(lessonId) {
+    if (!confirm('Would you like to save a copy of this lesson to your inventory?')) return;
+
+    // Create a form to submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/lessons/${lessonId}/clone`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = '_token';
+        input.value = csrfToken;
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // Make functions globally accessible

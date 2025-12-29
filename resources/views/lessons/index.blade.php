@@ -1,19 +1,23 @@
 <x-app-layout>
-    <div class="py-12 bg-gray-50" x-data="{ activeTab: 'lessons' }">
-        <div class="max-w-8xl mx-auto sm:px-6 lg:px-8">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 px-4 sm:px-0 gap-4">
-                <div>
-                    <h1 class="text-3xl font-extrabold text-[#2454FF] tracking-tight" x-text="activeTab === 'lessons' ? 'Inventori Pelajaran' : 'Inventori Aktiviti'"></h1>
-                    <p class="text-gray-600 mt-2" x-text="activeTab === 'lessons' ? 'Cipta dan urus kandungan pelajaran untuk pelajar' : 'Cipta dan urus aktiviti untuk pelajar'"></p>
-                </div>
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Inventori Pelajaran & Aktiviti') }}
+            </h2>
+            <div x-data="{ activeTab: '{{ request('tab', 'lessons') }}' }">
                 <a :href="activeTab === 'lessons' ? '{{ route('lessons.create') }}' : '{{ route('activities.create') }}'"
-                    class="bg-[#5FAD56] hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition ease-in-out duration-150 shadow-md hover:shadow-lg flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="bg-[#5FAD56] hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition ease-in-out duration-150 shadow-sm flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
                     <span x-text="activeTab === 'lessons' ? 'Cipta Pelajaran Baru' : 'Cipta Aktiviti Baru'"></span>
                 </a>
             </div>
+        </div>
+    </x-slot>
+
+    <div class="py-12 bg-gray-50" x-data="{ activeTab: '{{ request('tab', 'lessons') }}' }">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             <!-- Tab Navigation -->
             <div class="flex space-x-4 mb-6 border-b border-gray-200 px-4 sm:px-0">
@@ -143,7 +147,7 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M12 4v16m8-8H4"></path>
                                                 </svg>
-                                                {{ __('Create New Lesson') }}
+                                                Cipta Pelajaran Baru
                                             </a>
                                         </div>
                                     </div>
@@ -207,7 +211,7 @@
                                                 </a>
 
                                                 <!-- Assign Button -->
-                                                <a href="{{ route('schedule.index', ['activity_id' => $activity->id, 'tab' => 'activity']) }}" 
+                                                <a href="{{ route('assignments.create', ['activity_id' => $activity->id, 'tab' => 'activity']) }}" 
                                                     class="inline-flex items-center px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 ease-in-out">
                                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>

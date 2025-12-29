@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class ForumController extends Controller
@@ -237,9 +238,21 @@ class ForumController extends Controller
             'attachments' => 'nullable|array',
             'post_type' => 'required|in:post,link,poll',
             'poll_option' => 'required_if:post_type,poll|array|min:2',
+            'lesson_id' => 'nullable|exists:lesson,id', // Validate lesson existence
         ]);
         
         $forum = Forum::findOrFail($request->forum_id);
+
+        // Security: If lesson_id is provided, ensure the current user is the owner (teacher)
+        if ($request->lesson_id) {
+            $lesson = \App\Models\Lesson::find($request->lesson_id);
+            if (!$lesson || $lesson->teacher_id !== $user->id) {
+                 return response()->json([
+                    'status' => 403,
+                    'message' => 'You can only share your own lessons.',
+                ], 403);
+            }
+        }
         
         // Check if user is member
         $isMember = $forum->members()->where('user_id', $user->id)->exists();
@@ -290,6 +303,7 @@ class ForumController extends Controller
                 'content' => $request->content ?? '',
                 'category' => $request->category ? trim($request->category) : null,
                 'post_type' => $dbPostType,
+                'lesson_id' => $request->lesson_id, // Save the shared lesson ID
             ]);
             
             // Add tags
@@ -302,13 +316,11 @@ class ForumController extends Controller
                 }
             }
             
-            // Add attachments - store attachment type based on post_type
+            // Add attachments
             if ($request->attachments) {
-                $attachmentType = $request->post_type === 'link' ? 'link' : 'post';
                 foreach ($request->attachments as $attachment) {
                     PostAttachment::create([
                         'post_id' => $post->id,
-                        'attachment_type' => $attachmentType,
                         'file_url' => $attachment['url'] ?? '',
                         'file_name' => $attachment['name'] ?? '',
                         'file_type' => $attachment['type'] ?? '',
@@ -341,11 +353,12 @@ class ForumController extends Controller
                 ->toArray();
             
             foreach ($forumMembers as $memberId) {
+                // forum_post is informational, auto-mark as read
                 Notification::create([
                     'user_id' => $memberId,
                     'type' => 'forum_post',
-                    'title' => 'New Post in ' . $forum->title,
-                    'message' => $user->full_name . ' posted: ' . $post->title,
+                    'title' => 'Post Baharu dalam ' . $forum->title,
+                    'message' => $user->full_name . ' telah membuat post: ' . $post->title,
                     'related_type' => 'post',
                     'related_id' => $post->id,
                     'is_read' => false,
@@ -357,7 +370,10 @@ class ForumController extends Controller
             return response()->json([
                 'status' => 200,
                 'message' => 'Post created successfully',
-                'data' => ['post_id' => $post->id],
+                'data' => [
+                    'post_id' => $post->id,
+                    'forum_id' => $post->forum_id,
+                ],
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -517,6 +533,7 @@ class ForumController extends Controller
                     'content' => $post->content,
                     'post_type' => $hasPollOptions ? 'poll' : ($post->post_type ?? 'post'), // Include post_type, mark as poll if has poll_options
                     'category' => $post->category,
+                    'lesson_id' => $post->lesson_id, // Include lesson_id for sharing
                     'is_pinned' => $post->is_pinned,
                     'view_count' => $post->view_count,
                     'reply_count' => $post->reply_count,
@@ -658,10 +675,11 @@ class ForumController extends Controller
                 Notification::create([
                     'user_id' => $post->author_id,
                     'type' => 'post_moderation',
-                    'title' => 'Post Deleted',
-                    'message' => "Your post '{$post->title}' has been deleted by a forum moderator",
+                    'title' => 'Post Dipadam',
+                    'message' => "Post anda '{$post->title}' telah dipadam oleh moderator forum",
                     'related_type' => 'post',
                     'related_id' => $post->id,
+                    'is_read' => false,
                 ]);
             }
             
@@ -736,8 +754,8 @@ class ForumController extends Controller
                         Notification::create([
                             'user_id' => $parentCommentAuthorId,
                             'type' => 'reply',
-                            'title' => 'Reply to your comment',
-                            'message' => $commenterName . ' replied to your comment on: ' . $post->title,
+                            'title' => 'Balasan kepada komen anda',
+                            'message' => $commenterName . ' telah membalas komen anda pada: ' . $post->title,
                             'related_type' => 'comment',
                             'related_id' => $comment->id,
                             'is_read' => false,
@@ -752,8 +770,8 @@ class ForumController extends Controller
                         Notification::create([
                             'user_id' => $post->author_id,
                             'type' => 'comment',
-                            'title' => 'New reply on your post',
-                            'message' => $commenterName . ' replied to a comment on your post: ' . $post->title,
+                            'title' => 'Balasan baharu pada post anda',
+                            'message' => $commenterName . ' telah membalas komen pada post anda: ' . $post->title,
                             'related_type' => 'comment',
                             'related_id' => $comment->id,
                             'is_read' => false,
@@ -768,8 +786,8 @@ class ForumController extends Controller
                     Notification::create([
                         'user_id' => $post->author_id,
                         'type' => 'comment',
-                        'title' => 'New comment on your post',
-                        'message' => $commenterName . ' commented on: ' . $post->title,
+                        'title' => 'Komen baharu pada post anda',
+                        'message' => $commenterName . ' telah mengomen pada: ' . $post->title,
                         'related_type' => 'comment',
                         'related_id' => $comment->id,
                         'is_read' => false,
@@ -784,8 +802,8 @@ class ForumController extends Controller
                     Notification::create([
                         'user_id' => $mentionedUserId,
                         'type' => 'mention',
-                        'title' => 'You were mentioned',
-                        'message' => $commenterName . ' mentioned you in a comment on: ' . $post->title,
+                        'title' => 'Anda telah disebut',
+                        'message' => $commenterName . ' telah menyebut anda dalam komen pada: ' . $post->title,
                         'related_type' => 'comment',
                         'related_id' => $comment->id,
                         'is_read' => false,
@@ -1592,8 +1610,8 @@ class ForumController extends Controller
                 Notification::create([
                     'user_id' => $admin->id,
                     'type' => 'report',
-                    'title' => 'Post Reported',
-                    'message' => "Post '{$post->title}' has been reported for: " . ucfirst($request->reason) . ($reportCount > 1 ? " ({$reportCount} total reports)" : ""),
+                    'title' => 'Post Dilaporkan',
+                    'message' => "Post '{$post->title}' telah dilaporkan kerana: " . ucfirst($request->reason) . ($reportCount > 1 ? " ({$reportCount} laporan keseluruhan)" : ""),
                     'related_type' => 'post',
                     'related_id' => $post->id,
                 ]);
@@ -1610,8 +1628,8 @@ class ForumController extends Controller
                     Notification::create([
                         'user_id' => $admin->id,
                         'type' => 'report',
-                        'title' => 'Post Reported Multiple Times',
-                        'message' => "Post '{$post->title}' has been reported {$reportCount} times and may need immediate review",
+                        'title' => 'Post Dilaporkan Berulang Kali',
+                        'message' => "Post '{$post->title}' telah dilaporkan {$reportCount} kali dan mungkin memerlukan semakan segera",
                         'related_type' => 'post',
                         'related_id' => $post->id,
                     ]);
@@ -1674,10 +1692,11 @@ class ForumController extends Controller
                 Notification::create([
                     'user_id' => $post->author_id,
                     'type' => 'post_moderation',
-                    'title' => 'Post Hidden',
-                    'message' => "Your post '{$post->title}' has been hidden by a forum moderator",
+                    'title' => 'Post Disembunyikan',
+                    'message' => "Post anda '{$post->title}' telah disembunyikan oleh moderator forum",
                     'related_type' => 'post',
                     'related_id' => $post->id,
+                    'is_read' => false,
                 ]);
             }
         } else {
@@ -1691,10 +1710,11 @@ class ForumController extends Controller
                 Notification::create([
                     'user_id' => $post->author_id,
                     'type' => 'post_moderation',
-                    'title' => 'Post Unhidden',
-                    'message' => "Your post '{$post->title}' has been unhidden by a forum moderator",
+                    'title' => 'Post Ditunjukkan Semula',
+                    'message' => "Post anda '{$post->title}' telah ditunjukkan semula oleh moderator forum",
                     'related_type' => 'post',
                     'related_id' => $post->id,
+                    'is_read' => false,
                 ]);
             }
         }
@@ -1856,24 +1876,25 @@ class ForumController extends Controller
         $reporter = User::find($report->reporter_id);
         if ($reporter && $oldStatus !== $request->status) {
             $statusMessages = [
-                'reviewed' => 'Your report has been reviewed by a forum administrator',
-                'resolved' => 'Your report has been resolved. The issue has been addressed',
-                'dismissed' => 'Your report has been dismissed by a forum administrator',
-                'pending' => 'Your report status has been reset to pending',
+                'reviewed' => 'Laporan anda telah disemak oleh pentadbir forum',
+                'resolved' => 'Laporan anda telah diselesaikan. Isu telah ditangani',
+                'dismissed' => 'Laporan anda telah ditolak oleh pentadbir forum',
+                'pending' => 'Status laporan anda telah ditetapkan semula kepada menunggu',
             ];
 
-            $message = $statusMessages[$request->status] ?? "Your report status has been updated to: " . ucfirst($request->status);
+            $message = $statusMessages[$request->status] ?? "Status laporan anda telah dikemaskini kepada: " . ucfirst($request->status);
             if ($request->review_notes) {
-                $message .= ". Notes: " . $request->review_notes;
+                $message .= ". Nota: " . $request->review_notes;
             }
 
             Notification::create([
                 'user_id' => $reporter->id,
                 'type' => 'report_status',
-                'title' => 'Report Status Updated',
+                'title' => 'Status Laporan Dikemaskini',
                 'message' => $message . " - Post: '{$post->title}'",
                 'related_type' => 'report',
                 'related_id' => $report->id,
+                'is_read' => false,
             ]);
         }
 
@@ -2197,98 +2218,88 @@ class ForumController extends Controller
         $search = $request->get('search', '');
         $limit = min((int) $request->get('limit', 20), 50);
 
-        // Get friends
-        $friends = DB::table('friend')
-            ->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)->where('status', 'accepted');
-            })
-            ->orWhere(function ($q) use ($user) {
-                $q->where('friend_id', $user->id)->where('status', 'accepted');
-            })
-            ->get()
-            ->map(function ($f) use ($user) {
-                return $f->user_id === $user->id ? $f->friend_id : $f->user_id;
-            })
+        // Get users from direct message conversations
+        $dmUserIds = DB::table('conversation_participant')
+            ->join('conversation', 'conversation_participant.conversation_id', '=', 'conversation.id')
+            ->where('conversation_participant.user_id', $user->id)
+            ->where('conversation.type', 'direct')
+            ->select('conversation_participant.conversation_id')
+            ->pluck('conversation_id')
+            ->unique();
+
+        // Get the other participants from these conversations
+        $dmUserIds = DB::table('conversation_participant')
+            ->whereIn('conversation_id', $dmUserIds)
+            ->where('user_id', '!=', $user->id)
+            ->pluck('user_id')
+            ->unique()
             ->toArray();
 
-        // Get recently mentioned users (from comments where current user mentioned others)
-        $recentMentions = DB::table('comment')
-            ->where('author_id', $user->id)
-            ->where(function ($q) {
-                $q->where('content', 'like', '%@%');
-            })
-            ->orderBy('created_at', 'desc')
-            ->limit(20)
-            ->pluck('content')
-            ->map(function ($content) {
-                // Extract usernames from content
-                preg_match_all('/@(\w+)/', $content, $matches);
-                return !empty($matches[1]) ? $matches[1] : [];
-            })
-            ->flatten()
-            ->unique()
-            ->take(10)
-            ->toArray();
-        
-        // Get user IDs for recently mentioned usernames
-        $recentMentionUserIds = [];
-        if (!empty($recentMentions)) {
-            $recentMentionUserIds = User::whereIn('username', $recentMentions)
-                ->where('id', '!=', $user->id)
-                ->pluck('id')
-                ->toArray();
+        // Start with DM conversation users
+        $allUserIds = $dmUserIds;
+        $usersMap = [];
+
+        // If we have DM users, load them first
+        if (!empty($dmUserIds)) {
+            $dmUsers = User::whereIn('id', $dmUserIds)
+                ->select('id', 'username', 'full_name', 'avatar_url')
+                ->get();
+            
+            foreach ($dmUsers as $u) {
+                $usersMap[$u->id] = [
+                    'id' => $u->id,
+                    'username' => $u->username,
+                    'full_name' => $u->full_name ?? $u->username,
+                    'avatar_url' => $u->avatar_url,
+                    'is_dm_contact' => true,
+                ];
+            }
         }
 
-        // Combine friends and recent mentions, remove duplicates
-        $mentionableUserIds = array_unique(array_merge($friends, $recentMentionUserIds));
-
-        // Build query
-        // If we have mentionable users (friends/recent), use them; otherwise search all users
-        if (!empty($mentionableUserIds)) {
-            $query = User::whereIn('id', $mentionableUserIds)
-                ->where('id', '!=', $user->id)
-                ->select('id', 'username', 'full_name', 'avatar_url');
-            
-            // If search is provided, filter by username or full_name
-            if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
+        // If search term is provided, also search for matching users
+        if (!empty($search)) {
+            $searchUsers = User::where('id', '!=', $user->id)
+                ->where(function ($q) use ($search) {
                     $q->where('username', 'like', '%' . $search . '%')
                       ->orWhere('full_name', 'like', '%' . $search . '%');
-                });
+                })
+                ->select('id', 'username', 'full_name', 'avatar_url')
+                ->limit($limit)
+                ->get();
+
+            foreach ($searchUsers as $u) {
+                // Add to map if not already there, or update if exists
+                if (!isset($usersMap[$u->id])) {
+                    $usersMap[$u->id] = [
+                        'id' => $u->id,
+                        'username' => $u->username,
+                        'full_name' => $u->full_name ?? $u->username,
+                        'avatar_url' => $u->avatar_url,
+                        'is_dm_contact' => false,
+                    ];
+                    $allUserIds[] = $u->id;
+                }
             }
-        } else {
-            // No friends yet, search all users
-            $query = User::where('id', '!=', $user->id)
-                ->select('id', 'username', 'full_name', 'avatar_url');
-            
-            // Require search term if no friends
-            if (empty($search)) {
-                return response()->json([
-                    'status' => 200,
-                    'data' => ['users' => []],
-                ]);
-            }
-            
-            $query->where(function ($q) use ($search) {
-                $q->where('username', 'like', '%' . $search . '%')
-                  ->orWhere('full_name', 'like', '%' . $search . '%');
-            });
         }
 
-        $users = $query->limit($limit)->get()->map(function ($u) use ($friends) {
-            return [
-                'id' => $u->id,
-                'username' => $u->username,
-                'full_name' => $u->full_name ?? $u->username,
-                'avatar_url' => $u->avatar_url,
-                'is_friend' => in_array($u->id, $friends),
-            ];
+        // Convert map to array
+        $users = array_values($usersMap);
+
+        // Sort: DM contacts first, then by name
+        usort($users, function ($a, $b) {
+            // DM contacts first
+            if ($a['is_dm_contact'] && !$b['is_dm_contact']) {
+                return -1;
+            }
+            if (!$a['is_dm_contact'] && $b['is_dm_contact']) {
+                return 1;
+            }
+            // Then sort by name
+            return strcasecmp($a['full_name'], $b['full_name']);
         });
 
-        // Sort: friends first, then by name
-        $users = $users->sortBy(function ($u) {
-            return ($u['is_friend'] ? 0 : 1) . $u['full_name'];
-        })->values();
+        // Limit results
+        $users = array_slice($users, 0, $limit);
 
         return response()->json([
             'status' => 200,

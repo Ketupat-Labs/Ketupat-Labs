@@ -17,100 +17,95 @@ class PerformanceController extends Controller
         $user = auth()->user();
         $classrooms = collect();
         $selectedClass = null;
-        $selectedLessonId = $request->get('lesson_id', 'all'); // Initialize selectedLessonId
+        $selectedClassId = null;
+        $selectedLessonId = $request->get('lesson_id', 'all');
+        $lessons = collect();
+        $activities = collect();
+        $filterItems = collect();
+        $selectedFilter = $request->get('filter_id', 'all');
+        $data = [];
+        $mode = 'all';
+        $students = collect();
 
         if ($user->role === 'teacher') {
              $classrooms = Classroom::where('teacher_id', $user->id)->get();
              $selectedClassId = $request->get('class_id', $classrooms->first()->id ?? null);
              $selectedClass = $classrooms->find($selectedClassId);
-             if (!$selectedClass) return view('performance.index', ['classrooms' => [], 'lessons' => [], 'data' => []]);
              
-             // Get students in this class
-             $students = $selectedClass->students; // Relationship must exist
-             // Or explicitly: $students = User::whereHas('enrolledClassrooms', function($q) use ($selectedClassId) { $q->where('class_id', $selectedClassId); })->get();
-             // Assuming $selectedClass->students relationship works based on previous code context. 
-             // Wait, previous code didn't show student fetching logic, likely omitted in my view? 
-             // Let's deduce: $selectedClass->students is standard ManyToMany.
-             
-             // Fallback if relation not standard:
-             if(!$students->count()){
-                 $students = \App\Models\User::whereHas('enrollments', function($q) use ($selectedClassId){
-                     // Actually enrollment is usually per classroom? 
-                     // Let's assume User <-> Classroom via 'classes' table or similar. 
-                     // User model has enrolledClassrooms()
-                 })->get(); 
-                 // Let's stick to what was likely there or standard: $selectedClass->students
+             // Reset filter if class changed or no class selected
+             if (!$selectedClass) {
+                 $selectedFilter = 'all';
              }
              
+             if ($selectedClass) {
+                 $students = $selectedClass->students;
+                 
+                 // Fallback if relation not standard
+                 if(!$students->count()){
+                     $students = \App\Models\User::whereHas('enrollments', function($q) use ($selectedClassId){
+                         $q->where('classroom_id', $selectedClassId);
+                     })->get(); 
+                 }
+                 
+                 $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClass) {
+                     $q->where('classroom_id', $selectedClass->id);
+                 })->get();
+             }
         } else {
              // STUDENT VIEW
              $classrooms = $user->enrolledClassrooms;
-             $selectedClass = $classrooms->first(); // Default to first class
-             $students = collect([$user]); // Only show themselves
+             $selectedClass = $classrooms->first();
+             $selectedClassId = $selectedClass ? $selectedClass->id : null;
+             $students = collect([$user]);
+             
+             if ($selectedClass) {
+                 $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClass) {
+                     $q->where('classroom_id', $selectedClass->id);
+                 })->get();
+             }
         }
 
-        // Common Data Gathering
-        if ($user->role === 'teacher') {
-            $lessons = Lesson::where('is_published', true)->get();
-        } else {
-            // Student: Only Public OR Assigned Lessons
-            $lessons = Lesson::where('is_published', true)
-                ->where(function($q) use ($user) {
-                     $q->where('is_public', true)
-                       ->orWhereHas('assignments', function($q2) use ($user) {
-                            $q2->whereIn('classroom_id', $user->enrolledClassrooms->pluck('id'));
-                       });
-                })->get();
-        }
-        
-        // Get Activities assigned to this classroom (or all if teacher)
-        $activities = collect();
+        // Fetch Lessons - Only show lessons assigned to the selected class
         if ($selectedClass) {
-            $activities = \App\Models\Activity::whereHas('assignments', function($q) use ($selectedClass) {
-                $q->where('classroom_id', $selectedClass->id);
-            })->get();
-            
-            // For teacher preview logic ... (keep existing)
-            if($user->role === 'teacher') {
-                 $students = $selectedClass->students;
-                 $teacherSubmissionsCount = \App\Models\ActivitySubmission::where('user_id', $user->id)->count();
-                 if ($teacherSubmissionsCount > 0) {
-                     $hasRelevantSubmission = \App\Models\ActivitySubmission::where('user_id', $user->id)
-                        ->with('assignment')
-                        ->get()
-                        ->contains(function ($submission) use ($activities) {
-                            return $submission->assignment && $activities->contains('id', $submission->assignment->activity_id);
-                        });
-                     if ($hasRelevantSubmission) $students->push($user);
-                 }
+            if ($user->role === 'teacher') {
+                // For teachers: Only show lessons assigned to the selected class
+                $lessons = Lesson::where('is_published', true)
+                    ->whereHas('assignments', function($q) use ($selectedClass) {
+                        $q->where('classroom_id', $selectedClass->id);
+                    })->get();
+            } else {
+                // For students: Show public lessons OR lessons assigned to their enrolled classes
+                $lessons = Lesson::where('is_published', true)
+                    ->where(function($q) use ($user, $selectedClass) {
+                         $q->where('is_public', true)
+                           ->orWhereHas('assignments', function($q2) use ($selectedClass) {
+                                $q2->where('classroom_id', $selectedClass->id);
+                           });
+                    })->get();
             }
+        } else {
+            // No class selected - show empty
+            $lessons = collect();
         }
 
-        // Combine for Dropdown
-        $filterItems = collect();
-        foreach($lessons as $l) $filterItems->push(['id' => 'lesson-'.$l->id, 'name' => $l->title]);
-        foreach($activities as $a) $filterItems->push(['id' => 'activity-'.$a->id, 'name' => $a->title]);
-        $filterItems = $filterItems->values(); // Ensure clean array for JSON
+        // Combine for Dropdown - Only if class is selected
+        if ($selectedClass) {
+            foreach($lessons as $l) $filterItems->push(['id' => 'lesson-'.$l->id, 'name' => $l->title]);
+            foreach($activities as $a) $filterItems->push(['id' => 'activity-'.$a->id, 'name' => $a->title]);
+        }
+        $filterItems = $filterItems->values();
 
-        $data = [];
-        $selectedFilter = $request->get('filter_id', 'all');
-        
-        // Determine Mode and Filter Collections
+        // Determine Mode
         if (str_starts_with($selectedFilter, 'activity-')) {
             $activityId = (int) str_replace('activity-', '', $selectedFilter);
-            // Filter activities to just this one
             $activities = $activities->where('id', $activityId);
-            // Hide lessons entirely for this view
             $lessons = collect();
-            $mode = 'activity_detail'; // NEW: Use specific detail view
+            $mode = 'activity_detail';
         } elseif (str_starts_with($selectedFilter, 'lesson-')) {
             $lessonId = (int) str_replace('lesson-', '', $selectedFilter);
-            // Use the detailed lesson view logic (Mode B)
             $selectedLessonId = $lessonId;
-            $mode = 'single';
-            $mode = 'lesson_detail'; // Renamed from 'single'
+            $mode = 'lesson_detail';
         } else {
-            // 'all'
             $mode = 'all';
         }
 
@@ -224,60 +219,49 @@ class PerformanceController extends Controller
              $submissionCount = 0;
 
              foreach ($students as $student) {
+                 // Try to find submission via assignment first
                  $submission = \App\Models\ActivitySubmission::where('user_id', $student->id)
-                    ->whereHas('assignment', fn($q) => $q->where('activity_id', $activity->id)) // Safer query
+                    ->where('activity_id', $activity->id)
                     ->first();
                  
-                 // If no submission found via assignment, try fallback for teachers or loose linking
-                 if (!$submission && $student->role === 'teacher') {
-                      $submission = \App\Models\ActivitySubmission::where('user_id', $student->id)->latest()->first(); // Loose check for demo
-                      // Verify it belongs to this activity?
-                      if($submission && $submission->assignment && $submission->assignment->activity_id != $activity->id) $submission = null;
-                 }
-
                  $score = $submission ? $submission->score : 0;
                  if ($submission) {
                      $completedCount++;
                      $submissionCount++;
-                     $totalScoreSum += $score; // Assuming score is already normalized or raw?
-                     // Verify if score is 100%
+                     $totalScoreSum += $score;
+                     
+                     // Check for perfect score
                      if ($score == 100 || ($questionCount > 0 && $score == $questionCount)) {
                          $hundredPercentCount++;
                      }
                  }
                  
-                 // Infer answers based on score (Visual Distribution)
-                 $inferredAnswers = [];
+                 // Use ACTUAL results if available
+                 $answers = [];
                  
-                 // Determine number of correct answers
-                 if ($submission) {
-                     $correctCount = 0;
-                     if ($score > $questionCount && $score <= 100) {
-                         // Percentage Logic
-                         $correctCount = round(($score / 100) * $questionCount);
-                         // Use normalized score for average calc if needed, but keeping raw logic consistent
-                     } else {
-                         // Raw Score Logic
-                         $correctCount = min($score, $questionCount);
-                     }
- 
-                     for($i=0; $i<$questionCount; $i++) {
-                         if ($i < $correctCount) {
-                             $inferredAnswers[] = '✓';
-                         } else {
-                             $inferredAnswers[] = '✗';
+                 if ($submission && $submission->results) {
+                     // Check if results is already an array (Laravel JSON casting) or needs decoding
+                     $results = is_array($submission->results) 
+                         ? $submission->results 
+                         : json_decode($submission->results, true);
+                     
+                     // Check if it's Quiz format with breakdown
+                     if (isset($results['breakdown']) && is_array($results['breakdown'])) {
+                         foreach ($results['breakdown'] as $item) {
+                             $answers[] = $item['isCorrect'] ? '✓' : '✗';
                          }
+                     } else {
+                         // Fallback to inferred logic
+                         $answers = $this->inferAnswers($score, $questionCount);
                      }
                  } else {
-                     // No submission
-                     for($i=0; $i<$questionCount; $i++) {
-                         $inferredAnswers[] = '-';
-                     }
+                     // No submission or no results - infer
+                     $answers = $this->inferAnswers($submission ? $score : null, $questionCount);
                  }
 
                  $data[] = [
                     'student' => $student,
-                    'answers' => $inferredAnswers,
+                    'answers' => $answers,
                     'total_marks' => $submission ? $score : '-'
                  ];
              }
@@ -389,5 +373,40 @@ class PerformanceController extends Controller
         );
         
         return back()->with('success', 'Gred berjaya dikemaskini.');
+    }
+    
+    /**
+     * Helper method to infer answer breakdown from score when detailed results are unavailable
+     */
+    private function inferAnswers($score, $questionCount)
+    {
+        $answers = [];
+        
+        if ($score === null) {
+            // No submission
+            for($i=0; $i<$questionCount; $i++) {
+                $answers[] = '-';
+            }
+        } else {
+            // Determine number of correct answers
+            $correctCount = 0;
+            if ($score > $questionCount && $score <= 100) {
+                // Percentage Logic
+                $correctCount = round(($score / 100) * $questionCount);
+            } else {
+                // Raw Score Logic
+                $correctCount = min($score, $questionCount);
+            }
+
+            for($i=0; $i<$questionCount; $i++) {
+                if ($i < $correctCount) {
+                    $answers[] = '✓';
+                } else {
+                    $answers[] = '✗';
+                }
+            }
+        }
+        
+        return $answers;
     }
 }

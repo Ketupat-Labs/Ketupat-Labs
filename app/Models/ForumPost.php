@@ -25,7 +25,13 @@ class ForumPost extends Model
         'is_hidden',
         'hidden_at',
         'hidden_by',
+        'lesson_id', // Added for lesson sharing
     ];
+
+    public function lesson(): BelongsTo
+    {
+        return $this->belongsTo(Lesson::class, 'lesson_id');
+    }
 
     protected $casts = [
         'is_pinned' => 'boolean',

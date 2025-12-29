@@ -234,7 +234,7 @@
                         </script>
 
                         <div class="flex items-center justify-end mt-4">
-                            <a href="{{ route('activities.index') }}" class="mr-4 text-gray-600 hover:text-gray-900">Batal</a>
+                            <a href="{{ route('lessons.index', ['tab' => 'activities']) }}" class="mr-4 text-gray-600 hover:text-gray-900">Batal</a>
                             <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                                 Kemaskini Aktiviti
                             </button>

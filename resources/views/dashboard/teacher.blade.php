@@ -4,9 +4,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-semibold text-2xl leading-tight" style="color: #3E3E3E;">
-                    {{ __('Welcome back, :name!', ['name' => $user->full_name ?? __('Teacher')]) }}
+                    Selamat kembali, {{ $user->full_name ?? 'Guru' }}!
                 </h2>
-                <p class="text-sm mt-1" style="color: #969696;">{{ __('Manage your classes and lessons') }}</p>
+                <p class="text-sm mt-1" style="color: #969696;">Urus kelas dan pelajaran anda</p>
             </div>
             <div class="flex space-x-4">
                 <a href="{{ route('classrooms.create') }}"
@@ -14,7 +14,7 @@
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    {{ __('Create Class') }}
+                    Cipta Kelas
                 </a>
             </div>
         </div>
@@ -28,7 +28,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-compuplay-gray">{{ __('Published Lessons') }}</p>
+                            <p class="text-sm font-medium text-compuplay-gray">Pelajaran Diterbitkan</p>
                             <p class="text-3xl font-bold mt-2" style="color: #2454FF;">
                                 {{ \App\Models\Lesson::where('is_published', true)->where('teacher_id', $user->id)->count() }}
                             </p>
@@ -47,7 +47,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-base font-medium text-compuplay-gray">{{ __('Pending Grading') }}</p>
+                            <p class="text-base font-medium text-compuplay-gray">Menunggu Penilaian</p>
                             <p class="text-3xl font-bold mt-2" style="color: #F26430;">
                                 {{ \App\Models\Submission::where('status', 'Submitted - Awaiting Grade')->count() }}</p>
                         </div>
@@ -81,8 +81,8 @@
                                     d="M9 5l7 7-7 7"></path>
                             </svg>
                         </div>
-                        <h4 class="text-xl font-bold mb-2">{{ __('Review Submissions') }}</h4>
-                        <p class="text-sm opacity-90">{{ __('Grade student assignments') }}</p>
+                        <h4 class="text-xl font-bold mb-2">Semak Penyerahan</h4>
+                        <p class="text-sm opacity-90">Nilai tugasan pelajar</p>
                     </div>
                     <div class="p-6">
                         <div class="flex items-center text-sm" style="color: #969696;">
@@ -114,8 +114,8 @@
                                     d="M9 5l7 7-7 7"></path>
                             </svg>
                         </div>
-                        <h4 class="text-xl font-bold mb-2">{{ __('Assign Lessons') }}</h4>
-                        <p class="text-sm opacity-90">{{ __('Assign lessons to students') }}</p>
+                        <h4 class="text-xl font-bold mb-2">Tugaskan Pelajaran</h4>
+                        <p class="text-sm opacity-90">Tugaskan pelajaran kepada pelajar</p>
                     </div>
                     <div class="p-6">
                         <div class="flex items-center text-sm" style="color: #969696;">
@@ -123,7 +123,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                             </svg>
-                            <span>{{ __('Manage assignments') }}</span>
+                            <span>Urus tugasan</span>
                         </div>
                     </div>
                 </a>
@@ -132,9 +132,9 @@
             <!-- My Classrooms Section -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold" style="color: #3E3E3E;">{{ __('My Classrooms') }}</h3>
+                    <h3 class="text-xl font-bold" style="color: #3E3E3E;">Kelas Saya</h3>
                     <a href="{{ route('classrooms.create') }}" class="text-sm font-semibold text-[#2454FF] hover:underline">
-                        + {{ __('Create New Class') }}
+                        + Cipta Kelas Baru
                     </a>
                 </div>
                 
@@ -146,12 +146,12 @@
                                 <div class="flex justify-between items-start mb-2">
                                     <h4 class="text-lg font-bold text-gray-800 group-hover:text-[#2454FF] transition">{{ $classroom->name }}</h4>
                                     <span class="bg-blue-100 text-[#2454FF] text-xs font-bold px-2 py-1 rounded-full">
-                                        {{ $classroom->students_count }} {{ __('Students') }}
+                                        {{ $classroom->students_count }} Pelajar
                                     </span>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-4">{{ $classroom->subject }} &bull; {{ $classroom->year }}</p>
                                 <div class="flex items-center text-sm font-medium text-[#5FAD56]">
-                                    <span>{{ __('Go to Classroom') }}</span>
+                                    <span>Pergi ke Kelas</span>
                                     <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
                                     </svg>
@@ -165,7 +165,7 @@
                             </svg>
                             <p class="text-gray-500 mb-4">{{ __('You haven\'t created any classrooms yet.') }}</p>
                             <a href="{{ route('classrooms.create') }}" class="inline-block bg-[#2454FF] text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                                {{ __('Create Your First Class') }}
+                                Cipta Kelas Pertama Anda
                             </a>
                         </div>
                     @endforelse
@@ -177,9 +177,9 @@
                 <!-- Recent Lessons -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold" style="color: #3E3E3E;">{{ __('My Recent Lessons') }}</h3>
+                        <h3 class="text-lg font-bold" style="color: #3E3E3E;">Pelajaran Terkini Saya</h3>
                         <a href="{{ route('lessons.index') }}" class="text-sm hover:underline font-medium"
-                            style="color: #2454FF;">{{ __('View all') }}</a>
+                            style="color: #2454FF;">Lihat semua</a>
                     </div>
                     <div class="space-y-4">
                         @php
@@ -204,7 +204,7 @@
                                     <p class="text-sm font-semibold transition-colors" style="color: #3E3E3E;">
                                         {{ $lesson->title }}</p>
                                     <p class="text-xs mt-1" style="color: #969696;">{{ $lesson->topic }} •
-                                        {{ $lesson->is_published ? __('Published') : __('Draft') }}</p>
+                                        {{ $lesson->is_published ? 'Diterbitkan' : 'Draf' }}</p>
                                 </div>
                                 <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                     style="color: #969696;">
@@ -214,7 +214,7 @@
                             </a>
                         @empty
                             <div class="text-center py-8" style="color: #969696;">
-                                <p>{{ __('No lessons created yet') }}</p>
+                                <p>Tiada pelajaran dicipta lagi</p>
                             </div>
                         @endforelse
                     </div>
@@ -222,7 +222,7 @@
 
                 <!-- Quick Actions -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h3 class="text-lg font-bold mb-4" style="color: #3E3E3E;">{{ __('Quick Actions') }}</h3>
+                    <h3 class="text-lg font-bold mb-4" style="color: #3E3E3E;">Tindakan Pantas</h3>
                     <div class="space-y-3">
                         <a href="{{ route('lessons.create') }}"
                             class="flex items-center justify-between p-4 text-white rounded-lg hover:shadow-lg transition-all group"
@@ -232,7 +232,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4v16m8-8H4"></path>
                                 </svg>
-                                <span class="font-semibold">{{ __('Create New Lesson') }}</span>
+                                <span class="font-semibold">Cipta Pelajaran Baru</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +250,7 @@
                                         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
                                     </path>
                                 </svg>
-                                <span class="font-semibold">{{ __('Review Submissions') }}</span>
+                                <span class="font-semibold">Semak Penyerahan</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
@@ -267,7 +267,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4v16m8-8H4"></path>
                                 </svg>
-                                <span class="font-semibold">{{ __('Assign Lessons') }}</span>
+                                <span class="font-semibold">Tugaskan Pelajaran</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
@@ -276,9 +276,8 @@
                             </svg>
                         </a>
 
-                        <a href="{{ route('activities.index') }}"
-                            class="flex items-center justify-between p-4 text-white rounded-lg hover:shadow-lg transition-all group"
-                            style="background: linear-gradient(to right, #F26430, #FFBA08);">
+                        <a href="{{ route('lessons.index', ['tab' => 'activities']) }}"
+                            class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm no-underline hover:text-white" style="background: linear-gradient(to right, #F26430, #FFBA08);">
                             <div class="flex items-center">
                                 <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -286,7 +285,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
-                                <span class="font-semibold">{{ __('Assign Activity') }}</span>
+                                <span class="font-semibold">Tugaskan Aktiviti</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
@@ -304,7 +303,7 @@
                                         d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                                     </path>
                                 </svg>
-                                <span class="font-semibold">{{ __('Monitor Progress') }}</span>
+                                <span class="font-semibold">Pantau Kemajuan</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">

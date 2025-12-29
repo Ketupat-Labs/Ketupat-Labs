@@ -100,16 +100,16 @@ class EmailService
             $htmlBody = self::getEmailTemplate($otp, $logoPath ? $logoCid : null, $logoUrl);
             
             // Plain text fallback
-            $textBody = "Verify your email address\n\n";
-            $textBody .= "You need to verify your email address to continue using your Ketupat Labs account.\n";
-            $textBody .= "Enter the following code to verify your email address:\n\n";
+            $textBody = "Sahkan alamat emel anda\n\n";
+            $textBody .= "Anda perlu mengesahkan alamat emel anda untuk terus menggunakan akaun CompuPlay anda.\n";
+            $textBody .= "Masukkan kod berikut untuk mengesahkan alamat emel anda:\n\n";
             $textBody .= "{$otp}\n\n";
-            $textBody .= "This code will expire in 10 minutes.\n\n";
-            $textBody .= "If you did not request this code, please ignore this email.";
+            $textBody .= "Kod ini akan tamat tempoh dalam 10 minit.\n\n";
+            $textBody .= "Jika anda tidak meminta kod ini, sila abaikan e-mel ini.";
 
             // Content
             $mail->isHTML(true);
-            $mail->Subject = 'Verify your email address - Ketupat Labs';
+            $mail->Subject = 'Sahkan alamat emel anda - CompuPlay';
             $mail->Body    = $htmlBody;
             $mail->AltBody = $textBody;
 
@@ -150,11 +150,11 @@ class EmailService
 
         return '
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ms">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify your email address</title>
+    <title>Sahkan alamat emel anda</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
     <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;">
@@ -172,7 +172,7 @@ class EmailService
                     <tr>
                         <td style="padding: 0 40px 20px 40px;">
                             <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #333333; text-align: center;">
-                                Verify your email address
+                                Sahkan alamat emel anda
                             </h1>
                         </td>
                     </tr>
@@ -181,7 +181,7 @@ class EmailService
                     <tr>
                         <td style="padding: 0 40px 30px 40px;">
                             <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #666666; text-align: center;">
-                                You need to verify your email address to continue using your Ketupat Labs account. Enter the following code to verify your email address:
+                                Anda perlu mengesahkan alamat emel anda untuk terus menggunakan akaun CompuPlay anda. Masukkan kod berikut untuk mengesahkan alamat emel anda:
                             </p>
                         </td>
                     </tr>
@@ -201,7 +201,7 @@ class EmailService
                     <tr>
                         <td style="padding: 0 40px 30px 40px;">
                             <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #999999; text-align: center;">
-                                This code will expire in 10 minutes.
+                                Kod ini akan tamat tempoh dalam 10 minit.
                             </p>
                         </td>
                     </tr>
@@ -210,10 +210,10 @@ class EmailService
                     <tr>
                         <td style="padding: 30px 40px; background-color: #f8f9fa; border-top: 1px solid #e0e0e0; border-radius: 0 0 8px 8px;">
                             <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #999999; text-align: center;">
-                                If you did not request this code, please ignore this email.
+                                Jika anda tidak meminta kod ini, sila abaikan e-mel ini.
                             </p>
                             <p style="margin: 10px 0 0 0; font-size: 12px; line-height: 1.6; color: #999999; text-align: center;">
-                                © ' . date('Y') . ' Ketupat Labs. All rights reserved.
+                                © ' . date('Y') . ' CompuPlay. Hak cipta terpelihara.
                             </p>
                         </td>
                     </tr>

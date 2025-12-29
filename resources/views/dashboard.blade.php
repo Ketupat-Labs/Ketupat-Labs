@@ -3,14 +3,14 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-semibold text-2xl leading-tight" style="color: #3E3E3E;">
-                    Welcome back, {{ Auth::user()->full_name ?? Auth::user()->name ?? 'Student' }}!
+                    Selamat kembali, {{ Auth::user()->full_name ?? Auth::user()->name ?? 'Pelajar' }}!
                 </h2>
-                <p class="text-sm mt-1" style="color: #969696;">Continue your learning journey</p>
+                <p class="text-sm mt-1" style="color: #969696;">Teruskan perjalanan pembelajaran anda</p>
             </div>
             @if((Auth::user()->points ?? 0) > 0)
                 <div class="text-white px-6 py-3 rounded-lg shadow-md"
                     style="background: linear-gradient(to right, #5FAD56, #2454FF);">
-                    <div class="text-xs font-medium opacity-90">Total Points</div>
+                    <div class="text-xs font-medium opacity-90">Jumlah Mata</div>
                     <div class="text-2xl font-bold">{{ Auth::user()->points ?? 0 }} XP</div>
                 </div>
             @endif
@@ -110,7 +110,7 @@
 
             <!-- Main Action Cards -->
             <div class="mb-8">
-                <h3 class="text-xl font-bold mb-4" style="color: #3E3E3E;">Quick Access</h3>
+                <h3 class="text-xl font-bold mb-4" style="color: #3E3E3E;">Akses Pantas</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- View Lessons Card -->
                     <a href="{{ route('lesson.index') }}"
@@ -131,8 +131,8 @@
                                         d="M9 5l7 7-7 7"></path>
                                 </svg>
                             </div>
-                            <h4 class="text-xl font-bold mb-2">View Lessons</h4>
-                            <p class="text-sm opacity-90">Browse and access all available lessons</p>
+                            <h4 class="text-xl font-bold mb-2">Lihat Pelajaran</h4>
+                            <p class="text-sm opacity-90">Semak dan akses semua pelajaran yang tersedia</p>
                         </div>
                         <div class="p-6">
                             <div class="flex items-center text-sm" style="color: #969696;">
@@ -165,8 +165,8 @@
                                         d="M9 5l7 7-7 7"></path>
                                 </svg>
                             </div>
-                            <h4 class="text-xl font-bold mb-2">Manage Lessons</h4>
-                            <p class="text-sm opacity-90">Create and manage your lesson content</p>
+                            <h4 class="text-xl font-bold mb-2">Urus Pelajaran</h4>
+                            <p class="text-sm opacity-90">Cipta dan urus kandungan pelajaran anda</p>
                         </div>
                         <div class="p-6">
                             <div class="flex items-center text-sm" style="color: #969696;">
@@ -199,8 +199,8 @@
                                         d="M9 5l7 7-7 7"></path>
                                 </svg>
                             </div>
-                            <h4 class="text-xl font-bold mb-2">Submit Assignment</h4>
-                            <p class="text-sm opacity-90">Upload your practical work</p>
+                            <h4 class="text-xl font-bold mb-2">Hantar Tugasan</h4>
+                            <p class="text-sm opacity-90">Muat naik hasil kerja praktikal anda</p>
                         </div>
                         <div class="p-6">
                             <div class="flex items-center text-sm" style="color: #969696;">
@@ -221,9 +221,9 @@
                 <!-- Recent Lessons -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold" style="color: #3E3E3E;">Recent Lessons</h3>
+                        <h3 class="text-lg font-bold" style="color: #3E3E3E;">Pelajaran Terkini</h3>
                         <a href="{{ route('lesson.index') }}" class="text-sm hover:underline font-medium"
-                            style="color: #2454FF;">View all</a>
+                            style="color: #2454FF;">Lihat semua</a>
                     </div>
                     <div class="space-y-4">
                         @php
@@ -248,7 +248,7 @@
                                     <p class="text-sm font-semibold transition-colors" style="color: #3E3E3E;">
                                         {{ $lesson->title }}</p>
                                     <p class="text-xs mt-1" style="color: #969696;">{{ $lesson->topic }} •
-                                        {{ $lesson->duration ?? 'N/A' }} mins</p>
+                                        {{ $lesson->duration ?? 'N/A' }} minit</p>
                                 </div>
                                 <svg class="w-5 h-5 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                     style="color: #969696;">
@@ -258,7 +258,7 @@
                             </a>
                         @empty
                             <div class="text-center py-8" style="color: #969696;">
-                                <p>No lessons available yet</p>
+                                <p>Tiada pelajaran tersedia lagi</p>
                             </div>
                         @endforelse
                     </div>
@@ -266,7 +266,7 @@
 
                 <!-- Quick Actions -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h3 class="text-lg font-bold mb-4" style="color: #3E3E3E;">Quick Actions</h3>
+                    <h3 class="text-lg font-bold mb-4" style="color: #3E3E3E;">Tindakan Pantas</h3>
                     <div class="space-y-3">
                         <a href="{{ route('lessons.create') }}"
                             class="flex items-center justify-between p-4 text-white rounded-lg hover:shadow-lg transition-all group"
@@ -276,7 +276,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4v16m8-8H4"></path>
                                 </svg>
-                                <span class="font-semibold">Create New Lesson</span>
+                                <span class="font-semibold">Cipta Pelajaran Baru</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
@@ -290,7 +290,7 @@
                                 <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                                 </svg>
-                                <span class="font-semibold">Assign Lessons</span>
+                                <span class="font-semibold">Tugaskan Pelajaran</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
@@ -306,7 +306,7 @@
                                         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
                                     </path>
                                 </svg>
-                                <span class="font-semibold">Take a Quiz</span>
+                                <span class="font-semibold">Ambil Kuiz</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
@@ -324,7 +324,7 @@
                                         d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
                                     </path>
                                 </svg>
-                                <span class="font-semibold">Submit Assignment</span>
+                                <span class="font-semibold">Hantar Tugasan</span>
                             </div>
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">

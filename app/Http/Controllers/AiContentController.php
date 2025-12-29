@@ -38,7 +38,7 @@ class AiContentController extends Controller
                 'question_type' => 'nullable|in:mcq,structured,mixed',
                 'question_count' => 'nullable|integer|min:3|max:20',
                 'separate_answers' => 'nullable|boolean',
-                'class_id' => 'nullable|exists:classrooms,id',
+                'class_id' => 'nullable|exists:class,id',
                 'title' => 'required|string|max:255',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {

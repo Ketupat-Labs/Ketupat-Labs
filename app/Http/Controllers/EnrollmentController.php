@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Notification;
+use App\Models\Lesson;
 
 class EnrollmentController extends Controller
 {
@@ -99,6 +101,7 @@ class EnrollmentController extends Controller
         $enrollment->progress = $progress;
 
         // Update status if complete
+        $wasCompleted = $enrollment->status === 'completed';
         if ($progress == 100) {
             $enrollment->status = 'completed';
         } elseif ($progress > 0) {
@@ -106,6 +109,22 @@ class EnrollmentController extends Controller
         }
 
         $enrollment->save();
+
+        // Create notification when lesson is completed for the first time
+        if ($progress == 100 && !$wasCompleted) {
+            $lesson = Lesson::find($enrollment->lesson_id);
+            if ($lesson) {
+                Notification::create([
+                    'user_id' => $enrollment->user_id,
+                    'type' => 'lesson_completed',
+                    'title' => 'Pelajaran Selesai!',
+                    'message' => 'Tahniah! Anda telah menamatkan pelajaran "' . $lesson->title . '"',
+                    'related_type' => 'lesson',
+                    'related_id' => $lesson->id,
+                    'is_read' => false,
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,

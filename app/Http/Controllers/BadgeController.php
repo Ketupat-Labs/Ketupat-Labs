@@ -25,9 +25,29 @@ class BadgeController extends Controller
                 if (!$userBadge) {
                     // First time earning
                     $user->badges()->attach($badge->code, ['status' => 'earned']);
+                    // Create notification
+                    \App\Models\Notification::create([
+                        'user_id' => $user->id,
+                        'type' => 'badge_earned',
+                        'title' => 'Lencana Diperoleh!',
+                        'message' => 'Tahniah! Anda telah memperoleh lencana "' . $badge->name . '"',
+                        'related_type' => 'badge',
+                        'related_id' => $badge->id,
+                        'is_read' => false,
+                    ]);
                 } elseif ($userBadge->pivot->status === 'locked') {
                     // Previously locked, now earned
                     $user->badges()->updateExistingPivot($badge->code, ['status' => 'earned']);
+                    // Create notification
+                    \App\Models\Notification::create([
+                        'user_id' => $user->id,
+                        'type' => 'badge_earned',
+                        'title' => 'Lencana Diperoleh!',
+                        'message' => 'Tahniah! Anda telah memperoleh lencana "' . $badge->name . '"',
+                        'related_type' => 'badge',
+                        'related_id' => $badge->id,
+                        'is_read' => false,
+                    ]);
                 }
             } else {
                 // User doesn’t have enough points

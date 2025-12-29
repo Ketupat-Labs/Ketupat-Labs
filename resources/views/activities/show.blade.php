@@ -67,9 +67,10 @@
                                 </h3>
                                 
                                 <div 
+                                    class="w-full"
                                     data-game-block 
                                     data-game-type="{{ $gameType }}"
-                                    data-game-config="{{ $activity->content }}">
+                                    data-game-config='@json($config)'>
                                 </div>
                             </div>
                         </div>
@@ -96,7 +97,10 @@
                             <h3 class="text-lg font-medium text-gray-900">Perlukan Kandungan Permainan</h3>
                             <p class="text-gray-500 mt-2">Aktiviti ini tidak mempunyai konfigurasi permainan yang lengkap.</p>
                             
-                            @if(auth()->user()->role === 'teacher')
+                            @php
+                                $userRole = auth()->user()->role ?? '';
+                            @endphp
+                            @if($userRole === 'teacher')
                                 <div class="mt-4">
                                     <a href="{{ route('activities.edit', $activity->id) }}" class="text-blue-600 hover:underline font-bold">
                                         &rarr; Klik di sini untuk menambah kandungan (Soalan/Kad)
@@ -123,19 +127,31 @@
                     const gameArea = document.getElementById('game-area');
                     
                     if(startArea) startArea.classList.add('hidden');
-                    if(gameArea) {
-                        gameArea.classList.remove('hidden');
-                        gameArea.classList.add('opacity-100');
-                        setTimeout(() => {
-                            window.dispatchEvent(new Event('resize'));
-                        }, 100);
-                    }
+                        if(gameArea) {
+                            gameArea.classList.remove('hidden');
+                            gameArea.classList.add('opacity-100');
+                            
+                            // Re-trigger game initialization in case it was missed due to being hidden
+                            if (window.initializeGames) {
+                                window.initializeGames();
+                            } else {
+                                // Fallback: dispatch event that loader might be watching
+                                window.dispatchEvent(new Event('resize'));
+                            }
+
+                            setTimeout(() => {
+                                window.dispatchEvent(new Event('resize'));
+                            }, 100);
+                        }
                 });
             }
         });
 
+        let latestResults = null;
+
         window.handleGameScore = function(results) {
             console.log("Game Finished. Results:", results);
+            latestResults = results;
             const finalScore = results.percentage || 0;
             
             // Show Completion Area
@@ -169,13 +185,16 @@
                             "Content-Type": "application/json",
                             "X-CSRF-TOKEN": "{{ csrf_token() }}"
                         },
-                        body: JSON.stringify({ score: finalScore })
+                        body: JSON.stringify({ 
+                            score: finalScore,
+                            results: latestResults
+                        })
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
                             alert('Kemajuan Disimpan! Tahniah.');
-                             window.location.href = "{{ route('lesson.index') }}"; 
+                             window.location.href = "{{ route('lessons.index') }}?tab=activities"; 
                         } else {
                             alert('Ralat: ' + (data.error || 'Unknown error'));
                             submitBtn.disabled = false;

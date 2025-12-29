@@ -1,23 +1,23 @@
 <x-app-layout>
-<div class="py-8 bg-gray-50 min-h-screen">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">Create New Lesson</h1>
-                <p class="mt-2 text-sm text-gray-600">Fill in the metadata first, then build your lesson content</p>
-            </div>
-            <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to Lessons
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Cipta Pelajaran Baharu') }}
+            </h2>
+            <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Kembali ke Senarai Pelajaran
             </a>
         </div>
+    </x-slot>
+
+    <div class="py-12 bg-gray-50 min-h-screen">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <p class="mb-8 text-sm text-gray-600">Isi metadata terlebih dahulu, kemudian bina kandungan pelajaran anda</p>
 
         @if ($errors->any())
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6">
-                <strong class="font-bold">Validation Error!</strong>
+                <strong class="font-bold">Ralat Pengesahan!</strong>
                 <ul class="mt-2 list-disc list-inside">
                     @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
                 </ul>
@@ -30,34 +30,34 @@
             <!-- SECTION 1: LESSON INFORMATION -->
             <div class="space-y-6">
                 <div class="border-l-4 border-blue-500 pl-4">
-                    <h2 class="text-xl font-semibold text-gray-900">Lesson Information</h2>
-                    <p class="text-sm text-gray-600 mt-1">Basic details and metadata about your lesson</p>
+                    <h2 class="text-xl font-semibold text-gray-900">Maklumat Pelajaran</h2>
+                    <p class="text-sm text-gray-600 mt-1">Butiran asas dan metadata mengenai pelajaran anda</p>
                 </div>
 
                 <!-- Title and Topic -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="title" class="block font-medium text-gray-900 mb-2">
-                            Lesson Title <span class="text-red-600">*</span>
+                            Tajuk Pelajaran <span class="text-red-600">*</span>
                         </label>
                         <input type="text" name="title" id="title" required
                                class="block w-full border-gray-300 rounded-lg shadow-sm p-3 focus:border-blue-500 focus:ring focus:ring-blue-500/20 transition"
                                value="{{ old('title') }}"
-                               placeholder="Enter a descriptive title">
+                               placeholder="Gunakan tajuk yang deskriptif">
                     </div>
 
                     <div>
                         <label for="topic" class="block font-medium text-gray-900 mb-2">
-                            Module / Topic <span class="text-red-600">*</span>
+                            Modul / Topik <span class="text-red-600">*</span>
                         </label>
                         <input type="text" name="topic" id="topic" list="topics" required
                                class="block w-full border-gray-300 rounded-lg shadow-sm p-3 focus:border-blue-500 focus:ring focus:ring-blue-500/20 transition"
                                value="{{ old('topic') }}" 
-                               placeholder="Select or type a topic">
+                               placeholder="Pilih atau taip topik">
                         <datalist id="topics">
-                            <option value="HCI">3.1 Interaction Design</option>
-                            <option value="HCI_SCREEN">3.2 Screen Design</option>
-                            <option value="Algorithm">Other: Algorithms</option>
+                            <option value="HCI">3.1 Reka Bentuk Interaksi</option>
+                            <option value="HCI_SCREEN">3.2 Reka Bentuk Skrin</option>
+                            <option value="Algorithm">Lain-lain: Algoritma</option>
                         </datalist>
                     </div>
                 </div>
@@ -66,17 +66,17 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="duration" class="block font-medium text-gray-900 mb-2">
-                            Estimated Duration (Minutes)
+                            Anggaran Tempoh (Minit)
                         </label>
                         <input type="number" name="duration" id="duration" min="5"
                                class="block w-full border-gray-300 rounded-lg shadow-sm p-3 focus:border-blue-500 focus:ring focus:ring-blue-500/20 transition"
                                value="{{ old('duration') }}"
-                               placeholder="e.g., 45">
+                               placeholder="cth., 45">
                     </div>
 
                     <div>
                         <label for="url" class="block font-medium text-gray-900 mb-2">
-                            External Resource URL
+                            URL Sumber Luaran
                         </label>
                         <input type="url" name="url" id="url"
                                class="block w-full border-gray-300 rounded-lg shadow-sm p-3 focus:border-blue-500 focus:ring focus:ring-blue-500/20 transition"
@@ -88,7 +88,7 @@
                 <!-- Material File Upload -->
                 <div>
                     <label for="material" class="block font-medium text-gray-900 mb-2">
-                        Material File
+                        Fail Bahan
                     </label>
                     <input type="file" name="material" id="material"
                            class="block w-full text-sm text-gray-600
@@ -97,15 +97,15 @@
                                   file:text-sm file:font-semibold
                                   file:bg-blue-50 file:text-blue-700
                                   hover:file:bg-blue-100 transition">
-                    <p class="mt-2 text-xs text-gray-500">Upload PDFs, documents, or other learning materials</p>
+                    <p class="mt-2 text-xs text-gray-500">Muat naik PDF, dokumen, atau bahan pembelajaran lain</p>
                 </div>
             </div>
 
             <!-- SECTION 2: LESSON CONTENT -->
             <div class="space-y-4">
                 <div class="border-l-4 border-green-500 pl-4">
-                    <h2 class="text-xl font-semibold text-gray-900">Lesson Content</h2>
-                    <p class="text-sm text-gray-600 mt-1">Build your lesson using blocks - add text, headings, images, videos, and interactive games</p>
+                    <h2 class="text-xl font-semibold text-gray-900">Kandungan Pelajaran</h2>
+                    <p class="text-sm text-gray-600 mt-1">Bina pelajaran anda menggunakan blok - tambah teks, tajuk, imej, video, dan permainan interaktif</p>
                 </div>
 
                 <!-- React Block Editor Container -->
@@ -118,13 +118,13 @@
             <!-- Submit Buttons -->
             <div class="flex items-center justify-between pt-6 border-t border-gray-300">
                 <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition">
-                    Cancel
+                    Batal
                 </a>
                 <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition duration-150 flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    Save Lesson
+                    Cipta Pelajaran
                 </button>
             </div>
         </form>

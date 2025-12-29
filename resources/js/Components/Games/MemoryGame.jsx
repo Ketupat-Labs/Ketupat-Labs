@@ -101,6 +101,15 @@ const MemoryGame = ({ config = {} }) => {
                 // Check if game is won
                 if (newMatched.length === cards.length) {
                     setGameWon(true);
+                    if (onFinish) {
+                        onFinish({
+                            score: moves + 1, // Using moves as score for now, but also including percentage 100
+                            moves: moves + 1,
+                            totalPairs: cards.length / 2,
+                            percentage: 100,
+                            completionStatus: 'Winner'
+                        });
+                    }
                 }
             } else {
                 // No match - flip back after delay

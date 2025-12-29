@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      */
@@ -12,8 +13,8 @@ return new class extends Migration {
     {
         Schema::create('activity_assignments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('activity_id')->constrained('activity')->onDelete('cascade');
-            $table->foreignId('classroom_id')->constrained('class')->onDelete('cascade');
+            $table->foreignId('activity_id')->constrained('activities')->onDelete('cascade');
+            $table->foreignId('classroom_id')->constrained('classes')->onDelete('cascade'); // classes table (renamed from classrooms in 12_10)
             $table->timestamp('assigned_at')->useCurrent();
             $table->string('status')->default('assigned');
             $table->timestamps();

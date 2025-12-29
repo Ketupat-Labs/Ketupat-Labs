@@ -11,8 +11,8 @@ const gameComponents = {
     'quiz': QuizGame,
 };
 
-// Function to initialize games
-function initializeGames() {
+// Function to initialize games (Exposed globally for manual triggers)
+window.initializeGames = function () {
     const gameContainers = document.querySelectorAll('[data-game-block]');
     console.log('Game loader: Found', gameContainers.length, 'game containers');
 
@@ -25,7 +25,16 @@ function initializeGames() {
         const GameComponent = gameComponents[gameType];
         if (GameComponent) {
             const root = createRoot(container);
-            root.render(<GameComponent config={gameConfig} />);
+            root.render(
+                <GameComponent
+                    config={gameConfig}
+                    onFinish={(results) => {
+                        if (window.handleGameScore) {
+                            window.handleGameScore(results);
+                        }
+                    }}
+                />
+            );
             console.log('✓ Game loaded successfully:', gameType);
         } else {
             console.warn('✗ Unknown game type:', gameType);

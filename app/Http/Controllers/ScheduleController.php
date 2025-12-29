@@ -163,7 +163,7 @@ class ScheduleController extends Controller
             'classroom_id' => 'nullable',
             'classroom_ids' => 'nullable|array',
             'is_public' => 'nullable',
-            'activity_id' => 'nullable|exists:activities,id',
+            'activity_id' => 'nullable|exists:activity,id',
             'lesson_id' => 'nullable|exists:lesson,id',
             'due_date' => 'nullable|date',
             'notes' => 'nullable|string'
@@ -212,50 +212,70 @@ class ScheduleController extends Controller
 
         // Handle Activity Assignment
         if ($request->activity_id) {
+            // Check if we are updating a specific assignment
+            if ($request->assignment_id) {
+                $aa = \App\Models\ActivityAssignment::findOrFail($request->assignment_id);
+                // Auth check: verify teacher owns the activity
+                if ($aa->activity->teacher_id != $user->id) {
+                    abort(403);
+                }
+                
+                $aa->update([
+                    'due_date' => $request->due_date ? \Carbon\Carbon::parse($request->due_date)->toDateTimeString() : null, 
+                    'notes' => $request->notes,
+                    'is_public' => $request->boolean('is_public')
+                ]);
+
+                return redirect()->route('lessons.index', ['tab' => 'activities'])
+                    ->with('success', 'Tugasan aktiviti berjaya dikemaskini.');
+            }
+
             $activity = \App\Models\Activity::where('id', $request->activity_id)
                 ->where('teacher_id', $user->id)
                 ->firstOrFail();
 
-            // 1. Update Public Visibility
+            // 1. Update Public Visibility (optional, but keep for consistency)
             $isPublic = $request->boolean('is_public');
             $activity->update(['is_public' => $isPublic]);
 
-            // 2. Sync Class Assignments
+            // 2. Add New Class Assignments
             $classroomIds = $request->input('classroom_ids', []);
             if (!is_array($classroomIds)) {
                 $classroomIds = [];
             }
 
-             // 2a. Delete assignments not in the new list (Sync)
-             // Only delete if they are NOT in the new list.
-             // Note: If empty, delete all? Yes, if user unchecked all.
-             \App\Models\ActivityAssignment::where('activity_id', $activity->id)
-                 ->whereNotIn('classroom_id', $classroomIds)
-                 ->delete();
-
-             // 2b. Create or Update assignments in the list
-             foreach ($classroomIds as $classroomId) {
-                  // Validate ownership
-                  $classroom = Classroom::where('id', $classroomId)->where('teacher_id', $user->id)->first();
-                  if ($classroom) {
-                      \App\Models\ActivityAssignment::updateOrCreate(
-                          ['activity_id' => $activity->id, 'classroom_id' => $classroomId],
-                          [
-                              'due_date' => $request->due_date ? \Carbon\Carbon::parse($request->due_date)->toDateTimeString() : null, 
-                              'notes' => $request->notes
-                          ]
-                      );
-                  }
-             }
+            // Create new assignments for each selected class
+            foreach ($classroomIds as $classroomId) {
+                // Validate ownership
+                $classroom = Classroom::where('id', $classroomId)->where('teacher_id', $user->id)->first();
+                if ($classroom) {
+                    $assignment = \App\Models\ActivityAssignment::create([
+                        'activity_id' => $activity->id, 
+                        'classroom_id' => $classroomId,
+                        'due_date' => $request->due_date ? \Carbon\Carbon::parse($request->due_date)->toDateTimeString() : null, 
+                        'notes' => $request->notes,
+                        'assigned_at' => now()
+                    ]);
+                    
+                    // Notify all students in the classroom
+                    $students = $classroom->students;
+                    foreach ($students as $student) {
+                        $dueDateText = $assignment->due_date ? ' Tarikh akhir: ' . \Carbon\Carbon::parse($assignment->due_date)->format('d/m/Y H:i') : '';
+                        \App\Models\Notification::create([
+                            'user_id' => $student->id,
+                            'type' => 'activity_assigned',
+                            'title' => 'Aktiviti Baharu Ditugaskan',
+                            'message' => 'Aktiviti "' . $activity->title . '" telah ditugaskan kepada kelas "' . $classroom->name . '"' . $dueDateText,
+                            'related_type' => 'activity',
+                            'related_id' => $activity->id,
+                            'is_read' => false,
+                        ]);
+                    }
+                }
+            }
              
-             // Keep redirect behavior to 'assignments' tab if specified
-             if ($request->redirect_to === 'assignments') {
-                  return redirect()->route('assignments.create', ['tab' => 'activity'])
-                     ->with('success', 'Tugasan aktiviti berjaya dikemaskini.');
-             }
-
-             return redirect()->route('schedule.index', ['activity_id' => $activity->id])
-                ->with('success', 'Tetapan tugasan aktiviti berjaya dikemaskini.');
+            return redirect()->route('lessons.index', ['tab' => 'activities'])
+                ->with('success', 'Tugasan aktiviti berjaya dijadualkan.');
         }
     }
 

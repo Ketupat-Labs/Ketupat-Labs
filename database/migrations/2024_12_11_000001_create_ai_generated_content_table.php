@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      */
@@ -13,7 +14,7 @@ return new class extends Migration {
         Schema::create('ai_generated_content', function (Blueprint $table) {
             $table->id();
             $table->foreignId('teacher_id')->constrained('user')->onDelete('cascade');
-            $table->foreignId('class_id')->nullable()->constrained('class')->onDelete('set null');
+            $table->foreignId('class_id')->nullable()->constrained('classrooms')->onDelete('set null');
             $table->json('source_document_ids')->nullable();
             $table->enum('content_type', ['summary_notes', 'quiz'])->default('summary_notes');
             $table->string('question_type')->nullable(); // mcq, structured, mixed

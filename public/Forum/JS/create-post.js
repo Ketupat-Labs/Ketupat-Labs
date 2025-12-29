@@ -17,34 +17,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // This should be forum.html or forum-detail.html, NOT create-post.html
     const urlParams = new URLSearchParams(window.location.search);
     let originalReferrer = urlParams.get('referrer');
-    
+
     // Safety check: Never use create-post.html as referrer
     if (originalReferrer && originalReferrer.includes('create-post.html')) {
         originalReferrer = null; // Reset if it's create-post.html
     }
-    
+
     // If no referrer in URL parameter, try to get it from document.referrer
-    // But EXCLUDE create-post.html to avoid going back to create-post page
+    // But EXCLUDE create-post to avoid going back to create-post page
     if (!originalReferrer) {
         const referrerUrl = document.referrer;
-        if (referrerUrl && !referrerUrl.includes('create-post.html')) {
+        if (referrerUrl && !referrerUrl.includes('/forum/post/create') && !referrerUrl.includes('create-post')) {
             try {
                 const referrerObj = new URL(referrerUrl);
                 const referrerPath = referrerObj.pathname;
-                
-                // Extract just the filename and query params
-                const pathParts = referrerPath.split('/');
-                const filename = pathParts[pathParts.length - 1];
-                
-                if (filename === 'forum.html' || referrerPath.includes('forum.html')) {
-                    originalReferrer = 'forum.html';
-                } else if (filename === 'forum-detail.html' || referrerPath.includes('forum-detail.html')) {
+
+                // Check for Laravel routes: /forums or /forum (main page)
+                if (referrerPath === '/forums' || referrerPath === '/forum') {
+                    originalReferrer = '/forums';
+                } 
+                // Check for forum detail page: /forum/{id}
+                else if (referrerPath.startsWith('/forum/') && !referrerPath.includes('/forum/post/') && !referrerPath.includes('/forum/create')) {
+                    // Extract forum ID from path
+                    const pathParts = referrerPath.split('/').filter(p => p);
+                    const forumIndex = pathParts.indexOf('forum');
+                    if (forumIndex !== -1 && pathParts[forumIndex + 1] && !isNaN(pathParts[forumIndex + 1])) {
+                        const forumId = pathParts[forumIndex + 1];
+                        originalReferrer = `/forum/${forumId}`;
+                    }
+                }
+                // Legacy HTML file support
+                else if (referrerPath.includes('forum.html')) {
+                    originalReferrer = '/forums';
+                } else if (referrerPath.includes('forum-detail.html')) {
                     const forumId = referrerObj.searchParams.get('id');
-                    originalReferrer = forumId ? `forum-detail.html?id=${forumId}` : 'forum-detail.html';
-                } else if (filename === 'post-detail.html' || referrerPath.includes('post-detail.html')) {
-                    // If coming from post-detail, preserve the full URL with query params
-                    const queryString = referrerObj.search;
-                    originalReferrer = queryString ? `post-detail.html${queryString}` : 'post-detail.html';
+                    originalReferrer = forumId ? `/forum/${forumId}` : '/forums';
                 }
             } catch (e) {
                 // Invalid URL, ignore
@@ -52,20 +59,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    
-    // Final safety check: Never store create-post.html as referrer
-    if (originalReferrer && !originalReferrer.includes('create-post.html')) {
+
+    // Final safety check: Never store create-post as referrer
+    if (originalReferrer && !originalReferrer.includes('create-post') && !originalReferrer.includes('/forum/post/create')) {
         sessionStorage.setItem('postCreateReferrer', originalReferrer);
         console.log('Stored original referrer:', originalReferrer);
     } else if (originalReferrer) {
-        console.warn('Ignored create-post.html as referrer');
+        console.warn('Ignored create-post as referrer');
     }
 
     initEventListeners();
     loadForums();
     loadAllTags(); // Load tags for autocomplete
     initializePollOptions();
-    
+
     // Set initial post type
     const initialPostType = document.querySelector('input[name="postType"]:checked');
     if (initialPostType) {
@@ -121,21 +128,21 @@ async function loadForums() {
             },
             credentials: 'include',
         });
-        
+
         // Check if response is OK
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data) {
             // Handle both 'forum' (singular) and 'forums' (plural) response keys
             const forums = data.data.forum || data.data.forums || [];
             if (Array.isArray(forums)) {
                 postState.forums = forums;
                 renderForumsDropdown();
-                
+
                 if (forums.length === 0) {
                     showError('You are not a member of any forums. Please join a forum from the forum list page first.');
                 }
@@ -168,15 +175,15 @@ function renderForumsDropdown() {
 
 function handlePostTypeChange(e) {
     const postType = e.target.value;
-    
+
     // Update selected state
     document.querySelectorAll('.category-option').forEach(opt => {
         opt.classList.remove('selected');
     });
-    
+
     // Get poll option inputs
     const pollInputs = document.querySelectorAll('.poll-option-input');
-    
+
     if (postType === 'post') {
         document.getElementById('postTypePost').classList.add('selected');
         document.getElementById('contentGroup').style.display = 'block';
@@ -231,11 +238,11 @@ function addPollOptionField() {
     const optionDiv = document.createElement('div');
     optionDiv.className = 'poll-option-item';
     optionDiv.id = `pollOption_${optionId}`;
-    
+
     // Check if poll type is currently selected
     const pollTypeSelected = document.querySelector('input[name="postType"]:checked')?.value === 'poll';
     const requiredAttr = pollTypeSelected ? 'required' : '';
-    
+
     optionDiv.innerHTML = `
         <input type="text" class="form-control poll-option-input" placeholder="Enter poll option" ${requiredAttr}>
         <button type="button" class="remove-btn" onclick="removePollOption(${optionId})">
@@ -243,7 +250,7 @@ function addPollOptionField() {
         </button>
     `;
     container.appendChild(optionDiv);
-    
+
     postState.pollOptions.push(optionId);
 }
 
@@ -266,13 +273,13 @@ async function loadAllTags() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data && data.data.tags) {
             // Store tags for autocomplete (if needed in the future)
             postState.allTags = data.data.tags.map(t => t.name || t);
@@ -288,7 +295,7 @@ function handleTagInput(e) {
         e.preventDefault();
         const input = e.target;
         const tag = input.value.trim();
-        
+
         if (tag && !postState.tags.includes(tag)) {
             postState.tags.push(tag);
             renderTags();
@@ -319,17 +326,17 @@ function renderTags() {
 function handleFileSelect(e, postType = 'post') {
     const files = Array.from(e.target.files);
     const maxSize = 50 * 1024 * 1024; // 50MB
-    
+
     // Determine which file array to use
     const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
-    
+
     files.forEach(file => {
         // Validate file size
         if (file.size > maxSize) {
             showError(`File "${file.name}" exceeds 50MB limit`);
             return;
         }
-        
+
         // Validate file type (images and common file types)
         const validTypes = [
             'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
@@ -337,23 +344,23 @@ function handleFileSelect(e, postType = 'post') {
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         ];
-        
+
         const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx'];
         const fileExtension = file.name.split('.').pop().toLowerCase();
-        
+
         if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
             showError(`File "${file.name}" is not a valid image or file type`);
             return;
         }
-        
+
         // Add to selected files if not already added
         if (!fileArray.find(f => f.name === file.name && f.size === file.size)) {
             fileArray.push(file);
         }
     });
-    
+
     renderAttachments(postType);
-    
+
     // Update file input based on post type
     const inputId = postType === 'link' ? 'attachmentInputLink' : 'attachmentInputPost';
     const input = document.getElementById(inputId);
@@ -367,7 +374,7 @@ function removeAttachment(index, postType = 'post') {
     const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
     fileArray.splice(index, 1);
     renderAttachments(postType);
-    
+
     // Update file input based on post type
     const inputId = postType === 'link' ? 'attachmentInputLink' : 'attachmentInputPost';
     const input = document.getElementById(inputId);
@@ -381,7 +388,7 @@ function renderAttachments(postType = 'post') {
     const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
     const containerId = postType === 'link' ? 'attachmentsPreviewLink' : 'attachmentsPreviewPost';
     const container = document.getElementById(containerId);
-    
+
     if (!container) return;
 
     if (fileArray.length === 0) {
@@ -396,41 +403,41 @@ function renderAttachments(postType = 'post') {
     fileArray.forEach((file, index) => {
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
         const fileIcon = getFileIcon(file.name);
-        const isImage = file.type.startsWith('image/') || 
-                       ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(file.name.split('.').pop().toLowerCase());
-        
+        const isImage = file.type.startsWith('image/') ||
+            ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(file.name.split('.').pop().toLowerCase());
+
         if (isImage) {
             // Create image preview using FileReader
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 const previewDiv = document.createElement('div');
                 previewDiv.className = 'attachment-image-preview';
                 const dataUrl = e.target.result;
                 const fileName = escapeHtml(file.name);
-                
+
                 // Create wrapper
                 const wrapper = document.createElement('div');
                 wrapper.className = 'image-preview-wrapper';
                 wrapper.onclick = () => viewImagePreview(dataUrl, fileName);
-                
+
                 // Create image
                 const img = document.createElement('img');
                 img.src = dataUrl;
                 img.alt = fileName;
                 img.className = 'preview-image';
-                
+
                 // Create overlay
                 const overlay = document.createElement('div');
                 overlay.className = 'image-preview-overlay';
-                
+
                 const filenameSpan = document.createElement('span');
                 filenameSpan.className = 'image-filename';
                 filenameSpan.textContent = fileName;
-                
+
                 const filesizeSpan = document.createElement('span');
                 filesizeSpan.className = 'image-filesize';
                 filesizeSpan.textContent = fileSize + ' MB';
-                
+
                 const removeBtn = document.createElement('span');
                 removeBtn.className = 'remove-btn';
                 removeBtn.title = 'Remove';
@@ -439,17 +446,17 @@ function renderAttachments(postType = 'post') {
                     removeAttachment(index, postType);
                 };
                 removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-                
+
                 overlay.appendChild(filenameSpan);
                 overlay.appendChild(filesizeSpan);
                 overlay.appendChild(removeBtn);
-                
+
                 wrapper.appendChild(img);
                 wrapper.appendChild(overlay);
                 previewDiv.appendChild(wrapper);
                 container.appendChild(previewDiv);
             };
-            reader.onerror = function() {
+            reader.onerror = function () {
                 // Fallback to file icon if image fails to load
                 const fileDiv = document.createElement('div');
                 fileDiv.className = 'attachment-preview-item';
@@ -498,22 +505,22 @@ function getFileIcon(filename) {
 
 async function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     hideMessages();
-    
+
     // Get form values
     const forumId = document.getElementById('forumSelect').value;
     const postType = document.querySelector('input[name="postType"]:checked').value;
     const title = document.getElementById('postTitle').value.trim();
     const content = document.getElementById('postContent').value.trim();
     const link = document.getElementById('postLink').value.trim();
-    
+
     // Validation
     if (!forumId) {
         showError('Please select a forum');
         return;
     }
-    
+
     // Verify the forum exists in the loaded forums
     const selectedForum = postState.forums.find(f => f.id == forumId);
     if (!selectedForum) {
@@ -524,12 +531,12 @@ async function handleFormSubmit(e) {
         showError('Selected forum is invalid. Please refresh the page and try again.');
         return;
     }
-    
+
     if (!title) {
         showError('Post title is required');
         return;
     }
-    
+
     if (postType === 'poll') {
         const pollOptions = getPollOptions();
         if (pollOptions.length < 2) {
@@ -550,12 +557,12 @@ async function handleFormSubmit(e) {
             return;
         }
     }
-    
+
     // Disable submit button
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-    
+
     try {
         // Upload files first if any - use the correct file array based on post type
         let attachments = [];
@@ -563,16 +570,20 @@ async function handleFormSubmit(e) {
         if (fileArray && fileArray.length > 0) {
             attachments = await uploadFiles(postType);
         }
-        
+
+        // Get lesson ID if selected
+        const lessonId = document.getElementById('lessonSelect')?.value;
+
         // Prepare post data
         const postData = {
             forum_id: parseInt(forumId),
             title: title,
             post_type: postType,
             tags: postState.tags,
-            attachments: attachments
+            attachments: attachments,
+            lesson_id: lessonId || null // Send lesson_id if selected
         };
-        
+
         // Only include content for post and link types
         if (postType === 'link') {
             // Combine link URL and description (content) for link posts
@@ -582,11 +593,11 @@ async function handleFormSubmit(e) {
             postData.content = content;
         }
         // For polls, don't include content field
-        
+
         if (postType === 'poll') {
             postData.poll_option = getPollOptions();
         }
-        
+
         // Debug: Log the data being sent
         console.log('Creating post with data:', {
             forum_id: postData.forum_id,
@@ -596,7 +607,7 @@ async function handleFormSubmit(e) {
             tags_count: postData.tags.length,
             attachments_count: postData.attachments.length
         });
-        
+
         // Create post
         const response = await fetch('/api/forum/post', {
             method: 'POST',
@@ -608,10 +619,10 @@ async function handleFormSubmit(e) {
             credentials: 'include',
             body: JSON.stringify(postData)
         });
-        
+
         // Log response status for debugging
         console.log('Response status:', response.status, response.statusText);
-        
+
         // Read response as text first (can only read once)
         let responseText;
         try {
@@ -623,11 +634,11 @@ async function handleFormSubmit(e) {
             submitBtn.innerHTML = '<i class="fas fa-check"></i> Create Post';
             return;
         }
-        
+
         // Try to parse as JSON
         let data;
         const contentType = response.headers.get('content-type') || '';
-        
+
         if (contentType.includes('application/json') || responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
             try {
                 data = JSON.parse(responseText);
@@ -647,27 +658,85 @@ async function handleFormSubmit(e) {
             submitBtn.innerHTML = '<i class="fas fa-check"></i> Create Post';
             return;
         }
-        
+
         if (data.status === 200) {
             // Reload tags after successful post creation (for other users)
             // Note: This won't affect current user's view, but helps keep tags updated
             await loadAllTags();
-            
+
             showSuccess('Post created successfully!');
             setTimeout(() => {
-                // Redirect to the post detail page using Laravel route
-                const postId = data.data.post_id;
-                if (postId) {
-                    window.location.href = `/forum/post/${postId}`;
+                // Get the referrer from sessionStorage to determine where to redirect
+                const referrer = sessionStorage.getItem('postCreateReferrer');
+                const forumId = data.data.forum_id;
+                
+                // Determine redirect URL based on referrer
+                let redirectUrl = '/forums'; // Default to forum main page
+                
+                if (referrer) {
+                    console.log('Redirect: Checking referrer:', referrer);
+                    
+                    // Check if referrer is the forum main page (exact match first)
+                    if (referrer === '/forums' || referrer === '/forum') {
+                        redirectUrl = '/forums';
+                        console.log('Redirect: From forum main page, redirecting to /forums');
+                    }
+                    // Check if referrer is a forum detail page
+                    else if (referrer.startsWith('/forum/') && !referrer.includes('/forum/post/') && !referrer.includes('/forum/create')) {
+                        // Extract forum ID from path (e.g., /forum/5 -> 5)
+                        const pathParts = referrer.split('/').filter(p => p);
+                        const forumIndex = pathParts.indexOf('forum');
+                        if (forumIndex !== -1 && pathParts[forumIndex + 1] && !isNaN(pathParts[forumIndex + 1])) {
+                            const referrerForumId = pathParts[forumIndex + 1];
+                            redirectUrl = `/forum/${referrerForumId}`;
+                            console.log('Redirect: From forum detail page, redirecting to /forum/' + referrerForumId);
+                        }
+                    }
+                    // Legacy HTML file support
+                    else if (referrer.includes('forum-detail')) {
+                        try {
+                            const referrerUrl = new URL(referrer, window.location.origin);
+                            const referrerForumId = referrerUrl.searchParams.get('id') || referrer.match(/\/forum\/(\d+)/)?.[1] || forumId;
+                            if (referrerForumId) {
+                                redirectUrl = `/forum/${referrerForumId}`;
+                                console.log('Redirect: From legacy forum detail, redirecting to /forum/' + referrerForumId);
+                            }
+                        } catch (e) {
+                            // Extract ID from query string if present
+                            const idMatch = referrer.match(/[?&]id=(\d+)/);
+                            const referrerForumId = idMatch ? idMatch[1] : forumId;
+                            if (referrerForumId) {
+                                redirectUrl = `/forum/${referrerForumId}`;
+                                console.log('Redirect: From legacy forum detail (fallback), redirecting to /forum/' + referrerForumId);
+                            }
+                        }
+                    }
+                    // Legacy forum.html support
+                    else if (referrer.includes('forum.html') || referrer.includes('/forums')) {
+                        redirectUrl = '/forums';
+                        console.log('Redirect: From legacy forum main page, redirecting to /forums');
+                    }
+                    // If referrer doesn't match any pattern, default to forum main
+                    else {
+                        redirectUrl = '/forums';
+                        console.log('Redirect: Unknown referrer pattern, defaulting to /forums');
+                    }
                 } else {
-                    // Fallback to forum index if post ID is missing
-                    window.location.href = '/forum';
+                    // No referrer stored, default to forum main page
+                    // Don't redirect to forum detail just because forumId exists
+                    redirectUrl = '/forums';
+                    console.log('Redirect: No referrer stored, defaulting to /forums');
                 }
+                
+                // Clear the referrer after using it
+                sessionStorage.removeItem('postCreateReferrer');
+                
+                window.location.href = redirectUrl;
             }, 1500);
         } else {
             // Extract error message - check both 'message' field and status code
             let errorMessage = data.message || 'Failed to create post';
-            
+
             // Provide more specific messages for common errors
             if (response.status === 403) {
                 if (data.message && data.message.includes('Not a member of this forum')) {
@@ -690,7 +759,7 @@ async function handleFormSubmit(e) {
             } else if (response.status === 401) {
                 errorMessage = 'Your session has expired. Please log in again.';
             }
-            
+
             console.error('Post creation failed:', {
                 status: data.status || response.status,
                 message: data.message,
@@ -711,29 +780,29 @@ async function handleFormSubmit(e) {
 async function uploadFiles(postType = 'post') {
     // Determine which file array to use
     const fileArray = postType === 'link' ? postState.selectedFilesLink : postState.selectedFiles;
-    
+
     // Early return if no files
     if (!fileArray || fileArray.length === 0) {
         return [];
     }
-    
+
     // Filter out any invalid files
     const validFiles = fileArray.filter(file => file instanceof File);
     if (validFiles.length === 0) {
         return [];
     }
-    
+
     const formData = new FormData();
     validFiles.forEach(file => {
         formData.append('files[]', file);
     });
-    
+
     // Debug: Log what we're sending
     console.log('Uploading files:', validFiles.map(f => ({ name: f.name, size: f.size, type: f.type })));
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-        
+
         const response = await fetch('/api/upload', {
             method: 'POST',
             headers: {
@@ -744,7 +813,7 @@ async function uploadFiles(postType = 'post') {
             credentials: 'include',
             body: formData
         });
-        
+
         // Check if response is JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -752,7 +821,7 @@ async function uploadFiles(postType = 'post') {
             console.error('Non-JSON response from upload:', text.substring(0, 500));
             throw new Error('Server error during file upload. Please check the console for details.');
         }
-        
+
         let data;
         try {
             data = await response.json();
@@ -762,7 +831,7 @@ async function uploadFiles(postType = 'post') {
             console.error('Upload Response Text:', text.substring(0, 500));
             throw new Error('Invalid response from upload server. Please try again.');
         }
-        
+
         if (data.status === 200) {
             return data.data.files || [];
         } else {
@@ -795,12 +864,12 @@ function getPollOptions() {
 function showSuccess(message) {
     const successMsg = document.getElementById('successMessage');
     const errorMsg = document.getElementById('errorMessage');
-    
+
     if (successMsg) {
         successMsg.textContent = message;
         successMsg.classList.add('show');
     }
-    
+
     if (errorMsg) {
         errorMsg.classList.remove('show');
     }
@@ -809,12 +878,12 @@ function showSuccess(message) {
 function showError(message) {
     const successMsg = document.getElementById('successMessage');
     const errorMsg = document.getElementById('errorMessage');
-    
+
     if (errorMsg) {
         errorMsg.textContent = message;
         errorMsg.classList.add('show');
     }
-    
+
     if (successMsg) {
         successMsg.classList.remove('show');
     }
@@ -823,7 +892,7 @@ function showError(message) {
 function hideMessages() {
     const successMsg = document.getElementById('successMessage');
     const errorMsg = document.getElementById('errorMessage');
-    
+
     if (successMsg) successMsg.classList.remove('show');
     if (errorMsg) errorMsg.classList.remove('show');
 }
@@ -851,7 +920,7 @@ function viewImagePreview(imageUrl, imageName) {
         z-index: 10000;
         cursor: pointer;
     `;
-    
+
     const img = document.createElement('img');
     img.src = imageUrl;
     img.alt = imageName;
@@ -861,7 +930,7 @@ function viewImagePreview(imageUrl, imageName) {
         object-fit: contain;
         border-radius: 8px;
     `;
-    
+
     const closeBtn = document.createElement('div');
     closeBtn.innerHTML = '<i class="fas fa-times"></i>';
     closeBtn.style.cssText = `
@@ -882,18 +951,18 @@ function viewImagePreview(imageUrl, imageName) {
     `;
     closeBtn.onmouseover = () => closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
     closeBtn.onmouseout = () => closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    
+
     const closeModal = () => {
         document.body.removeChild(modal);
     };
-    
+
     closeBtn.onclick = (e) => {
         e.stopPropagation();
         closeModal();
     };
     modal.onclick = closeModal;
     img.onclick = (e) => e.stopPropagation();
-    
+
     modal.appendChild(img);
     modal.appendChild(closeBtn);
     document.body.appendChild(modal);

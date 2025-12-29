@@ -1,61 +1,133 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CompuPlay - Quick Setup Guide
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 🚀 One-Command Database Setup
 
-## About Laravel
+After cloning this repository, follow these simple steps:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Step 1: Install Dependencies
+```bash
+composer install
+npm install
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Step 2: Configure Environment
+```bash
+# Copy the environment file
+cp .env.example .env
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+# Generate application key
+php artisan key:generate
+```
 
-## Learning Laravel
+### Step 3: Setup Database
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+**Edit `.env` file** with your database credentials:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=compuplay
+DB_USERNAME=root
+DB_PASSWORD=your_password
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+**Then run ONE command:**
+```bash
+php artisan db:setup
+```
 
-## Laravel Sponsors
+That's it! ✅ The database will be created and all tables will be imported automatically.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## Alternative: Manual Database Setup
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+If you prefer manual setup:
 
-## Contributing
+```bash
+# Create database
+mysql -u root -p -e "CREATE DATABASE compuplay CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Import schema
+mysql -u root -p compuplay < CompuPlay.sql
+```
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## After Database Setup
 
-## Security Vulnerabilities
+### Build Assets
+```bash
+npm run build
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Start Development Server
+```bash
+php artisan serve
+```
+
+Visit: `http://127.0.0.1:8000`
+
+---
+
+## Default Login Credentials
+
+After setup, you can login with:
+
+**Teacher Account:**
+- Email: `teacher@compuplay.com`
+- Password: `password`
+
+**Student Account:**
+- Email: `student@compuplay.com`
+- Password: `password`
+
+---
+
+## Troubleshooting
+
+### Database Connection Error
+- Check your `.env` file has correct database credentials
+- Make sure MySQL is running
+- Verify database user has proper permissions
+
+### Migration Errors
+- Run: `php artisan migrate:fresh` (⚠️ This will delete all data)
+- Or use: `php artisan db:setup` to recreate from CompuPlay.sql
+
+### Permission Errors
+```bash
+chmod -R 775 storage bootstrap/cache
+```
+
+---
+
+## Project Structure
+
+```
+compuplay/
+├── app/                    # Application code
+├── database/
+│   ├── migrations/         # Database migrations
+│   └── schema/            # Schema backups
+├── resources/
+│   ├── views/             # Blade templates
+│   └── js/                # React components
+├── public/                # Public assets
+├── CompuPlay.sql          # Complete database export
+└── DATABASE_README.md     # Detailed database info
+```
+
+---
+
+## Need Help?
+
+- Check `DATABASE_README.md` for detailed database information
+- Review Laravel documentation: https://laravel.com/docs
+- Check the issues page on GitHub
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-
-Enjoy the app!
+This project is open-source software licensed under the MIT license.

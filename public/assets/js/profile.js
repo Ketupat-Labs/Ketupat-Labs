@@ -5,84 +5,24 @@ function showSection(sectionName) {
     document.querySelectorAll('.section-content').forEach(section => {
         section.classList.add('hidden');
     });
-    
+
     // Remove active class from all tabs
     document.querySelectorAll('.section-tab').forEach(tab => {
         tab.classList.remove('active', 'border-blue-500', 'text-blue-600');
         tab.classList.add('border-transparent', 'text-gray-500');
     });
-    
+
     // Show selected section
     const section = document.getElementById('section-' + sectionName);
     if (section) {
         section.classList.remove('hidden');
     }
-    
+
     // Add active class to selected tab
     const tab = document.getElementById('tab-' + sectionName);
     if (tab) {
         tab.classList.add('active', 'border-blue-500', 'text-blue-600');
         tab.classList.remove('border-transparent', 'text-gray-500');
-    }
-}
-
-async function addFriend(friendId) {
-    try {
-        const response = await fetch('/api/friends/add', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            credentials: 'include',
-            body: JSON.stringify({ friend_id: friendId })
-        });
-
-        const data = await response.json();
-        
-        if (data.status === 200) {
-            alert('Friend request sent!');
-            window.location.reload();
-        } else {
-            alert(data.message || 'Failed to send friend request');
-        }
-    } catch (error) {
-        console.error('Error adding friend:', error);
-        alert('Failed to send friend request');
-    }
-}
-
-async function removeFriend(friendId) {
-    if (!confirm('Are you sure you want to remove this friend?')) {
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/friends/remove', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            credentials: 'include',
-            body: JSON.stringify({ friend_id: friendId })
-        });
-
-        const data = await response.json();
-        
-        if (data.status === 200) {
-            alert('Friend removed');
-            window.location.reload();
-        } else {
-            alert(data.message || 'Failed to remove friend');
-        }
-    } catch (error) {
-        console.error('Error removing friend:', error);
-        alert('Failed to remove friend');
     }
 }
 
@@ -96,20 +36,20 @@ function escapeHtml(text) {
 // Helper function to extract YouTube video ID from URL
 function extractYouTubeVideoId(url) {
     if (!url) return null;
-    
+
     const patterns = [
         /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
         /youtube\.com\/embed\/([^"&?\/\s]{11})/,
         /youtube\.com\/v\/([^"&?\/\s]{11})/
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
@@ -119,14 +59,14 @@ function extractTikTokVideoId(url) {
         /(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)/i,
         /tiktok\.com\/.*\/video\/(\d+)/i
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
@@ -136,28 +76,28 @@ function extractRedNoteVideoId(url) {
         /xiaohongshu\.com\/explore\/([a-zA-Z0-9]+)/i,
         /xhslink\.com\/([a-zA-Z0-9]+)/i
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
 // Helper function to convert video URLs (YouTube, TikTok, RedNote, etc.) to embedded players
 function processVideoLinks(content) {
     if (!content) return content;
-    
+
     // Split content by newlines to separate URL from description
     const lines = content.split('\n');
     let urlLine = '';
     let descriptionLines = [];
     let urlLineIndex = -1;
     let foundVideoUrl = false;
-    
+
     // Find the first line that contains a video URL (YouTube, TikTok, RedNote, etc.)
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -176,23 +116,23 @@ function processVideoLinks(content) {
             break;
         }
     }
-    
+
     // If no video URL found, check if there's a regular URL and create link preview
     if (!foundVideoUrl) {
         // Try to find any URL in the content
         const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
         const urlMatch = content.match(urlRegex);
-        
+
         if (urlMatch && urlMatch.length > 0) {
             const firstUrl = urlMatch[0];
             try {
                 const urlObj = new URL(firstUrl);
                 const domain = urlObj.hostname.replace('www.', '');
-                
+
                 // Extract description (everything after the URL)
                 const urlIndex = content.indexOf(firstUrl);
                 const description = content.substring(urlIndex + firstUrl.length).trim();
-                
+
                 // Create compact link preview
                 return createLinkPreview(firstUrl, domain, description);
             } catch (e) {
@@ -200,23 +140,23 @@ function processVideoLinks(content) {
                 return escapeHtml(content);
             }
         }
-        
+
         // No URL found, just escape and return the content
         return escapeHtml(content);
     }
-    
+
     // Process description - join lines and preserve paragraph breaks
     const descriptionText = descriptionLines.join('\n').trim();
-    const escapedDescription = descriptionText 
-        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' + 
-          escapeHtml(descriptionText) + 
-          '</div>' 
+    const escapedDescription = descriptionText
+        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' +
+        escapeHtml(descriptionText) +
+        '</div>'
         : '';
-    
+
     // Escape HTML to prevent XSS for the URL line
     const escapedUrlLine = escapeHtml(urlLine);
     let processedUrl = escapedUrlLine;
-    
+
     // Process YouTube URLs
     const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&]t=(\d+[smh]?|[0-9]+m[0-9]+s)?)?[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(youtubeRegex, (match, videoId, startTime) => {
@@ -234,7 +174,7 @@ function processVideoLinks(content) {
                 timeInSeconds = parseInt(cleanTime) || null;
             }
         }
-        
+
         const timeParam = timeInSeconds ? `?start=${timeInSeconds}` : '';
         return `<div class="video-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden;">
             <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
@@ -245,7 +185,7 @@ function processVideoLinks(content) {
             </iframe>
         </div>`;
     });
-    
+
     // Process TikTok URLs
     const tiktokRegex = /(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(tiktokRegex, (match) => {
@@ -262,7 +202,7 @@ function processVideoLinks(content) {
         }
         return match;
     });
-    
+
     // Process RedNote (Xiaohongshu) URLs
     const rednoteRegex = /(?:https?:\/\/)?(?:www\.)?(?:xiaohongshu\.com\/explore\/|xhslink\.com\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(rednoteRegex, (match) => {
@@ -282,13 +222,13 @@ function processVideoLinks(content) {
         }
         return match;
     });
-    
+
     // Check if the URL was actually processed (video embed created)
     // If not, it means it's a non-video link, so create a link preview instead
-    const isVideoEmbed = processedUrl.includes('video-embed-container') || 
-                        processedUrl.includes('tiktok-embed') ||
-                        processedUrl.includes('iframe');
-    
+    const isVideoEmbed = processedUrl.includes('video-embed-container') ||
+        processedUrl.includes('tiktok-embed') ||
+        processedUrl.includes('iframe');
+
     if (!isVideoEmbed && urlLine) {
         // It's a link but not a recognized video, create compact link preview
         try {
@@ -300,7 +240,7 @@ function processVideoLinks(content) {
             return escapedDescription + escapeHtml(urlLine);
         }
     }
-    
+
     // Return description + embed (description above the video)
     return escapedDescription + processedUrl;
 }
@@ -310,7 +250,7 @@ function createLinkPreview(url, domain, description) {
     // Extract title from description or use domain
     const title = description ? description.split('\n')[0].substring(0, 100) : domain;
     const fullDescription = description ? description.substring(title.length).trim() : '';
-    
+
     return `
         <div class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
              onclick="event.stopPropagation(); window.open('${escapeHtml(url)}', '_blank')" 
@@ -363,7 +303,7 @@ function processPostContentPreviews() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Process YouTube links in post previews
     processPostContentPreviews();
 
@@ -393,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Category Filter Events
     categoryBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             categoryBtns.forEach(b => {
                 b.classList.remove('active', 'border-blue-500', 'bg-blue-500', 'text-white');
                 b.classList.add('border-gray-300', 'text-gray-600', 'bg-white');
@@ -407,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Status Filter Events
     statusBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             statusBtns.forEach(b => {
                 b.classList.remove('active', 'border-blue-500', 'bg-blue-500', 'text-white');
                 b.classList.add('border-gray-300', 'text-gray-600', 'bg-white');
@@ -418,5 +358,13 @@ document.addEventListener('DOMContentLoaded', function() {
             filterBadges();
         });
     });
+});
+
+// Check URL hash on load to switch tabs
+document.addEventListener('DOMContentLoaded', function () {
+    const hash = window.location.hash.substring(1); // remove #
+    if (hash && ['saved', 'posts', 'badges'].includes(hash)) {
+        showSection(hash);
+    }
 });
 

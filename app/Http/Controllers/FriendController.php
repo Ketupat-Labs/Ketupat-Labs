@@ -235,6 +235,63 @@ class FriendController extends Controller
         ]);
     }
 
+    public function searchNewFriends(Request $request)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $query = $request->get('query');
+        if (strlen($query) < 2) {
+            return response()->json([
+                'status' => 200,
+                'data' => [],
+            ]);
+        }
+
+        // Get IDs of existing friends and pending requests to exclude
+        $existingFriendIds = DB::table('friend')
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })
+            ->orWhere(function ($q) use ($user) {
+                $q->where('friend_id', $user->id);
+            })
+            ->get()
+            ->map(function ($f) use ($user) {
+                return $f->user_id === $user->id ? $f->friend_id : $f->user_id;
+            })
+            ->toArray();
+
+        // Add current user ID to exclusion list
+        $excludedIds = array_merge($existingFriendIds, [$user->id]);
+
+        // Search users
+        $users = User::where(function($q) use ($query) {
+                $q->where('username', 'like', "%{$query}%")
+                  ->orWhere('full_name', 'like', "%{$query}%");
+            })
+            ->whereNotIn('id', $excludedIds)
+            ->where('role', '!=', 'admin') // Optional: exclude admins
+            ->limit(10)
+            ->get()
+            ->map(function ($u) {
+                return [
+                    'id' => $u->id,
+                    'username' => $u->username,
+                    'full_name' => $u->full_name,
+                    'avatar_url' => $u->avatar_url,
+                    'role' => $u->role,
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
+            'data' => $users,
+        ]);
+    }
+
     public function index()
     {
         $user = $this->getCurrentUser();

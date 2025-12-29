@@ -197,6 +197,23 @@
                     </div>
                 </div>
 
+                <!-- Lesson Attachment Section -->
+                @if(isset($lessons) && count($lessons) > 0)
+                <div class="form-section" id="lessonSection">
+                    <div class="form-section-title">Kongsi Pelajaran (Pilihan)</div>
+                    <div class="form-group">
+                        <label for="lessonSelect">Pilih Pelajaran</label>
+                        <select id="lessonSelect" name="lesson_id" class="form-control">
+                            <option value="">-- Tiada Pelajaran Dipilih --</option>
+                            @foreach($lessons as $lesson)
+                                <option value="{{ $lesson->id }}">{{ $lesson->title }}</option>
+                            @endforeach
+                        </select>
+                        <small>Pilih pelajaran untuk dikongsi dengan guru lain.</small>
+                    </div>
+                </div>
+                @endif
+
                 <div class="form-section">
                     <div class="form-section-title">Tag (Pilihan)</div>
                     

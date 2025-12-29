@@ -8,9 +8,9 @@
                         <h2 class="text-2xl font-bold text-gray-800">
                             Cipta Aktiviti Baru
                         </h2>
-                        <a href="{{ route('lessons.index') }}" class="text-gray-600 hover:text-gray-900 font-medium">
-                            ← Kembali
-                        </a>
+                            <a href="{{ route('lessons.index', ['tab' => 'activities']) }}" class="text-gray-600 hover:text-gray-900 font-medium">
+                                ← Kembali
+                            </a>
                     </div>
 
                     <form action="{{ route('activities.store') }}" method="POST">
@@ -197,7 +197,7 @@
                         </script>
 
                         <div class="flex items-center justify-end mt-4">
-                            <a href="{{ route('lessons.index') }}" class="mr-4 text-gray-600 hover:text-gray-900">Batal</a>
+                            <a href="{{ route('lessons.index', ['tab' => 'activities']) }}" class="mr-4 text-gray-600 hover:text-gray-900">Batal</a>
                             <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                                 Simpan Aktiviti
                             </button>

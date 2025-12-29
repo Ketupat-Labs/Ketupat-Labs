@@ -41,12 +41,11 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                 <div class="flex items-center gap-2">
                                                     {{-- Assign Button (Text Only) --}}
-                                                    <form action="{{ route('activities.assign', $activity->id) }}" method="POST" class="inline-flex">
-                                                        @csrf
-                                                        <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 ease-in-out">
-                                                            Tugaskan
-                                                        </button>
-                                                    </form>
+                                                    {{-- Assign Button (Modernized) --}}
+                                                    <a href="{{ route('assignments.create', ['activity_id' => $activity->id, 'tab' => 'activity']) }}" 
+                                                        class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-md shadow-sm transition duration-150 ease-in-out">
+                                                        Tugaskan
+                                                    </a>
 
                                                     {{-- Edit Button (Icon) --}}
                                                     <a href="{{ route('activities.edit', $activity->id) }}" class="text-blue-600 hover:text-blue-900 p-1.5 hover:bg-blue-50 rounded-full transition" title="Edit Aktiviti">

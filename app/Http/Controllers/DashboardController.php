@@ -26,6 +26,13 @@ class DashboardController extends Controller
             return redirect()->route('login');
         }
 
+        // Award "Pendatang Baru" badge on first login (students only)
+        if ($user->role === 'student' && !$user->first_login_at) {
+            $this->awardNewcomerBadge($user);
+            $user->first_login_at = now();
+            $user->save();
+        }
+
         // Redirect based on role
         if ($user->role === 'teacher') {
             $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->withCount('students')->get();
@@ -82,12 +89,47 @@ class DashboardController extends Controller
                 ->sortByDesc('assigned_at')
                 ->take(10); // Limit total items
 
+            // Get earned badges (not yet redeemed)
+            $earnedBadges = \App\Models\Badge::whereHas('users', function($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->where('user_badge.status', 'earned');
+            })->take(6)->get();
+
             return view('dashboard.student', [
                 'user' => $user,
                 'recentFeedback' => $recentFeedback,
                 'recentAssignments' => $recentAssignments, // Keep this if used elsewhere
-                'mixedTimeline' => $mixedTimeline
+                'mixedTimeline' => $mixedTimeline,
+                'earnedBadges' => $earnedBadges
             ]);
+        }
+    }
+
+    /**
+     * Award "Pendatang Baru" badge to new students
+     */
+    private function awardNewcomerBadge($user)
+    {
+        // Check for Newcomer badge
+        $badge = \App\Models\Badge::where('code', 'newcomer')->first();
+        
+        if ($badge) {
+            // Check if badge not already awarded
+            $hasBadge = DB::table('user_badge')
+                ->where('user_id', $user->id)
+                ->where('badge_code', 'newcomer')
+                ->exists();
+                
+            if (!$hasBadge) {
+                DB::table('user_badge')->insert([
+                    'user_id' => $user->id,
+                    'badge_code' => 'newcomer',
+                    'status' => 'earned',
+                    'earned_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
         }
     }
 }

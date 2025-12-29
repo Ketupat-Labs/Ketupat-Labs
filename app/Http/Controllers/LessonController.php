@@ -343,4 +343,36 @@ class LessonController extends Controller
             'message' => 'No image file provided',
         ], 400);
     }
+    // --- CLONE: Allow teachers to save (clone) a lesson from another teacher ---
+    public function clone(Lesson $lesson): RedirectResponse
+    {
+        $user = Auth::user();
+
+        // 1. Basic Check: Ensure user is a teacher
+        if (!$user || $user->role !== 'teacher') {
+            abort(403, 'Unauthorized. Only teachers can clone lessons.');
+        }
+
+        // 2. Prevent cloning own lessons (optional, but good UX to just redirect or allow duplicate)
+        // If clonging own lesson, it's just a duplicate. If cloning another's, it's an import.
+
+        // 3. Create the new Lesson record
+        $newLesson = Lesson::create([
+            'title' => 'Copy of ' . $lesson->title,
+            'topic' => $lesson->topic,
+            'content' => $lesson->content,
+            'content_blocks' => $lesson->content_blocks,
+            'teacher_id' => $user->id, // Assigned to current user
+            'duration' => $lesson->duration,
+            'material_path' => $lesson->material_path, // Shared file path (could duplicate file to be safe, but shared reference ok for now)
+            'url' => $lesson->url,
+            'is_published' => false, // Start as draft
+            'is_public' => false, // Start as private
+            'original_lesson_id' => $lesson->id, // Track provenance
+            'original_author_id' => $lesson->teacher_id, // Track original author
+        ]);
+
+        return redirect()->route('lessons.edit', $newLesson->id)
+            ->with('success', __('Lesson saved to your inventory successfully!'));
+    }
 }

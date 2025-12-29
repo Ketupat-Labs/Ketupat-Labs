@@ -86,6 +86,24 @@ function hideMessage(elementId) {
     messageDiv.classList.remove('show');
 }
 
+// Restore remember me checkbox state from localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    const rememberMeCheckbox = document.getElementById('rememberMe');
+    const savedRememberMe = localStorage.getItem('rememberMe');
+    if (rememberMeCheckbox && savedRememberMe === 'true') {
+        rememberMeCheckbox.checked = true;
+    }
+    
+    // Restore email if remember me was checked
+    const savedEmail = localStorage.getItem('savedEmail');
+    if (savedEmail && rememberMeCheckbox && rememberMeCheckbox.checked) {
+        const emailInput = document.getElementById('loginEmail');
+        if (emailInput) {
+            emailInput.value = savedEmail;
+        }
+    }
+});
+
 // Login Form Handler
 document.getElementById('loginFormElement').addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -93,6 +111,16 @@ document.getElementById('loginFormElement').addEventListener('submit', async fun
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const rememberMe = document.getElementById('rememberMe').checked;
+    
+    // Save remember me preference to localStorage
+    localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+    
+    // Save email if remember me is checked
+    if (rememberMe) {
+        localStorage.setItem('savedEmail', email);
+    } else {
+        localStorage.removeItem('savedEmail');
+    }
 
     // Hide previous errors
     hideMessage('loginError');
@@ -280,21 +308,21 @@ document.getElementById('registerFormElement').addEventListener('submit', async 
         if (data.status === 200 && data.data && data.data.requires_verification) {
             // Store registration data for OTP verification
             registrationData = { name, email, password, role: currentRole };
-            
+
             // Show OTP verification section
             document.getElementById('otpVerificationSection').style.display = 'block';
             document.getElementById('registerSubmitBtn').style.display = 'none';
             document.getElementById('verifyOtpBtn').style.display = 'block';
-            
+
             // Disable registration form fields
             document.getElementById('registerName').disabled = true;
             document.getElementById('registerEmail').disabled = true;
             document.getElementById('registerPassword').disabled = true;
             document.getElementById('registerConfirmPassword').disabled = true;
-            
+
             // Focus on OTP input
             document.getElementById('registerOtp').focus();
-            
+
             showSuccess('registerSuccess', data.message || 'Kod pengesahan telah dihantar ke emel anda.');
         } else if (data.status === 200) {
             // Old flow (no OTP required) - should not happen but handle it
@@ -454,32 +482,142 @@ async function resendOtp() {
 }
 
 // Allow Enter key to submit OTP
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const otpInput = document.getElementById('registerOtp');
     if (otpInput) {
-        otpInput.addEventListener('keypress', function(e) {
+        otpInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 verifyOtp();
             }
         });
-        
+
         // Auto-format OTP (numbers only)
-        otpInput.addEventListener('input', function(e) {
+        otpInput.addEventListener('input', function (e) {
             e.target.value = e.target.value.replace(/[^0-9]/g, '');
         });
     }
 });
 
+// Forgot Password Modal Functions
+function showForgotPasswordModal() {
+    const modal = document.getElementById('forgotPasswordModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        // Clear previous messages
+        hideMessage('forgotPasswordError');
+        hideMessage('forgotPasswordSuccess');
+        // Clear form
+        document.getElementById('forgotPasswordForm').reset();
+    }
+}
+
+function closeForgotPasswordModal() {
+    const modal = document.getElementById('forgotPasswordModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        // Clear messages
+        hideMessage('forgotPasswordError');
+        hideMessage('forgotPasswordSuccess');
+        // Clear form
+        document.getElementById('forgotPasswordForm').reset();
+    }
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('forgotPasswordModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeForgotPasswordModal();
+            }
+        });
+    }
+});
+
+// Forgot Password Form Handler
+document.addEventListener('DOMContentLoaded', function() {
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    if (forgotPasswordForm) {
+        forgotPasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('forgotPasswordEmail').value;
+
+            // Hide previous messages
+            hideMessage('forgotPasswordError');
+            hideMessage('forgotPasswordSuccess');
+
+            // Basic validation
+            if (!email) {
+                showError('forgotPasswordError', 'Sila masukkan alamat emel anda');
+                return;
+            }
+
+            try {
+                // Show loading state
+                const submitButton = forgotPasswordForm.querySelector('button[type="submit"]');
+                const originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghantar...';
+
+                const { response, data } = await apiPost(API_ENDPOINTS.forgotPassword, {
+                    email: email
+                });
+
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+
+                if (response && response.ok && data && data.status === 200) {
+                    showSuccess('forgotPasswordSuccess', data.message || 'Pautan set semula kata laluan telah dihantar ke emel anda. Sila semak peti masuk anda.');
+                    
+                    // Clear email field
+                    document.getElementById('forgotPasswordEmail').value = '';
+                    
+                    // Close modal after 3 seconds
+                    setTimeout(() => {
+                        closeForgotPasswordModal();
+                    }, 3000);
+                } else {
+                    showError('forgotPasswordError', data?.message || 'Gagal menghantar pautan set semula. Sila cuba lagi.');
+                }
+            } catch (error) {
+                console.error('Forgot password error:', error);
+                const submitButton = forgotPasswordForm.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> Hantar Pautan Set Semula';
+                }
+
+                if (error.data && error.data.message) {
+                    showError('forgotPasswordError', error.data.message);
+                } else {
+                    showError('forgotPasswordError', 'Ralat berlaku. Sila cuba lagi kemudian.');
+                }
+            }
+        });
+    }
+});
+
 // Check if already logged in - verify with server first
+// Note: 401 responses are expected when user is not logged in (normal behavior)
 (async function checkAuthStatus() {
     // Only check if we're on the login page
     if (window.location.pathname !== '/login' && !window.location.pathname.includes('/login')) {
         return;
     }
 
+    // If no sessionStorage data, skip API call (user definitely not logged in)
+    // This avoids unnecessary 401 errors in console
+    if (!sessionStorage.getItem('userLoggedIn') && !sessionStorage.getItem('userId')) {
+        return;
+    }
+
     try {
-        // Make a direct fetch call to avoid the error throwing in apiCall
+        // Make a direct fetch call to verify server-side authentication
         const response = await fetch(API_ENDPOINTS.me, {
             method: 'GET',
             headers: {
@@ -489,6 +627,24 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             credentials: 'include',
         });
+
+        // If 401 or 403, user is not authenticated (expected on login page)
+        // Handle this silently - this is normal behavior, not an error
+        if (response.status === 401 || response.status === 403) {
+            // Not authenticated, clear any stale sessionStorage
+            sessionStorage.removeItem('userLoggedIn');
+            sessionStorage.removeItem('userId');
+            sessionStorage.removeItem('userEmail');
+            sessionStorage.removeItem('userName');
+            sessionStorage.removeItem('userRole');
+            sessionStorage.removeItem('userAvatar');
+            return; // Silently return - 401 is expected when not logged in
+        }
+
+        // Only parse JSON if response is OK
+        if (!response.ok) {
+            return;
+        }
 
         const data = await response.json();
 
@@ -510,16 +666,18 @@ document.addEventListener('DOMContentLoaded', function() {
             sessionStorage.removeItem('userEmail');
             sessionStorage.removeItem('userName');
             sessionStorage.removeItem('userRole');
+            sessionStorage.removeItem('userAvatar');
             // Stay on login page - don't redirect
         }
     } catch (error) {
-        // API call failed or user not authenticated, clear sessionStorage
-        console.log('Auth check: User not authenticated');
+        // Network error or other exception
+        // Silently handle - clear sessionStorage
         sessionStorage.removeItem('userLoggedIn');
         sessionStorage.removeItem('userId');
         sessionStorage.removeItem('userEmail');
         sessionStorage.removeItem('userName');
         sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('userAvatar');
         // Stay on login page - don't redirect
     }
 })();

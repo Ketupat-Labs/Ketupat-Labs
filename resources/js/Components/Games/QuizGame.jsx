@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const QuizGame = ({ config = {} }) => {
+const QuizGame = ({ config = {}, onFinish }) => {
     const { questions = [] } = config;
 
     const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -8,10 +8,10 @@ const QuizGame = ({ config = {} }) => {
     const [showResults, setShowResults] = useState(false);
     const [score, setScore] = useState(0);
 
-    // Filter out empty questions
+    // Filter out incomplete questions - must have question text and at least one answer
     const validQuestions = questions.filter(q =>
         q.question && q.question.trim() &&
-        q.answers && q.answers.some(a => a.trim())
+        q.answers && q.answers.filter(a => a && a.trim()).length > 0
     );
 
     const handleAnswerSelect = (answerIndex) => {
@@ -35,13 +35,30 @@ const QuizGame = ({ config = {} }) => {
 
     const handleSubmit = () => {
         let correctCount = 0;
-        validQuestions.forEach((q, index) => {
-            if (selectedAnswers[index] === q.correctAnswer) {
-                correctCount++;
-            }
+        const breakdown = validQuestions.map((q, index) => {
+            const isCorrect = selectedAnswers[index] === q.correctAnswer;
+            if (isCorrect) correctCount++;
+            return {
+                question: q.question,
+                isCorrect: isCorrect,
+                userAnswer: q.answers[selectedAnswers[index]],
+                correctAnswer: q.answers[q.correctAnswer]
+            };
         });
+
         setScore(correctCount);
         setShowResults(true);
+
+        const percentage = Math.round((correctCount / validQuestions.length) * 100);
+
+        if (onFinish) {
+            onFinish({
+                score: correctCount,
+                total: validQuestions.length,
+                percentage: percentage,
+                breakdown: breakdown
+            });
+        }
     };
 
     const handleRestart = () => {
@@ -186,16 +203,16 @@ const QuizGame = ({ config = {} }) => {
                     </div>
                 </>
             ) : (
-                /* Results */
-                <div className="text-center">
-                    <div className="bg-white p-8 rounded-lg shadow-lg mb-6">
+                /* Results - Hidden, user will see details in Lihat Prestasi */
+                <div className="text-center py-12">
+                    <div className="bg-gradient-to-br from-green-50 to-blue-50 p-8 rounded-2xl shadow-lg mb-6 border-2 border-green-200">
                         <h3 className="text-3xl font-bold text-gray-800 mb-4">
-                            Quiz Complete! 🎉
+                            🎉 Quiz Complete!
                         </h3>
-                        <div className="text-6xl font-bold text-blue-600 mb-2">
+                        <div className="text-6xl font-bold text-green-600 mb-2">
                             {score} / {validQuestions.length}
                         </div>
-                        <p className="text-xl text-gray-600 mb-6">
+                        <p className="text-xl text-gray-700 mb-4">
                             {score === validQuestions.length
                                 ? 'Perfect Score! 🌟'
                                 : score >= validQuestions.length * 0.7
@@ -205,50 +222,14 @@ const QuizGame = ({ config = {} }) => {
                                         : 'Keep Practicing! 📚'
                             }
                         </p>
-
-                        {/* Answer Review */}
-                        <div className="text-left space-y-4 max-h-96 overflow-y-auto">
-                            {validQuestions.map((q, index) => {
-                                const userAnswer = selectedAnswers[index];
-                                const isCorrect = userAnswer === q.correctAnswer;
-
-                                return (
-                                    <div
-                                        key={index}
-                                        className={`p-4 rounded-lg border-2 ${isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'
-                                            }`}
-                                    >
-                                        <div className="flex items-start gap-2 mb-2">
-                                            <span className="text-lg">
-                                                {isCorrect ? '✅' : '❌'}
-                                            </span>
-                                            <div className="flex-1">
-                                                <p className="font-semibold text-gray-800 mb-2">
-                                                    {index + 1}. {q.question}
-                                                </p>
-                                                <p className="text-sm text-gray-600">
-                                                    Your answer: <span className={isCorrect ? 'text-green-700 font-medium' : 'text-red-700 font-medium'}>
-                                                        {q.answers[userAnswer]}
-                                                    </span>
-                                                </p>
-                                                {!isCorrect && (
-                                                    <p className="text-sm text-gray-600 mt-1">
-                                                        Correct answer: <span className="text-green-700 font-medium">
-                                                            {q.answers[q.correctAnswer]}
-                                                        </span>
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <p className="text-sm text-gray-600">
+                            View detailed results in <strong>Lihat Prestasi</strong> dashboard
+                        </p>
                     </div>
 
                     <button
                         onClick={handleRestart}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition text-lg"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold transition text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                     >
                         🔄 Try Again
                     </button>

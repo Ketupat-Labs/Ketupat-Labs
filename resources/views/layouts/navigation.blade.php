@@ -14,12 +14,12 @@
                 <div class="hidden space-x-8 lg:-my-px lg:ms-10 lg:flex items-center">
                     <a href="{{ route('dashboard') }}"
                         class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                        {{ __('Dashboard') }}
+                        Papan Pemuka
                     </a>
 
                     <a href="{{ url('/forums') }}"
                         class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('forum.*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                        {{ __('Forum') }}
+                        Forum
                     </a>
 
                     <div class="hidden lg:flex lg:items-center">
@@ -27,7 +27,7 @@
                             <x-slot name="trigger">
                                 <button
                                     class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                                    <div>{{ __('AI') }}</div>
+                                    <div>AI</div>
                                     <div class="ms-1">
                                         <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg"
                                             viewBox="0 0 20 20">
@@ -41,13 +41,13 @@
 
                             <x-slot name="content">
                                 <x-dropdown-link :href="route('ai-generator.index')">
-                                    {{ __('AI Generator') }}
+                                    Penjana AI
                                 </x-dropdown-link>
                                 <x-dropdown-link :href="route('ai-generator.slides')">
-                                    {{ __('Generate Slides') }}
+                                    Jana Slaid
                                 </x-dropdown-link>
                                 <x-dropdown-link :href="route('ai-generator.quiz')">
-                                    {{ __('Generate Quiz') }}
+                                    Jana Kuiz
                                 </x-dropdown-link>
                             </x-slot>
                         </x-dropdown>
@@ -59,7 +59,7 @@
                                 <x-slot name="trigger">
                                     <button
                                         class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                                        <div>{{ __('Lessons') }}</div>
+                                        <div>Pelajaran</div>
                                         <div class="ms-1">
                                             <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg"
                                                 viewBox="0 0 20 20">
@@ -73,16 +73,16 @@
 
                                 <x-slot name="content">
                                     <x-dropdown-link :href="route('lessons.index')">
-                                        {{ __('Manage Lessons') }}
+                                        Urus Pelajaran
                                     </x-dropdown-link>
                                     <x-dropdown-link :href="route('lesson.index')">
-                                        {{ __('Preview Lessons') }}
+                                        Pratonton Pelajaran
                                     </x-dropdown-link>
                                     <x-dropdown-link :href="route('submission.index')">
-                                        {{ __('Submissions') }}
+                                        Penyerahan
                                     </x-dropdown-link>
                                     <x-dropdown-link :href="route('assignments.create')">
-                                        {{ __('Assign Lessons') }}
+                                        Tugaskan Pelajaran
                                     </x-dropdown-link>
                                 </x-slot>
                             </x-dropdown>
@@ -126,11 +126,11 @@
                     @else
                         <a href="{{ route('lesson.index') }}"
                             class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('lesson.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            {{ __('My Lessons') }}
+                            Pelajaran Saya
                         </a>
                         <a href="{{ route('submission.show') }}"
                             class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('submission.show') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            {{ __('My Submissions') }}
+                            Penyerahan Saya
                         </a>
                         <a href="{{ route('performance.index') }}"
                             class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('performance.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
@@ -148,15 +148,20 @@
                         class="inline-flex items-center justify-center p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out relative">
                         <i class="fas fa-bell text-lg"></i>
                         <span id="notificationBadge"
-                            class="hidden absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"></span>
+                            class="hidden absolute top-0 right-0 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full z-10"></span>
                     </button>
                     <div id="notificationMenu"
-                        class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 max-h-96 overflow-y-auto">
+                        class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg z-50 border border-gray-200">
                         <div class="px-4 py-2 border-b border-gray-200">
-                            <h3 class="text-sm font-semibold text-gray-900">Notifications</h3>
+                            <h3 class="text-sm font-semibold text-gray-900">Pemberitahuan</h3>
                         </div>
-                        <div id="notificationList" class="py-1">
-                            <div class="px-4 py-3 text-sm text-gray-500 text-center">No notifications</div>
+                        <div id="notificationList" class="py-1 max-h-96 overflow-y-auto">
+                            <div class="px-4 py-3 text-sm text-gray-500 text-center">Tiada pemberitahuan</div>
+                        </div>
+                        <div class="px-4 py-2 border-t border-gray-200 bg-gray-50">
+                            <a href="{{ route('notifications.index') }}" class="block text-center text-sm font-medium text-blue-600 hover:text-blue-800">
+                                Lihat Semua Pemberitahuan
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -168,14 +173,6 @@
                         <i class="fas fa-envelope text-lg"></i>
                         <span id="messageBadge"
                             class="hidden absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"></span>
-                    </a>
-                </div>
-
-                <!-- Friends Icon -->
-                <div class="relative">
-                    <a href="{{ route('friends.index') }}"
-                        class="inline-flex items-center justify-center p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out relative">
-                        <i class="fas fa-user-friends text-lg"></i>
                     </a>
                 </div>
 
@@ -250,7 +247,7 @@
         <div class="pt-2 pb-3 space-y-1">
             <a href="{{ route('dashboard') }}"
                 class="block px-4 py-2 text-base font-medium {{ request()->routeIs('dashboard') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                {{ __('Dashboard') }}
+                {{ __('Papan Pemuka') }}
             </a>
 
             <a href="{{ url('/forums') }}"
@@ -264,38 +261,38 @@
                 </div>
                 <a href="{{ route('ai-generator.index') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                    {{ __('AI Generator') }}
+                    {{ __('Penjana AI') }}
                 </a>
                 <a href="{{ route('ai-generator.slides') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.slides') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                    {{ __('Generate Slides') }}
+                    {{ __('Jana Slaid') }}
                 </a>
                 <a href="{{ route('ai-generator.quiz') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.quiz') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                    {{ __('Generate Quiz') }}
+                    {{ __('Jana Kuiz') }}
                 </a>
             </div>
 
             @if($currentUser && $currentUser->role === 'teacher')
                 <div class="pt-2 pb-1 border-t border-gray-200">
                     <div class="px-4 text-xs text-gray-500 uppercase font-semibold">
-                        {{ __('Lessons') }}
+                        {{ __('Pelajaran') }}
                     </div>
                     <a href="{{ route('lessons.index') }}"
                         class="block px-4 py-2 text-base font-medium {{ request()->routeIs('lessons.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                        {{ __('Manage Lessons') }}
+                        {{ __('Urus Pelajaran') }}
                     </a>
                     <a href="{{ route('lesson.index') }}"
                         class="block px-4 py-2 text-base font-medium {{ request()->routeIs('lesson.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                        {{ __('Preview Lessons') }}
+                        {{ __('Pratonton Pelajaran') }}
                     </a>
                     <a href="{{ route('submission.index') }}"
                         class="block px-4 py-2 text-base font-medium {{ request()->routeIs('submission.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                        {{ __('Submissions') }}
+                        {{ __('Serahan') }}
                     </a>
                     <a href="{{ route('assignments.create') }}"
                         class="block px-4 py-2 text-base font-medium {{ request()->routeIs('assignments.create') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                        {{ __('Assign Lessons') }}
+                        {{ __('Tugaskan Pelajaran') }}
                     </a>
                 </div>
 
@@ -323,11 +320,11 @@
             @else
                 <a href="{{ route('lesson.index') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('lesson.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                    {{ __('View Lessons') }}
+                    {{ __('Lihat Pelajaran') }}
                 </a>
                 <a href="{{ route('submission.show') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('submission.*') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
-                    {{ __('My Submissions') }}
+                    {{ __('Serahan Saya') }}
                 </a>
                 <div class="pt-2 pb-1 border-t border-gray-200">
                      <a href="{{ route('performance.index') }}"
@@ -361,17 +358,12 @@
             <div class="mt-3 space-y-1">
                 <a href="{{ route('profile.show', $currentUser->id) }}"
                     class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
-                    {{ __('Profile') }}
+                    {{ __('Profil') }}
                 </a>
 
                 <a href="{{ route('settings.index') }}"
                     class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
-                    {{ __('Settings') }}
-                </a>
-
-                <a href="{{ route('friends.index') }}"
-                    class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
-                    {{ __('Friends') }}
+                    {{ __('Tetapan') }}
                 </a>
 
                 <!-- Authentication -->
@@ -379,7 +371,7 @@
                     @csrf
                     <a href="{{ route('logout') }}" onclick="event.preventDefault(); this.closest('form').submit();"
                         class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
-                        {{ __('Log Out') }}
+                        {{ __('Log Keluar') }}
                     </a>
                 </form>
             </div>

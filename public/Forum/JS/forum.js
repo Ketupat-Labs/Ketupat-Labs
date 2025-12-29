@@ -13,20 +13,20 @@ const forumState = {
 // Helper function to extract YouTube video ID from URL
 function extractYouTubeVideoId(url) {
     if (!url) return null;
-    
+
     const patterns = [
         /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
         /youtube\.com\/embed\/([^"&?\/\s]{11})/,
         /youtube\.com\/v\/([^"&?\/\s]{11})/
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
@@ -40,14 +40,14 @@ function extractTikTokVideoId(url) {
         /(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)/i,
         /tiktok\.com\/.*\/video\/(\d+)/i
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
@@ -60,28 +60,28 @@ function extractRedNoteVideoId(url) {
         /xiaohongshu\.com\/explore\/([a-zA-Z0-9]+)/i,
         /xhslink\.com\/([a-zA-Z0-9]+)/i
     ];
-    
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]) {
             return match[1];
         }
     }
-    
+
     return null;
 }
 
 // Helper function to convert video URLs (YouTube, TikTok, RedNote, etc.) to embedded players
 function processVideoLinks(content) {
     if (!content) return content;
-    
+
     // Split content by newlines to separate URL from description
     const lines = content.split('\n');
     let urlLine = '';
     let descriptionLines = [];
     let urlLineIndex = -1;
     let foundVideoUrl = false;
-    
+
     // Find the first line that contains a video URL (YouTube, TikTok, RedNote, etc.)
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -100,47 +100,54 @@ function processVideoLinks(content) {
             break;
         }
     }
-    
+
     // If no video URL found, check if there's a regular URL and create link preview
     if (!foundVideoUrl) {
         // Try to find any URL in the content
         const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
         const urlMatch = content.match(urlRegex);
-        
+
         if (urlMatch && urlMatch.length > 0) {
             const firstUrl = urlMatch[0];
             try {
                 const urlObj = new URL(firstUrl);
                 const domain = urlObj.hostname.replace('www.', '');
-                
+
                 // Extract description (everything after the URL)
                 const urlIndex = content.indexOf(firstUrl);
                 const description = content.substring(urlIndex + firstUrl.length).trim();
-                
-                // Create compact link preview
-                return createLinkPreview(firstUrl, domain, description);
+
+                // Display description as separate paragraph, then link preview
+                const descriptionHtml = description
+                    ? '<div class="post-description" style="margin-bottom: 16px; color: #333; line-height: 1.6; white-space: pre-wrap;">' +
+                      escapeHtml(description) +
+                      '</div>'
+                    : '';
+
+                // Create compact link preview (without description inside)
+                return descriptionHtml + createLinkPreview(firstUrl, domain, '');
             } catch (e) {
                 // Invalid URL, just escape and return
                 return escapeHtml(content);
             }
         }
-        
+
         // No URL found, just escape and return the content
         return escapeHtml(content);
     }
-    
+
     // Process description - join lines and preserve paragraph breaks
     const descriptionText = descriptionLines.join('\n').trim();
-    const escapedDescription = descriptionText 
-        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' + 
-          escapeHtml(descriptionText) + 
-          '</div>' 
+    const escapedDescription = descriptionText
+        ? '<div class="post-description" style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; color: #333; line-height: 1.6; white-space: pre-wrap;">' +
+        escapeHtml(descriptionText) +
+        '</div>'
         : '';
-    
+
     // Escape HTML to prevent XSS for the URL line
     const escapedUrlLine = escapeHtml(urlLine);
     let processedUrl = escapedUrlLine;
-    
+
     // Process YouTube URLs
     const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&]t=(\d+[smh]?|[0-9]+m[0-9]+s)?)?[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(youtubeRegex, (match, videoId, startTime) => {
@@ -158,7 +165,7 @@ function processVideoLinks(content) {
                 timeInSeconds = parseInt(cleanTime) || null;
             }
         }
-        
+
         const timeParam = timeInSeconds ? `?start=${timeInSeconds}` : '';
         return `<div class="video-embed-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 16px 0; border-radius: 8px; overflow: hidden;">
             <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
@@ -169,7 +176,7 @@ function processVideoLinks(content) {
             </iframe>
         </div>`;
     });
-    
+
     // Process TikTok URLs
     const tiktokRegex = /(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com\/@[\w.-]+\/video\/|vm\.tiktok\.com\/|tiktok\.com\/t\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(tiktokRegex, (match) => {
@@ -187,7 +194,7 @@ function processVideoLinks(content) {
         }
         return match;
     });
-    
+
     // Process RedNote (Xiaohongshu) URLs
     const rednoteRegex = /(?:https?:\/\/)?(?:www\.)?(?:xiaohongshu\.com\/explore\/|xhslink\.com\/)([a-zA-Z0-9]+)[^\s<>"']*/gi;
     processedUrl = processedUrl.replace(rednoteRegex, (match) => {
@@ -209,13 +216,13 @@ function processVideoLinks(content) {
         }
         return match;
     });
-    
+
     // Check if the URL was actually processed (video embed created)
     // If not, it means it's a non-video link, so create a link preview instead
-    const isVideoEmbed = processedUrl.includes('video-embed-container') || 
-                        processedUrl.includes('tiktok-embed') ||
-                        processedUrl.includes('iframe');
-    
+    const isVideoEmbed = processedUrl.includes('video-embed-container') ||
+        processedUrl.includes('tiktok-embed') ||
+        processedUrl.includes('iframe');
+
     if (!isVideoEmbed && urlLine) {
         // It's a link but not a recognized video, create compact link preview
         try {
@@ -227,19 +234,76 @@ function processVideoLinks(content) {
             return escapedDescription + escapeHtml(urlLine);
         }
     }
-    
+
     // Return description + embed (description above the video)
     return escapedDescription + processedUrl;
 }
 
+// Cache for link previews to avoid multiple requests
+const linkPreviewCache = {};
+
+// Fetch link preview data
+async function fetchLinkPreview(url) {
+    // Check cache first
+    if (linkPreviewCache[url]) {
+        return linkPreviewCache[url];
+    }
+
+    const apiBaseUrl = window.location.origin;
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/link-preview?url=${encodeURIComponent(url)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.status === 200 && data.data) {
+                // Cache the result
+                linkPreviewCache[url] = data.data;
+                return data.data;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching link preview:', error);
+    }
+
+    // Return fallback
+    return {
+        title: new URL(url).hostname,
+        site_name: new URL(url).hostname,
+    };
+}
+
 // Helper function to create a compact link preview (for non-video links)
+// Note: description parameter is kept for backward compatibility but is no longer used
+// Description should be displayed separately as a paragraph before calling this function
 function createLinkPreview(url, domain, description) {
-    // Extract title from description or use domain
-    const title = description ? description.split('\n')[0].substring(0, 100) : domain;
-    const fullDescription = description ? description.substring(title.length).trim() : '';
+    // Use domain as initial title (will be updated async)
+    const containerId = 'link-preview-' + Math.random().toString(36).substr(2, 9);
     
+    // Fetch preview asynchronously and update
+    fetchLinkPreview(url).then(preview => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const titleLink = container.querySelector('.link-preview-title a');
+            if (titleLink && preview.title) {
+                titleLink.textContent = preview.title;
+            }
+            const siteElement = container.querySelector('.link-preview-site');
+            if (siteElement && preview.site_name) {
+                siteElement.textContent = preview.site_name;
+            }
+        }
+    });
+
     return `
-        <div class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
+        <div id="${containerId}" class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
              onclick="event.stopPropagation(); window.open('${escapeHtml(url)}', '_blank')" 
              onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
              onmouseout="this.style.boxShadow='none'">
@@ -251,15 +315,12 @@ function createLinkPreview(url, domain, description) {
                 </svg>
             </div>
             <div style="flex: 1; padding: 12px; padding-left: 0; min-width: 0;">
-                <div style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                    ${escapeHtml(title)}
+                <div class="link-preview-title" style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #1877f2; text-decoration: none;" onclick="event.stopPropagation();">
+                        ${escapeHtml(domain)}
+                    </a>
                 </div>
-                ${fullDescription ? `
-                    <div style="font-size: 0.9em; color: #666; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                        ${escapeHtml(fullDescription.substring(0, 150))}${fullDescription.length > 150 ? '...' : ''}
-                    </div>
-                ` : ''}
-                <div style="font-size: 0.85em; color: #999; margin-top: 4px;">
+                <div class="link-preview-site" style="font-size: 0.85em; color: #999; margin-top: 4px;">
                     ${escapeHtml(domain)}
                 </div>
             </div>
@@ -275,19 +336,19 @@ function processYouTubeLinks(content) {
 // Helper function to normalize file URLs
 function normalizeFileUrl(url) {
     if (!url) return '';
-    
+
     // If URL is already absolute (starts with / or http), return as-is
     if (url.startsWith('/') || url.startsWith('http://') || url.startsWith('https://')) {
         return url;
     }
-    
+
     // If URL is relative, make it absolute from web root
     // For Laravel, URLs should start with /storage/ or be absolute
     // If it's a storage path, ensure it starts with /storage/
     if (url.includes('storage/')) {
         return url.startsWith('/') ? url : '/' + url;
     }
-    
+
     // Otherwise, treat as relative to root
     return url.startsWith('/') ? url : '/' + url;
 }
@@ -299,11 +360,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initEventListeners();
-    
+
     // Only load forum-specific content if we're on a forum page
     const forumsContent = document.getElementById('forumsContent');
     const forumsList = document.getElementById('forumsList');
-    
+
     if (forumsContent || forumsList) {
         // We're on a forum page, load forum data
         await loadForumsToSidebar();
@@ -311,12 +372,60 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadAllPosts();
         }
     }
-    
+
     // Only load recent posts if the container exists
     const recentPostsList = document.getElementById('recentPostsList');
     if (recentPostsList) {
         loadRecentPosts();
     }
+
+    // Track last refresh time to avoid too frequent refreshes
+    let lastRefreshTime = 0;
+    const REFRESH_COOLDOWN = 2000; // 2 seconds cooldown between refreshes
+
+    // Refresh posts when page becomes visible (user returns from post detail page)
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && forumsContent) {
+            const now = Date.now();
+            // Only refresh if enough time has passed since last refresh
+            if (now - lastRefreshTime > REFRESH_COOLDOWN) {
+                lastRefreshTime = now;
+                // Page became visible, refresh posts to update comment counts
+                if (forumState.currentForumId) {
+                    loadPostsForForum(forumState.currentForumId);
+                } else {
+                    loadAllPosts();
+                }
+                // Also refresh recent posts
+                if (recentPostsList) {
+                    loadRecentPosts();
+                }
+            }
+        }
+    });
+
+    // Also refresh when window gains focus (when user returns from another tab/window)
+    let lastFocusTime = 0;
+    window.addEventListener('focus', () => {
+        if (forumsContent) {
+            const now = Date.now();
+            // Only refresh if enough time has passed and page was hidden for a while
+            if (now - lastFocusTime > REFRESH_COOLDOWN && document.hidden === false) {
+                lastFocusTime = now;
+                // Small delay to avoid multiple refreshes
+                setTimeout(() => {
+                    if (forumState.currentForumId) {
+                        loadPostsForForum(forumState.currentForumId);
+                    } else {
+                        loadAllPosts();
+                    }
+                    if (recentPostsList) {
+                        loadRecentPosts();
+                    }
+                }, 500);
+            }
+        }
+    });
 });
 
 function initEventListeners() {
@@ -362,12 +471,12 @@ function initEventListeners() {
         createForumForm.addEventListener('submit', createForum);
     }
 
-        const btnCreatePost = document.getElementById('btnCreatePost');
-        if (btnCreatePost) {
-            btnCreatePost.addEventListener('click', () => {
-                window.location.href = '/forum/post/create';
-            });
-        }
+    const btnCreatePost = document.getElementById('btnCreatePost');
+    if (btnCreatePost) {
+        btnCreatePost.addEventListener('click', () => {
+            window.location.href = '/forum/post/create';
+        });
+    }
 
     const searchForums = document.getElementById('searchForums');
     if (searchForums) {
@@ -431,11 +540,11 @@ async function loadForumsToSidebar() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200) {
@@ -451,7 +560,7 @@ async function loadForumsToSidebar() {
 
 function renderForumsToSidebar() {
     const container = document.getElementById('forumsList');
-    
+
     if (!container) {
         return; // Element doesn't exist on this page
     }
@@ -486,11 +595,11 @@ async function loadAllPosts() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200) {
@@ -529,11 +638,11 @@ async function loadPostsForForum(forumId) {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const postsData = await response.json();
 
         if (postsData.status === 200) {
@@ -552,7 +661,7 @@ async function loadPostsForForum(forumId) {
 
 function renderPosts(posts) {
     const container = document.getElementById('forumsContent');
-    
+
     if (!container) {
         return; // Element doesn't exist on this page
     }
@@ -621,21 +730,21 @@ function renderPosts(posts) {
                         <div class="post-preview-text" style="margin-top: 12px;">
                             <div style="font-weight: 600; margin-bottom: 8px; color: #666;">Poll Options:</div>
                             ${(() => {
-                                try {
-                                    const pollOptions = Array.isArray(post.poll_options) ? post.poll_options : [];
-                                    const userVote = post.user_poll_vote || null;
-                                    const totalVotes = post.total_poll_votes || pollOptions.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
-                                    
-                                    return pollOptions.map((option, idx) => {
-                                        const optionId = option.id || idx;
-                                        const optionText = option.option_text || option.text || '';
-                                        const voteCount = option.vote_count || 0;
-                                        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-                                        const isVoted = userVote === optionId;
-                                        const hasVoted = userVote !== null;
-                                        const isClickable = !hasVoted;
-                                        
-                                        return `
+                try {
+                    const pollOptions = Array.isArray(post.poll_options) ? post.poll_options : [];
+                    const userVote = post.user_poll_vote || null;
+                    const totalVotes = post.total_poll_votes || pollOptions.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
+
+                    return pollOptions.map((option, idx) => {
+                        const optionId = option.id || idx;
+                        const optionText = option.option_text || option.text || '';
+                        const voteCount = option.vote_count || 0;
+                        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+                        const isVoted = userVote === optionId;
+                        const hasVoted = userVote !== null;
+                        const isClickable = !hasVoted;
+
+                        return `
                                             <div class="poll-option-item" style="padding: 10px; margin: 6px 0; background: ${isVoted ? '#e3f2fd' : '#f5f5f5'}; border: 2px solid ${isVoted ? '#1877f2' : '#e0e0e0'}; border-radius: 6px; cursor: ${isClickable ? 'pointer' : 'default'}; transition: all 0.2s; opacity: ${isClickable ? '1' : '0.8'};" 
                                                  ${isClickable ? `onclick="event.stopPropagation(); votePollFromMainPage(${post.id}, ${optionId})"` : `onclick="event.stopPropagation();"`}
                                                  ${isClickable ? `onmouseover="if(!${isVoted}) this.style.background='#eeeeee'" onmouseout="if(!${isVoted}) this.style.background='#f5f5f5'"` : ''}>
@@ -657,11 +766,11 @@ function renderPosts(posts) {
                                                 </div>
                                             </div>
                                         `;
-                                    }).join('');
-                                } catch (e) {
-                                    return '<div style="color: #999; font-size: 0.9em;">Error loading poll options</div>';
-                                }
-                            })()}
+                    }).join('');
+                } catch (e) {
+                    return '<div style="color: #999; font-size: 0.9em;">Error loading poll options</div>';
+                }
+            })()}
                             ${post.total_poll_votes > 0 ? `
                                 <div style="margin-top: ${post.user_poll_vote ? '6px' : '8px'}; font-size: 0.85em; color: #666;">
                                     Total votes: ${post.total_poll_votes}
@@ -671,9 +780,9 @@ function renderPosts(posts) {
                         ` : `
                         <div class="post-preview-text">
                             ${post.content ? (() => {
-                                const content = post.content.substring(0, 200) + (post.content.length > 200 ? '...' : '');
-                                return processVideoLinks(content);
-                            })() : ''}
+            const content = post.content.substring(0, 200) + (post.content.length > 200 ? '...' : '');
+            return processVideoLinks(content);
+        })() : ''}
                         </div>
                         `}
                         ${post.attachments && post.post_type !== 'link' ? `
@@ -783,6 +892,22 @@ function renderPosts(posts) {
                                 `).join('')}
                             </div>
                         ` : ''}
+                        ${post.lesson_id ? `
+                            <div class="post-lesson-attachment" style="margin-top: 12px; padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; background: #f0f7ff; display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="background: #1877f2; padding: 8px; border-radius: 50%; color: white;">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 600; color: #333;">Lesson Attached</div>
+                                        <div style="font-size: 13px; color: #666;">Save to your inventory</div>
+                                    </div>
+                                </div>
+                                <button class="btn-save-lesson" onclick="event.stopPropagation(); saveSharedLesson(${post.lesson_id})" style="padding: 6px 12px; background: #1877f2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: background 0.2s;">
+                                    <i class="fas fa-download"></i> Save Lesson
+                                </button>
+                            </div>
+                        ` : ''}
                         <div class="post-footer">
                             <button class="post-footer-btn vote-btn-inline ${post.user_reacted ? 'active' : ''}" onclick="event.stopPropagation(); toggleReaction(${post.id})">
                                 <i class="${post.user_reacted ? 'fas' : 'far'} fa-heart"></i>
@@ -794,7 +919,7 @@ function renderPosts(posts) {
                             </button>
                             <button class="post-footer-btn ${post.is_bookmarked ? 'active' : ''}" onclick="event.stopPropagation(); toggleBookmark(${post.id})">
                                 <i class="${post.is_bookmarked ? 'fas' : 'far'} fa-bookmark"></i>
-                                Save
+                                Save Post
                             </button>
                         </div>
                     </div>
@@ -882,11 +1007,11 @@ async function loadRecentPosts() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200 && data.data && data.data.posts) {
@@ -929,7 +1054,7 @@ function renderRecentPosts(posts) {
     if (!container) {
         return; // Element doesn't exist on this page
     }
-    
+
     if (posts.length === 0) {
         container.innerHTML = '<p style="padding: 16px; color: #878a8c; font-size: 12px; text-align: center;">Tiada post terkini</p>';
         return;
@@ -1167,11 +1292,11 @@ async function loadComments(postId) {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200) {
@@ -1463,7 +1588,7 @@ async function toggleReaction(postId) {
 async function toggleBookmark(postId) {
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        
+
         const response = await fetch('/api/forum/bookmark', {
             method: 'POST',
             headers: {
@@ -1613,11 +1738,11 @@ async function loadPostsByTag(tag) {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (data.status === 200) {
@@ -1650,22 +1775,22 @@ function formatTime(dateString) {
     if (!dateString) {
         return 'Unknown';
     }
-    
+
     const date = new Date(dateString);
-    
+
     // Check if date is valid (not NaN and not epoch 0)
     if (isNaN(date.getTime()) || date.getTime() === 0) {
         return 'Unknown';
     }
-    
+
     const now = new Date();
     const diff = now - date;
-    
+
     // If date is in the future or diff is negative, return formatted date
     if (diff < 0) {
         return date.toLocaleDateString();
     }
-    
+
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
@@ -1722,13 +1847,13 @@ async function votePollFromMainPage(postId, optionId) {
                 option_id: optionId,
             }),
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Update the post in forumState.posts
             const postIndex = forumState.posts.findIndex(p => p.id === postId);
@@ -1878,14 +2003,14 @@ async function joinForum(forumId) {
 function togglePostOptions(postId) {
     const menu = document.getElementById(`postOptions_${postId}`);
     if (!menu) return;
-    
+
     // Close all other menus
     document.querySelectorAll('.post-options-menu').forEach(m => {
         if (m.id !== `postOptions_${postId}`) {
             m.classList.add('hidden');
         }
     });
-    
+
     menu.classList.toggle('hidden');
 }
 
@@ -1893,7 +2018,7 @@ async function confirmDeletePost(postId) {
     if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/forum/post/${postId}`, {
             method: 'DELETE',
@@ -1904,16 +2029,16 @@ async function confirmDeletePost(postId) {
             },
             credentials: 'include',
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Remove the post from the DOM
             const postCard = document.querySelector(`.reddit-post-card[onclick*="${postId}"]`);
             if (postCard) {
                 postCard.remove();
             }
-            
+
             // Reload posts to refresh the list
             loadAllPosts();
         } else {
@@ -1930,7 +2055,7 @@ async function openShareModal(postId, postTitle, forumName) {
     document.querySelectorAll('.post-options-menu').forEach(menu => {
         menu.classList.add('hidden');
     });
-    
+
     // Create or get share modal
     let modal = document.getElementById('sharePostModal');
     if (!modal) {
@@ -1959,15 +2084,15 @@ async function openShareModal(postId, postTitle, forumName) {
         `;
         document.body.appendChild(modal);
     }
-    
+
     // Update modal with current post info
     modal.querySelector('.share-post-title').textContent = postTitle;
     modal.querySelector('.share-post-forum').textContent = `r/${forumName}`;
     modal.dataset.postId = postId;
-    
+
     // Show modal
     modal.classList.add('active');
-    
+
     // Load conversations
     await loadShareConversations();
 }
@@ -1982,9 +2107,9 @@ function closeShareModal() {
 async function loadShareConversations() {
     const container = document.getElementById('shareConversationsList');
     if (!container) return;
-    
+
     container.innerHTML = '<div class="loading">Loading conversations...</div>';
-    
+
     try {
         const response = await fetch('/api/messaging/conversations', {
             method: 'GET',
@@ -1995,16 +2120,16 @@ async function loadShareConversations() {
             },
             credentials: 'include',
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data && data.data.conversations) {
             const conversations = data.data.conversations;
-            
+
             if (conversations.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -2015,17 +2140,17 @@ async function loadShareConversations() {
                 `;
                 return;
             }
-            
+
             container.innerHTML = conversations.map(conv => {
-                const displayName = conv.type === 'group' 
-                    ? conv.name 
+                const displayName = conv.type === 'group'
+                    ? conv.name
                     : (conv.other_full_name || conv.other_username || 'Unknown');
                 const avatar = conv.type === 'group'
                     ? '<i class="fas fa-users"></i>'
-                    : (conv.other_avatar 
+                    : (conv.other_avatar
                         ? `<img src="${conv.other_avatar}" alt="${displayName}">`
                         : `<div class="avatar-initial">${displayName.charAt(0).toUpperCase()}</div>`);
-                
+
                 return `
                     <div class="share-conversation-item" onclick="shareToConversation(${conv.id}, '${conv.type}')">
                         <div class="share-conversation-avatar">${avatar}</div>
@@ -2048,19 +2173,16 @@ async function loadShareConversations() {
 async function shareToConversation(conversationId, conversationType) {
     const modal = document.getElementById('sharePostModal');
     if (!modal) return;
-    
+
     const postId = modal.dataset.postId;
     const postTitle = modal.querySelector('.share-post-title')?.textContent || '';
     const forumName = modal.querySelector('.share-post-forum')?.textContent || '';
     const postUrl = `${window.location.origin}/forum/post/${postId}`;
-    
-    // Create a preview message with post details
-    const previewMessage = `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}\n\n${postUrl}`;
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        
-        // Send the message with post preview
+
+        // Send the message with shared_post type - post_id stored in attachment_url
         const response = await fetch('/api/messaging/send', {
             method: 'POST',
             headers: {
@@ -2072,23 +2194,25 @@ async function shareToConversation(conversationId, conversationType) {
             credentials: 'include',
             body: JSON.stringify({
                 conversation_id: parseInt(conversationId),
-                content: previewMessage,
-                message_type: 'text'
+                content: `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}`,
+                message_type: 'shared_post',
+                attachment_url: postId.toString(), // Store post_id in attachment_url
+                attachment_name: postUrl // Store post URL in attachment_name for fallback
             })
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'Failed to send message' }));
             alert(errorData.message || 'Failed to share post');
             return;
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Close the share modal
             closeShareModal();
-            
+
             // Navigate to messaging page with the conversation selected
             window.location.href = `/messaging?conversation=${conversationId}`;
         } else {
@@ -2115,7 +2239,7 @@ async function openReportModal(postId, postTitle) {
     document.querySelectorAll('.post-options-menu').forEach(menu => {
         menu.classList.add('hidden');
     });
-    
+
     // Create or get report modal
     let modal = document.getElementById('reportPostModal');
     if (!modal) {
@@ -2174,7 +2298,7 @@ async function openReportModal(postId, postTitle) {
             </div>
         `;
         document.body.appendChild(modal);
-        
+
         // Add character counter
         const detailsInput = document.getElementById('reportDetails');
         const charCount = document.getElementById('reportCharCount');
@@ -2184,14 +2308,14 @@ async function openReportModal(postId, postTitle) {
             });
         }
     }
-    
+
     // Update modal with current post info
     const titleElement = modal.querySelector('.report-post-title');
     if (titleElement) {
         titleElement.textContent = postTitle;
     }
     modal.dataset.postId = postId;
-    
+
     // Reset form
     const form = modal.querySelector('form');
     if (form) form.reset();
@@ -2206,7 +2330,7 @@ async function openReportModal(postId, postTitle) {
         errorDiv.style.display = 'none';
         errorDiv.textContent = '';
     }
-    
+
     // Show modal
     modal.classList.add('active');
 }
@@ -2221,12 +2345,12 @@ function closeReportModal() {
 async function submitReport() {
     const modal = document.getElementById('reportPostModal');
     if (!modal) return;
-    
+
     const postId = modal.dataset.postId;
     const selectedReason = modal.querySelector('input[name="reportReason"]:checked');
     const detailsInput = document.getElementById('reportDetails');
     const errorDiv = document.getElementById('reportError');
-    
+
     if (!selectedReason) {
         if (errorDiv) {
             errorDiv.textContent = 'Please select a reason for reporting';
@@ -2234,10 +2358,10 @@ async function submitReport() {
         }
         return;
     }
-    
+
     const reason = selectedReason.value;
     const details = detailsInput ? detailsInput.value.trim() : '';
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch('/api/forum/post/report', {
@@ -2255,13 +2379,13 @@ async function submitReport() {
                 details: details
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             closeReportModal();
             alert('Post reported successfully. Thank you for helping keep our community safe.');
-            
+
             // Reload posts to update report count display
             loadAllPosts();
         } else {
@@ -2283,7 +2407,7 @@ async function toggleHidePost(postId, hide) {
     if (!confirm(`Are you sure you want to ${hide ? 'hide' : 'unhide'} this post?`)) {
         return;
     }
-    
+
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch(`/api/forum/post/${postId}/hide`, {
@@ -2299,9 +2423,9 @@ async function toggleHidePost(postId, hide) {
                 hide: hide
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             alert(data.message || `Post ${hide ? 'hidden' : 'unhidden'} successfully`);
             // Reload posts
@@ -2324,6 +2448,30 @@ window.togglePostOptions = togglePostOptions;
 window.confirmDeletePost = confirmDeletePost;
 window.openShareModal = openShareModal;
 window.closeShareModal = closeShareModal;
+window.saveSharedLesson = saveSharedLesson;
+
+// Helper to save shared lesson
+function saveSharedLesson(lessonId) {
+    if (!confirm('Would you like to save a copy of this lesson to your inventory?')) return;
+
+    // Create a form to submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/lessons/${lessonId}/clone`;
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = '_token';
+        input.value = csrfToken;
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+}
 window.shareToConversation = shareToConversation;
 window.openReportModal = openReportModal;
 window.closeReportModal = closeReportModal;

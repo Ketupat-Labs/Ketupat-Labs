@@ -12,22 +12,11 @@ use Illuminate\View\View;
 class ActivityController extends Controller
 {
     /**
-     * Display a listing of activities.
+     * Display a listing of activities (Redirected to unified dashboard).
      */
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        $userId = session('user_id');
-        $activities = Activity::where('teacher_id', $userId)->latest()->get();
-        
-        // Fetch assigned activities with classroom and submission details
-        $assignments = ActivityAssignment::with(['activity', 'classroom', 'submissions.user'])
-            ->whereHas('activity', function($query) use ($userId) {
-                $query->where('teacher_id', $userId);
-            })
-            ->latest()
-            ->get();
-
-        return view('activities.index', compact('activities', 'assignments'));
+        return redirect()->route('lessons.index', ['tab' => 'activities']);
     }
 
     /**
@@ -60,7 +49,7 @@ class ActivityController extends Controller
             'content' => $request->content,
         ]);
 
-        return redirect()->route('activities.index')->with('success', 'Aktiviti berjaya dicipta.');
+        return redirect()->route('lessons.index', ['tab' => 'activities'])->with('success', 'Aktiviti berjaya dicipta.');
     }
 
     /**
@@ -111,7 +100,7 @@ class ActivityController extends Controller
             'content' => $request->content,
         ]);
 
-        return redirect()->route('activities.index')->with('success', 'Aktiviti berjaya dikemaskini.');
+        return redirect()->route('lessons.index', ['tab' => 'activities'])->with('success', 'Aktiviti berjaya dikemaskini.');
     }
 
     public function destroy(Activity $activity): RedirectResponse
@@ -141,6 +130,11 @@ class ActivityController extends Controller
             abort(403);
         }
 
+        $wasGraded = \App\Models\ActivitySubmission::where('activity_assignment_id', $assignment->id)
+            ->where('user_id', $request->user_id)
+            ->whereNotNull('score')
+            ->exists();
+            
         \App\Models\ActivitySubmission::updateOrCreate(
             [
                 'activity_assignment_id' => $assignment->id,
@@ -153,6 +147,19 @@ class ActivityController extends Controller
             ]
         );
 
+        // Notify student when activity is graded (first time only)
+        if (!$wasGraded) {
+            \App\Models\Notification::create([
+                'user_id' => $request->user_id,
+                'type' => 'activity_graded',
+                'title' => 'Aktiviti Dinilai',
+                'message' => 'Aktiviti "' . $assignment->activity->title . '" telah dinilai. Markah: ' . $request->score,
+                'related_type' => 'activity',
+                'related_id' => $assignment->activity->id,
+                'is_read' => false,
+            ]);
+        }
+
         return back()->with('success', 'Markah berjaya disimpan.');
     }
     public function submit(Request $request, Activity $activity)
@@ -161,63 +168,119 @@ class ActivityController extends Controller
             'score' => 'required|numeric',
         ]);
 
-        $user = auth()->user();
+        // Consistent session-based auth as used elsewhere in this controller
+        $userId = session('user_id');
+        if (!$userId) {
+            return response()->json(['error' => 'Sila log masuk semula.'], 401);
+        }
         
-        // ALLOW TEACHER TO BYPASS ASSIGNMENT CHECK (For Testing/Preview)
-        // BUT STILL SAVE DATA for "Lihat Prestasi" verification
+        $user = \App\Models\User::with('enrolledClassrooms')->find($userId);
+        if (!$user) {
+            return response()->json(['error' => 'Pengguna tidak ditemui.'], 404);
+        }
+
+        // 1. Determine Assignment
         $assignment = null;
         
         if ($user->role === 'teacher' || $user->id === $activity->teacher_id) {
-             // Try to find ANY assignment for this activity to attach the submission to,
-             // OR create a dummy one if we really want to track it. 
-             // Better: Attach to the first available assignment just for data storage purposes, 
-             // or check if a "Teacher Test" assignment exists.
-             // For simplicity to satisfy "Sync it": Use the first existing assignment.
+             // Teacher bypass: Try to link to an existing assignment if possible
              $assignment = \App\Models\ActivityAssignment::where('activity_id', $activity->id)->first();
              
-             if (!$assignment) {
-                 // If no assignment exists at all, we can't save legally due to FK constraint.
-                 // Return success but warn (or just return success as before).
-                 // But user wants to see it in table.
-                 return response()->json([
-                     'success' => true, 
-                     'message' => 'Simpan berjaya (Mod Guru - Tiada Tugasan untuk dipautkan)'
-                 ]);
+             // If no assignment exists at all and activity isn't public, teacher can still "play" 
+             // but we don't force a database record if we can't link it (or we could save via activity_id now).
+             if (!$assignment && !$activity->is_public) {
+                  return response()->json([
+                      'success' => true, 
+                      'message' => 'Simpan berjaya (Mod Guru - Pratinjau sahaja)'
+                  ]);
              }
         } else {
             // NORMAL STUDENT FLOW
             // Find assignment for this user (via their classrooms)
-            $classroomIds = $user->enrolledClassrooms ? $user->enrolledClassrooms->pluck('id') : collect();
+            $classroomIds = $user->enrolledClassrooms->pluck('id');
             
-            if($classroomIds->isEmpty() && method_exists($user, 'enrolledClassrooms')){
-                 $classroomIds = $user->enrolledClassrooms()->pluck('classrooms.id');
-            }
-    
             $assignment = ActivityAssignment::whereIn('classroom_id', $classroomIds)
                 ->where('activity_id', $activity->id)
                 ->first();
         }
 
-        // If Student (or Teacher with no fallback) but no assignment, return error
+        // 2. Access Control Check
+        // If not assigned and not a teacher, check if activity is PUBLIC
         if (!$assignment && $user->role !== 'teacher') {
-            return response()->json(['error' => 'Anda belum ditugaskan untuk aktiviti ini.'], 404);
+            if (!$activity->is_public) {
+                return response()->json(['error' => 'Anda belum ditugaskan untuk aktiviti ini.'], 404);
+            }
+            // Public activities can proceed without an assignment_id (saving via activity_id)
         }
 
-        // Save Submission
-        if ($assignment) {
-            \App\Models\ActivitySubmission::updateOrCreate(
-                [
-                    'activity_assignment_id' => $assignment->id,
-                    'user_id' => $user->id,
-                ],
-                [
-                    'score' => $request->score,
-                    'completed_at' => now(),
-                ]
-            );
+        // 3. Save Submission
+        // We now support both assignment-linked results and direct activity-linked results (for public plays)
+        $wasCompleted = \App\Models\ActivitySubmission::where('activity_assignment_id', $assignment ? $assignment->id : null)
+            ->where('activity_id', $activity->id)
+            ->where('user_id', $user->id)
+            ->whereNotNull('completed_at')
+            ->exists();
+            
+        \App\Models\ActivitySubmission::updateOrCreate(
+            [
+                'activity_assignment_id' => $assignment ? $assignment->id : null,
+                'activity_id' => $activity->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'score' => $request->score,
+                'results' => $request->results,
+                'completed_at' => now(),
+            ]
+        );
+
+        // Create notification for activity completion (first time only)
+        if (!$wasCompleted) {
+            \App\Models\Notification::create([
+                'user_id' => $user->id,
+                'type' => 'activity_completed',
+                'title' => 'Aktiviti Selesai!',
+                'message' => 'Tahniah! Anda telah menamatkan aktiviti "' . $activity->title . '"',
+                'related_type' => 'activity',
+                'related_id' => $activity->id,
+                'is_read' => false,
+            ]);
+            
+            // Notify teacher if assignment exists
+            if ($assignment && $activity->teacher_id) {
+                \App\Models\Notification::create([
+                    'user_id' => $activity->teacher_id,
+                    'type' => 'activity_submission',
+                    'title' => 'Penyerahan Aktiviti Baharu',
+                    'message' => $user->full_name . ' telah menyerahkan aktiviti "' . $activity->title . '"',
+                    'related_type' => 'activity',
+                    'related_id' => $activity->id,
+                    'is_read' => false,
+                ]);
+            }
         }
 
         return response()->json(['success' => true, 'message' => 'Rekod disimpan']);
     }
 
+    public function viewSubmissions(ActivityAssignment $assignment)
+    {
+        $this->authorizeTeacher();
+        $submissions = $assignment->submissions()->with('user')->get();
+        return view('activity_submissions.index', compact('assignment', 'submissions'));
+    }
+
+    public function showSubmission(ActivitySubmission $submission)
+    {
+        $this->authorizeTeacher();
+        $submission->load(['user', 'assignment.activity']);
+        return view('activity_submissions.show', compact('submission'));
+    }
+
+    protected function authorizeTeacher()
+    {
+        if (auth()->user()->role !== 'teacher') {
+            abort(403, 'Akses tidak dibenarkan.');
+        }
+    }
 }

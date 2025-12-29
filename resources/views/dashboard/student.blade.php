@@ -3,14 +3,14 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-semibold text-2xl leading-tight" style="color: #3E3E3E;">
-                    {{ __('Welcome back, :name!', ['name' => $user->full_name ?? __('Student')]) }}
+                    Selamat kembali, {{ $user->full_name ?? 'Pelajar' }}!
                 </h2>
-                <p class="text-sm mt-1" style="color: #969696;">{{ __('Continue your learning journey') }}</p>
+                <p class="text-sm mt-1" style="color: #969696;">Teruskan perjalanan pembelajaran anda</p>
             </div>
             @if(($user->points ?? 0) > 0)
                 <div class="text-white px-6 py-3 rounded-lg shadow-md"
                     style="background: linear-gradient(to right, #5FAD56, #2454FF);">
-                    <div class="text-xs font-medium opacity-90">{{ __('Total Points') }}</div>
+                    <div class="text-xs font-medium opacity-90">Jumlah Mata</div>
                     <div class="text-2xl font-bold">{{ $user->points ?? 0 }} XP</div>
                 </div>
             @endif
@@ -26,7 +26,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-500">{{ __('Available Lessons') }}</p>
+                            <p class="text-sm font-medium text-gray-500">Pelajaran Tersedia</p>
                             <p class="text-2xl font-bold mt-1" style="color: #2454FF;">
                                 {{ \App\Models\Lesson::where('is_published', true)->where('is_public', true)->count() }}
                             </p>
@@ -45,7 +45,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-500">{{ __('Completed Lessons') }}</p>
+                            <p class="text-sm font-medium text-gray-500">Pelajaran Selesai</p>
                             <p class="text-2xl font-bold mt-1" style="color: #5FAD56;">
                                 {{ \App\Models\Submission::where('user_id', $user->id)->where('status', 'Graded')->count() }}
                             </p>
@@ -65,7 +65,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-500 group-hover:text-[#FFBA08] transition-colors">
-                                {{ __('My Submissions') }}</p>
+                                Penyerahan Saya</p>
                             <p class="text-2xl font-bold mt-1" style="color: #FFBA08;">
                                 {{ \App\Models\Submission::where('user_id', $user->id)->count() }}
                             </p>
@@ -89,9 +89,9 @@
                     <!-- My Classrooms -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-bold text-gray-800">{{ __('My Classrooms') }}</h3>
+                            <h3 class="text-lg font-bold text-gray-800">Kelas Saya</h3>
                             @if($user->enrolledClassrooms->count() > 3)
-                                <a href="#" class="text-sm text-[#2454FF] hover:underline">{{ __('View All') }}</a>
+                                <a href="#" class="text-sm text-[#2454FF] hover:underline">Lihat Semua</a>
                             @endif
                         </div>
 
@@ -115,7 +115,7 @@
                             </div>
                         @else
                             <div class="text-center py-6 text-gray-500 text-sm">
-                                {{ __('Not enrolled in any classes.') }}
+                                Tidak mendaftar dalam mana-mana kelas.
                             </div>
                         @endif
                     </div>
@@ -123,7 +123,7 @@
                     <!-- Assignment Timeline -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <h3 class="text-lg font-bold mb-6 text-gray-800 flex items-center">
-                            {{ __('Assignment Timeline') }}
+                            Garis Masa Tugasan
                         </h3>
 
                         <div class="space-y-6">
@@ -162,7 +162,7 @@
                                         @if(!$isActivity)
                                             <a href="{{ route('lesson.show', $entity) }}"
                                                 class="text-xs font-semibold text-gray-500 hover:text-[#2454FF] flex items-center mt-2">
-                                                {{ __('Start') }} <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor"
+                                                Mula <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor"
                                                     viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M9 5l7 7-7 7"></path>
@@ -180,7 +180,7 @@
                                 </div>
                             @empty
                                 <div class="text-center py-8 text-gray-400 text-sm">
-                                    {{ __('No immediate assignments.') }}
+                                    Tiada tugasan segera.
                                 </div>
                             @endforelse
                         </div>
@@ -201,7 +201,7 @@
                                 </svg>
                             </div>
                             <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                {{ __('Latest Grade') }}</h4>
+                                Gred Terkini</h4>
                             <div class="relative z-10">
                                 <h3 class="font-bold text-gray-800 text-sm mb-2 line-clamp-1">
                                     {{ $recentFeedback->lesson->title ?? 'Lesson' }}
@@ -215,21 +215,55 @@
                                     </p>
                                 @endif
                                 <a href="{{ route('submission.show') }}"
-                                    class="text-xs font-medium text-[#2454FF] hover:underline">{{ __('View Feedback') }}</a>
+                                    class="text-xs font-medium text-[#2454FF] hover:underline">Lihat Maklum Balas</a>
                             </div>
                         </div>
                     @else
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                             <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                                {{ __('Latest Grade') }}</h4>
-                            <p class="text-gray-500 text-sm">{{ __('No grades yet.') }}</p>
+                                Gred Terkini</h4>
+                            <p class="text-gray-500 text-sm">Tiada gred lagi.</p>
                         </div>
                     @endif
+
+                    <!-- My Badges Section -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-bold text-gray-800">Lencana Saya</h3>
+                            @if($earnedBadges->count() > 0)
+                                <a href="{{ route('profile.show', ['userId' => auth()->id()]) }}#badges" class="text-xs text-[#2454FF] hover:underline">Lihat Semua</a>
+                            @endif
+                        </div>
+                        
+                        @if($earnedBadges->count() > 0)
+                            <div class="grid grid-cols-3 gap-3">
+                                @foreach($earnedBadges as $badge)
+                                    <div class="text-center group cursor-pointer">
+                                        <div class="w-14 h-14 mx-auto mb-2 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" 
+                                             style="background-color: {{ $badge->color ?? '#2454FF' }}20">
+                                            <i class="{{ $badge->icon ?? 'fas fa-award' }} text-xl" style="color: {{ $badge->color ?? '#2454FF' }}"></i>
+                                        </div>
+                                        <p class="text-xs font-medium text-gray-700 line-clamp-2">{{ $badge->name }}</p>
+                                        <p class="text-[10px] text-gray-400 mt-0.5">{{ $badge->xp_reward }} XP</p>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                        @else
+                            <div class="text-center py-6">
+                                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-50 flex items-center justify-center">
+                                    <i class="fas fa-award text-2xl text-gray-300"></i>
+                                </div>
+                                <p class="text-sm text-gray-500">Tiada lencana diperoleh lagi</p>
+                                <p class="text-xs text-gray-400 mt-1">Selesaikan kuiz untuk dapatkan mata!</p>
+                            </div>
+                        @endif
+                    </div>
 
                     <!-- Quick Menu -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <h4 class="text-sm font-bold text-gray-800 px-5 py-3 bg-gray-50 border-b border-gray-100">
-                            {{ __('Quick Menu') }}</h4>
+                            Menu Pantas</h4>
                         <div class="divide-y divide-gray-100">
                             <a href="{{ route('lesson.index') }}"
                                 class="flex items-center px-5 py-3 hover:bg-gray-50 transition group">
@@ -242,7 +276,7 @@
                                         </path>
                                     </svg>
                                 </div>
-                                <span class="text-sm font-medium text-gray-700">{{ __('Browse Lessons') }}</span>
+                                <span class="text-sm font-medium text-gray-700">Layari Pelajaran</span>
                             </a>
                             <a href="{{ route('quiz.show') }}"
                                 class="flex items-center px-5 py-3 hover:bg-gray-50 transition group">
@@ -255,7 +289,7 @@
                                         </path>
                                     </svg>
                                 </div>
-                                <span class="text-sm font-medium text-gray-700">{{ __('Take Quiz') }}</span>
+                                <span class="text-sm font-medium text-gray-700">Ambil Kuiz</span>
                             </a>
                             <a href="{{ route('submission.show') }}"
                                 class="flex items-center px-5 py-3 hover:bg-gray-50 transition group">
@@ -268,7 +302,7 @@
                                         </path>
                                     </svg>
                                 </div>
-                                <span class="text-sm font-medium text-gray-700">{{ __('My Submissions') }}</span>
+                                <span class="text-sm font-medium text-gray-700">Penyerahan Saya</span>
                             </a>
                         </div>
                     </div>

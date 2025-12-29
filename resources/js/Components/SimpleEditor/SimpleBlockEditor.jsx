@@ -25,12 +25,12 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
 
     // Block types available
     const blockTypes = [
-        { type: 'text', label: 'Text', icon: '📝' },
-        { type: 'heading', label: 'Heading', icon: '📌' },
-        { type: 'image', label: 'Image', icon: '🖼️' },
+        { type: 'text', label: 'Teks', icon: '📝' },
+        { type: 'heading', label: 'Tajuk (Header)', icon: '📌' },
+        { type: 'image', label: 'Imej', icon: '🖼️' },
         { type: 'youtube', label: 'YouTube', icon: '▶️' },
-        { type: 'game', label: 'Memory Game', icon: '🎮' },
-        { type: 'quiz', label: 'Quiz Game', icon: '❓' },
+        { type: 'game', label: 'Permainan Memori', icon: '🎮' },
+        { type: 'quiz', label: 'Permainan Kuiz', icon: '❓' },
     ];
 
     // Add a new block
@@ -89,7 +89,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                         type="text"
                         value={block.content}
                         onChange={(e) => updateBlock(block.id, e.target.value)}
-                        placeholder="Heading"
+                        placeholder="Tajuk (Header)"
                         style={{ fontSize: '28px', fontWeight: '600' }}
                     />
                 );
@@ -99,7 +99,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                         type="text"
                         value={block.content}
                         onChange={(e) => updateBlock(block.id, e.target.value)}
-                        placeholder="Image URL"
+                        placeholder="URL Imej"
                     />
                 );
             case 'youtube':
@@ -108,7 +108,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                         type="text"
                         value={block.content}
                         onChange={(e) => updateBlock(block.id, e.target.value)}
-                        placeholder="YouTube URL"
+                        placeholder="URL YouTube"
                     />
                 );
             case 'game':
@@ -158,14 +158,14 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                     <div className="game-config" style={{ paddingBottom: '20px' }}>
                         {/* Mode Selector */}
                         <div style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Mode:</label>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Mod:</label>
                             <select
                                 value={gameConfig.mode || 'preset'}
                                 onChange={(e) => updateGameConfig({ mode: e.target.value })}
                                 style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
                             >
-                                <option value="preset">Preset Themes (Animals, Fruits, Emojis)</option>
-                                <option value="custom">Custom Cards (Your Own Content)</option>
+                                <option value="preset">Tema Pratetap (Haiwan, Buah-buahan, Emoji)</option>
+                                <option value="custom">Kad Tersuai (Kandungan Sendiri)</option>
                             </select>
                         </div>
 
@@ -173,26 +173,26 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                         {gameConfig.mode === 'preset' && (
                             <>
                                 <div style={{ marginBottom: '10px' }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Theme:</label>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Tema:</label>
                                     <select
                                         value={gameConfig.theme}
                                         onChange={(e) => updateGameConfig({ theme: e.target.value })}
                                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
                                     >
-                                        <option value="animals">Animals 🐶</option>
-                                        <option value="fruits">Fruits 🍎</option>
-                                        <option value="emojis">Emojis 😀</option>
+                                        <option value="animals">Haiwan 🐶</option>
+                                        <option value="fruits">Buah-buahan 🍎</option>
+                                        <option value="emojis">Emoji 😀</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Grid Size:</label>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>Saiz Grid:</label>
                                     <select
                                         value={gameConfig.gridSize}
                                         onChange={(e) => updateGameConfig({ gridSize: parseInt(e.target.value) })}
                                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
                                     >
-                                        <option value="4">4x4 (Easy)</option>
-                                        <option value="6">6x6 (Medium)</option>
+                                        <option value="4">4x4 (Mudah)</option>
+                                        <option value="6">6x6 (Sederhana)</option>
                                     </select>
                                 </div>
                             </>
@@ -202,7 +202,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                         {gameConfig.mode === 'custom' && (
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                    <label style={{ fontWeight: '600' }}>Matching Pairs:</label>
+                                    <label style={{ fontWeight: '600' }}>Pasangan Padanan:</label>
                                     <button
                                         type="button"
                                         onClick={addPair}
@@ -216,7 +216,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                             fontSize: '12px'
                                         }}
                                     >
-                                        + Add Pair
+                                        + Tambah Pasangan
                                     </button>
                                 </div>
 
@@ -230,7 +230,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                 }}>
                                     {gameConfig.customPairs.length === 0 ? (
                                         <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
-                                            <p>No pairs yet. Click "+ Add Pair" to create matching cards.</p>
+                                            <p>Tiada pasangan lagi. Klik "+ Tambah Pasangan" untuk mencipta kad padanan.</p>
                                         </div>
                                     ) : (
                                         gameConfig.customPairs.map((pair, index) => (
@@ -247,7 +247,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                                     type="text"
                                                     value={pair.card1}
                                                     onChange={(e) => updatePair(pair.id, 'card1', e.target.value)}
-                                                    placeholder={`Card ${index + 1}A`}
+                                                    placeholder={`Kad ${index + 1}A`}
                                                     style={{
                                                         padding: '6px',
                                                         border: '1px solid #ddd',
@@ -259,7 +259,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                                     type="text"
                                                     value={pair.card2}
                                                     onChange={(e) => updatePair(pair.id, 'card2', e.target.value)}
-                                                    placeholder={`Card ${index + 1}B`}
+                                                    placeholder={`Kad ${index + 1}B`}
                                                     style={{
                                                         padding: '6px',
                                                         border: '1px solid #ddd',
@@ -288,13 +288,13 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                 </div>
 
                                 <p style={{ marginTop: '10px', marginBottom: '15px', fontSize: '11px', color: '#666' }}>
-                                    💡 Tip: Each row creates a matching pair. Students will need to find both cards.
+                                    💡 Tip: Setiap baris mencipta pasangan padanan. Pelajar perlu mencari kedua-dua kad.
                                 </p>
                             </div>
                         )}
 
                         <p style={{ marginTop: '10px', fontSize: '12px', color: '#666', borderTop: '1px solid #e5e7eb', paddingTop: '10px' }}>
-                            Students will see an interactive memory game
+                            Pelajar akan melihat permainan memori interaktif
                         </p>
                     </div>
                 );
@@ -349,7 +349,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                 return (
                     <div className="quiz-config">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                            <label style={{ fontWeight: '600' }}>Quiz Questions:</label>
+                            <label style={{ fontWeight: '600' }}>Soalan Kuiz:</label>
                             <button
                                 type="button"
                                 onClick={addQuestion}
@@ -363,14 +363,14 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                     fontSize: '12px'
                                 }}
                             >
-                                + Add Question
+                                + Tambah Soalan
                             </button>
                         </div>
 
                         <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '4px', padding: '10px' }}>
                             {quizConfig.questions.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
-                                    <p>No questions yet. Click "+ Add Question" to create quiz questions.</p>
+                                    <p>Tiada soalan lagi. Klik "+ Tambah Soalan" untuk mencipta soalan kuiz.</p>
                                 </div>
                             ) : (
                                 quizConfig.questions.map((question, qIndex) => (
@@ -382,7 +382,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                         border: '1px solid #e5e7eb'
                                     }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                            <strong style={{ color: '#374151' }}>Question {qIndex + 1}</strong>
+                                            <strong style={{ color: '#374151' }}>Soalan {qIndex + 1}</strong>
                                             <button
                                                 type="button"
                                                 onClick={() => removeQuestion(question.id)}
@@ -396,7 +396,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                                     fontSize: '12px'
                                                 }}
                                             >
-                                                ✕ Remove
+                                                ✕ Padam
                                             </button>
                                         </div>
 
@@ -404,7 +404,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                             type="text"
                                             value={question.question}
                                             onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
-                                            placeholder="Enter your question here..."
+                                            placeholder="Masukkan soalan anda di sini..."
                                             style={{
                                                 width: '100%',
                                                 padding: '8px',
@@ -418,7 +418,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
 
                                         <div style={{ marginBottom: '10px' }}>
                                             <label style={{ display: 'block', fontSize: '12px', color: '#6b7280', marginBottom: '5px' }}>
-                                                Answer Options:
+                                                Pilihan Jawapan:
                                             </label>
                                             {question.answers.map((answer, aIndex) => (
                                                 <div key={aIndex} style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
@@ -428,7 +428,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                                         checked={question.correctAnswer === aIndex}
                                                         onChange={() => updateQuestion(question.id, 'correctAnswer', aIndex)}
                                                         style={{ marginRight: '8px', cursor: 'pointer' }}
-                                                        title="Mark as correct answer"
+                                                        title="Tandakan sebagai jawapan yang betul"
                                                     />
                                                     <span style={{ marginRight: '8px', fontWeight: '600', color: '#6b7280' }}>
                                                         {String.fromCharCode(65 + aIndex)}.
@@ -437,7 +437,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                                         type="text"
                                                         value={answer}
                                                         onChange={(e) => updateAnswer(question.id, aIndex, e.target.value)}
-                                                        placeholder={`Answer ${String.fromCharCode(65 + aIndex)}`}
+                                                        placeholder={`Jawapan ${String.fromCharCode(65 + aIndex)}`}
                                                         style={{
                                                             flex: 1,
                                                             padding: '6px',
@@ -451,7 +451,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                                         </div>
 
                                         <p style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>
-                                            💡 Select the radio button next to the correct answer
+                                            💡 Pilih butang radio bersebelahan dengan jawapan yang betul
                                         </p>
                                     </div>
                                 ))
@@ -459,7 +459,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                         </div>
 
                         <p style={{ marginTop: '10px', fontSize: '12px', color: '#666', borderTop: '1px solid #e5e7eb', paddingTop: '10px' }}>
-                            Students will answer these questions and see their score
+                            Pelajar akan menjawab soalan-soalan ini dan melihat skor mereka
                         </p>
                     </div>
                 );
@@ -468,7 +468,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                     <textarea
                         value={block.content}
                         onChange={(e) => updateBlock(block.id, e.target.value)}
-                        placeholder="Write something..."
+                        placeholder="Tulis sesuatu..."
                         rows={3}
                     />
                 );
@@ -479,7 +479,7 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
         <div className="block-editor-container">
             {/* Sidebar */}
             <div className="block-editor-sidebar">
-                <h3>Content Blocks</h3>
+                <h3>Blok Kandungan</h3>
                 {blockTypes.map((blockType) => (
                     <button
                         key={blockType.type}
@@ -498,8 +498,8 @@ function SimpleBlockEditor({ initialBlocks = [], inputId = 'content_blocks_input
                 <div className="block-list">
                     {blocks.length === 0 ? (
                         <div className="editor-empty-state">
-                            <h2>Start writing</h2>
-                            <p>Click a block type from the sidebar to get started</p>
+                            <h2>Mula mencipta</h2>
+                            <p>Klik jenis blok dari bar sisi untuk bermula</p>
                         </div>
                     ) : (
                         <DndContext
@@ -563,7 +563,7 @@ function SortableBlock({ block, renderBlock, deleteBlock }) {
                         lineHeight: '1',
                         marginTop: '8px'
                     }}
-                    title="Drag to reorder"
+                    title="Tarik untuk susun semula"
                 >
                     ⋮⋮
                 </button>
@@ -581,7 +581,7 @@ function SortableBlock({ block, renderBlock, deleteBlock }) {
                     onClick={() => deleteBlock(block.id)}
                     className="block-delete-btn"
                 >
-                    Delete
+                    Padam
                 </button>
             </div>
         </div>

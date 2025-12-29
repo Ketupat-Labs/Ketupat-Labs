@@ -121,7 +121,11 @@ class LessonAssignmentController extends Controller
         if ($request->has('tab')) $activeTab = $request->get('tab');
 
         // Fetch Recent Activity Assignments
-        $assignmentsCollection = \App\Models\ActivityAssignment::with(['activity.assignments', 'classroom'])
+        $activity_id = $request->get('activity_id');
+        $preselectedActivityId = $activity_id;
+        $classroom_id = $request->get('classroom_id');
+
+        $assignmentsCollection = \App\Models\ActivityAssignment::with(['activity', 'classroom'])
             ->whereIn('classroom_id', $classrooms->pluck('id'))
             ->latest()
             ->get();
@@ -143,12 +147,14 @@ class LessonAssignmentController extends Controller
                 return $pseudo;
             });
             
-        $activityAssignments = $assignmentsCollection->toBase()->merge($publicActivities)->sortByDesc('activity.created_at');
+        $activityAssignments = $assignmentsCollection->toBase()->merge($publicActivities)->sortByDesc('created_at');
 
         // Build Activity States for JS Lookup
         $activityStates = [];
         foreach ($activityAssignments as $aa) {
             $act = $aa->activity;
+            if (!$act) continue;
+
             // Determine classroom IDs
             $classroomIds = [];
             if ($act->relationLoaded('assignments')) {
@@ -174,11 +180,25 @@ class LessonAssignmentController extends Controller
             ];
         }
 
+        // Additional data for activity scheduling form pre-fill
+        $assignedClassroomIdsForActivity = [];
+        $isActivityPublic = false;
+        if ($preselectedActivityId) {
+            $act = \App\Models\Activity::find($preselectedActivityId);
+            if ($act && $act->teacher_id == $user->id) {
+                $assignedClassroomIdsForActivity = \App\Models\ActivityAssignment::where('activity_id', $preselectedActivityId)
+                    ->pluck('classroom_id')
+                    ->toArray();
+                $isActivityPublic = $act->is_public;
+            }
+        }
+
         return view('assignments.create', compact(
             'classrooms', 'lessons', 'assignments', 'lessonStates', 
             'activityAssignments', 'activityStates',
             'month', 'year', 'daysInMonth', 'firstDayOfMonth', 
-            'games', 'quizzes', 'events', 'selectedClass', 'activeTab'
+            'games', 'quizzes', 'events', 'selectedClass', 'activeTab',
+            'preselectedActivityId', 'classroom_id', 'assignedClassroomIdsForActivity', 'isActivityPublic'
         ));
     }
 
@@ -226,6 +246,10 @@ class LessonAssignmentController extends Controller
 
                     // Enroll Students
                     foreach ($classroom->students as $student) {
+                        $wasEnrolled = \App\Models\Enrollment::where('user_id', $student->id)
+                            ->where('lesson_id', $lessonId)
+                            ->exists();
+                            
                         \App\Models\Enrollment::firstOrCreate([
                             'user_id' => $student->id,
                             'lesson_id' => $lessonId,
@@ -233,6 +257,19 @@ class LessonAssignmentController extends Controller
                             'status' => 'in_progress',
                             'progress' => 0,
                         ]);
+                        
+                        // Notify student if newly enrolled
+                        if (!$wasEnrolled) {
+                            \App\Models\Notification::create([
+                                'user_id' => $student->id,
+                                'type' => 'lesson_assigned',
+                                'title' => 'Pelajaran Baharu Ditugaskan',
+                                'message' => 'Pelajaran "' . $lesson->title . '" telah ditugaskan kepada kelas "' . $classroom->name . '"',
+                                'related_type' => 'lesson',
+                                'related_id' => $lesson->id,
+                                'is_read' => false,
+                            ]);
+                        }
                     }
                 }
             }

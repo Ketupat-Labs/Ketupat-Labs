@@ -14,14 +14,17 @@ class ActivitySubmission extends Model
 
     protected $fillable = [
         'activity_assignment_id',
+        'activity_id',
         'user_id',
         'score',
+        'results',
         'feedback',
         'completed_at',
     ];
 
     protected $casts = [
         'completed_at' => 'datetime',
+        'results' => 'array',
     ];
 
     public function assignment(): BelongsTo
@@ -32,5 +35,10 @@ class ActivitySubmission extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function activity(): BelongsTo
+    {
+        return $this->belongsTo(Activity::class);
     }
 }

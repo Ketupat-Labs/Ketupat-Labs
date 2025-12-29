@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Http\Request;
 
 // Favicon route
@@ -60,6 +61,16 @@ Route::get('/register', function () {
     return view('auth.login'); // Same page with registration form
 })->name('register');
 
+// Password reset routes
+Route::get('/reset-password/{token}', function ($token) {
+    return view('auth.reset-password', ['token' => $token]);
+})->name('password.reset');
+
+// Broadcasting authentication routes for WebSocket
+// Note: Broadcast routes need 'web' middleware for session and CSRF, 
+// and 'auth' middleware to get the authenticated user for channel authorization
+Broadcast::routes(['middleware' => ['web', 'auth']]);
+
 // Dashboard route - using DashboardController from Ketupat-Labs
 // Note: DashboardController uses session('user_id') for auth, not Auth::check()
 Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
@@ -107,7 +118,15 @@ Route::prefix('forum')->group(function () {
         })->name('forum.create');
         
         Route::get('/post/create', function () {
-            return view('forum.create-post');
+            $user = \Illuminate\Support\Facades\Auth::user();
+            // Fetch lessons for the current user if they are a teacher
+            $lessons = [];
+            if ($user && $user->role === 'teacher') {
+                $lessons = \App\Models\Lesson::where('teacher_id', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get(['id', 'title']);
+            }
+            return view('forum.create-post', ['lessons' => $lessons]);
         })->name('forum.post.create');
         
         Route::get('/post/{id}', function ($id) {
@@ -130,7 +149,6 @@ Route::prefix('forum')->group(function () {
 
 // Messaging routes - using session-based auth
 // Note: Using direct route instead of prefix to avoid conflict with public/Messaging directory
-Route::get('/friends', [\App\Http\Controllers\FriendController::class, 'index'])->name('friends.index')->middleware('auth');
 
 Route::get('/messaging', function () {
     $userId = session('user_id');
@@ -160,6 +178,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'update'])->name('settings.update');
     
+    // Notifications routes
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'showAll'])->name('notifications.index');
+    
+    // Badge Routes
+    Route::get('/badges', [\App\Http\Controllers\AchievementController::class, 'badgesIndex'])->name('badges.index');
+    Route::get('/badges/my', [\App\Http\Controllers\AchievementController::class, 'myBadges'])->name('badges.my');
+    Route::post('/badges/redeem', [\App\Http\Controllers\AchievementController::class, 'redeemBadge'])->name('badges.redeem');
+    
     // Lesson routes
     // IMPORTANT: Specific routes must come BEFORE Route::resource
     
@@ -170,6 +196,9 @@ Route::middleware('auth')->group(function () {
     
     // Resource routes (this creates /lessons/create, /lessons/{id}, etc.)
     Route::resource('lessons', \App\Http\Controllers\LessonController::class);
+    
+    // Allow cloning shared lessons
+    Route::post('/lessons/{lesson}/clone', [\App\Http\Controllers\LessonController::class, 'clone'])->name('lessons.clone');
     
     Route::get('/lesson', [\App\Http\Controllers\LessonController::class, 'studentIndex'])->name('lesson.index');
     Route::get('/lesson/{lesson}', [\App\Http\Controllers\LessonController::class, 'studentShow'])->name('lesson.show');
@@ -199,6 +228,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/performance', [\App\Http\Controllers\PerformanceController::class, 'index'])->name('performance.index');
     Route::match(['get', 'post'], '/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedule.index');
     Route::post('/schedule/store', [\App\Http\Controllers\ScheduleController::class, 'store'])->name('schedule.store');
+    Route::delete('/schedule/{assignment}', [\App\Http\Controllers\ScheduleController::class, 'destroy'])->name('schedule.destroy');
     
     // New Activity Management
     Route::get('/activities', [\App\Http\Controllers\ActivityController::class, 'index'])->name('activities.index');
@@ -206,6 +236,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/activities', [\App\Http\Controllers\ActivityController::class, 'store'])->name('activities.store');
     Route::post('/activities/{activity}/assign', [\App\Http\Controllers\ActivityController::class, 'assign'])->name('activities.assign');
     Route::get('/activities/{activity}', [\App\Http\Controllers\ActivityController::class, 'show'])->name('activities.show');
+    Route::get('/activities/{activity}/edit', [\App\Http\Controllers\ActivityController::class, 'edit'])->name('activities.edit');
+    Route::put('/activities/{activity}', [\App\Http\Controllers\ActivityController::class, 'update'])->name('activities.update');
+    Route::delete('/activities/{activity}', [\App\Http\Controllers\ActivityController::class, 'destroy'])->name('activities.destroy');
+    Route::post('/activities/{activity}/submit', [\App\Http\Controllers\ActivityController::class, 'submit'])->name('activities.submit');
+    Route::post('/activities/assignments/{assignment}/grade', [\App\Http\Controllers\ActivityController::class, 'storeGrade'])->name('activities.grade');
     
     // Classroom routes
     Route::resource('classrooms', \App\Http\Controllers\ClassroomController::class);
