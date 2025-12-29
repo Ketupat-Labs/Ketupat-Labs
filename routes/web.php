@@ -13,19 +13,7 @@ Route::get('/favicon.ico', function () {
 // PHP Settings diagnostic route
 Route::get('/php-settings', function () {
     return response()->json([
-        'upload_max_filesize' => ini_get('upload_max_filesize'),
-        'post_max_size' => ini_get('post_max_size'),
-        'max_file_uploads' => ini_get('max_file_uploads'),
-        'memory_limit' => ini_get('memory_limit'),
-        'php_ini_loaded_file' => php_ini_loaded_file(),
-        'php_ini_scanned_files' => php_ini_scanned_files() ?: 'None',
-        'converted_bytes' => [
-            'upload_max_filesize' => [
-                'bytes' => (function($val) {
-                    $val = trim($val);
-                    $last = strtolower($val[strlen($val)-1]);
-                    $val = (int)$val;
-                    switch($last) {
+        'upload_max_filesize'
                         case 'g': $val *= 1024;
                         case 'm': $val *= 1024;
                         case 'k': $val *= 1024;
@@ -56,15 +44,6 @@ Route::get('/', function () {
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
-
-Route::get('/register', function () {
-    return view('auth.login'); // Same page with registration form
-})->name('register');
-
-// Password reset routes
-Route::get('/reset-password/{token}', function ($token) {
-    return view('auth.reset-password', ['token' => $token]);
-})->name('password.reset');
 
 // Broadcasting authentication routes for WebSocket
 // Note: Broadcast routes need 'web' middleware for session and CSRF, 
