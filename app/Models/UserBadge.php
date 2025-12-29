@@ -15,6 +15,16 @@ class UserBadge extends Model
     protected $fillable = [
         'user_id',
         'badge_code',
+        'status',
+        'progress',
+        'earned_at',
+        'redeemed_at',
+    ];
+
+    protected $casts = [
+        'progress' => 'integer',
+        'earned_at' => 'datetime',
+        'redeemed_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

@@ -412,6 +412,17 @@ class AchievementController extends Controller
                         'status' => 'earned', // Update status instead of boolean
                         'earned_at' => now()
                     ]);
+                
+                // Create notification for badge earned
+                \App\Models\Notification::create([
+                    'user_id' => $userId,
+                    'type' => 'badge_earned',
+                    'title' => 'Lencana Diperoleh!',
+                    'message' => 'Tahniah! Anda telah memperoleh lencana "' . $badge->name . '"',
+                    'related_type' => 'badge',
+                    'related_id' => $badge->id,
+                    'is_read' => false,
+                ]);
             }
         } else {
             // Create new
@@ -425,6 +436,19 @@ class AchievementController extends Controller
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
+            
+            // Create notification if badge is earned immediately
+            if ($isEarned) {
+                \App\Models\Notification::create([
+                    'user_id' => $userId,
+                    'type' => 'badge_earned',
+                    'title' => 'Lencana Diperoleh!',
+                    'message' => 'Tahniah! Anda telah memperoleh lencana "' . $badge->name . '"',
+                    'related_type' => 'badge',
+                    'related_id' => $badge->id,
+                    'is_read' => false,
+                ]);
+            }
         }
 
         return response()->json([

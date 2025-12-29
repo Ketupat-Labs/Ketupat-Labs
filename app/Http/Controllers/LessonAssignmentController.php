@@ -246,6 +246,10 @@ class LessonAssignmentController extends Controller
 
                     // Enroll Students
                     foreach ($classroom->students as $student) {
+                        $wasEnrolled = \App\Models\Enrollment::where('user_id', $student->id)
+                            ->where('lesson_id', $lessonId)
+                            ->exists();
+                            
                         \App\Models\Enrollment::firstOrCreate([
                             'user_id' => $student->id,
                             'lesson_id' => $lessonId,
@@ -253,6 +257,19 @@ class LessonAssignmentController extends Controller
                             'status' => 'in_progress',
                             'progress' => 0,
                         ]);
+                        
+                        // Notify student if newly enrolled
+                        if (!$wasEnrolled) {
+                            \App\Models\Notification::create([
+                                'user_id' => $student->id,
+                                'type' => 'lesson_assigned',
+                                'title' => 'Pelajaran Baharu Ditugaskan',
+                                'message' => 'Pelajaran "' . $lesson->title . '" telah ditugaskan kepada kelas "' . $classroom->name . '"',
+                                'related_type' => 'lesson',
+                                'related_id' => $lesson->id,
+                                'is_read' => false,
+                            ]);
+                        }
                     }
                 }
             }

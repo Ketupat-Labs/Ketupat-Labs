@@ -130,6 +130,11 @@ class ActivityController extends Controller
             abort(403);
         }
 
+        $wasGraded = \App\Models\ActivitySubmission::where('activity_assignment_id', $assignment->id)
+            ->where('user_id', $request->user_id)
+            ->whereNotNull('score')
+            ->exists();
+            
         \App\Models\ActivitySubmission::updateOrCreate(
             [
                 'activity_assignment_id' => $assignment->id,
@@ -141,6 +146,19 @@ class ActivityController extends Controller
                 'completed_at' => now(), // Mark as completed when graded
             ]
         );
+
+        // Notify student when activity is graded (first time only)
+        if (!$wasGraded) {
+            \App\Models\Notification::create([
+                'user_id' => $request->user_id,
+                'type' => 'activity_graded',
+                'title' => 'Aktiviti Dinilai',
+                'message' => 'Aktiviti "' . $assignment->activity->title . '" telah dinilai. Markah: ' . $request->score,
+                'related_type' => 'activity',
+                'related_id' => $assignment->activity->id,
+                'is_read' => false,
+            ]);
+        }
 
         return back()->with('success', 'Markah berjaya disimpan.');
     }
@@ -197,6 +215,12 @@ class ActivityController extends Controller
 
         // 3. Save Submission
         // We now support both assignment-linked results and direct activity-linked results (for public plays)
+        $wasCompleted = \App\Models\ActivitySubmission::where('activity_assignment_id', $assignment ? $assignment->id : null)
+            ->where('activity_id', $activity->id)
+            ->where('user_id', $user->id)
+            ->whereNotNull('completed_at')
+            ->exists();
+            
         \App\Models\ActivitySubmission::updateOrCreate(
             [
                 'activity_assignment_id' => $assignment ? $assignment->id : null,
@@ -209,6 +233,32 @@ class ActivityController extends Controller
                 'completed_at' => now(),
             ]
         );
+
+        // Create notification for activity completion (first time only)
+        if (!$wasCompleted) {
+            \App\Models\Notification::create([
+                'user_id' => $user->id,
+                'type' => 'activity_completed',
+                'title' => 'Aktiviti Selesai!',
+                'message' => 'Tahniah! Anda telah menamatkan aktiviti "' . $activity->title . '"',
+                'related_type' => 'activity',
+                'related_id' => $activity->id,
+                'is_read' => false,
+            ]);
+            
+            // Notify teacher if assignment exists
+            if ($assignment && $activity->teacher_id) {
+                \App\Models\Notification::create([
+                    'user_id' => $activity->teacher_id,
+                    'type' => 'activity_submission',
+                    'title' => 'Penyerahan Aktiviti Baharu',
+                    'message' => $user->full_name . ' telah menyerahkan aktiviti "' . $activity->title . '"',
+                    'related_type' => 'activity',
+                    'related_id' => $activity->id,
+                    'is_read' => false,
+                ]);
+            }
+        }
 
         return response()->json(['success' => true, 'message' => 'Rekod disimpan']);
     }

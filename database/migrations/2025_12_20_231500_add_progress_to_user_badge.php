@@ -13,7 +13,12 @@ return new class extends Migration
     {
         if (Schema::hasTable('user_badge') && !Schema::hasColumn('user_badge', 'progress')) {
             Schema::table('user_badge', function (Blueprint $table) {
-                $table->integer('progress')->default(0)->after('status');
+                // Add progress column - if status exists, add after it, otherwise add after badge_code
+                if (Schema::hasColumn('user_badge', 'status')) {
+                    $table->integer('progress')->default(0)->after('status');
+                } else {
+                    $table->integer('progress')->default(0)->after('badge_code');
+                }
             });
         }
     }

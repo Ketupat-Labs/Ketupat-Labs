@@ -43,21 +43,27 @@
                                             <i class="fas fa-edit mr-2"></i> Edit Profile
                                         </a>
                                     @else
-                                        @if($isFriend)
-                                            <button onclick="removeFriend({{ $profileUser->id }})" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
-                                                <i class="fas fa-user-minus mr-2"></i> Remove Friend
-                                            </button>
-                                        @elseif($hasPendingRequest)
-                                            <button class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg cursor-not-allowed" disabled>
-                                                <i class="fas fa-clock mr-2"></i> Request Pending
-                                            </button>
-                                        @else
-                                            <button onclick="addFriend({{ $profileUser->id }})" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                                                <i class="fas fa-user-plus mr-2"></i> Add Friend
-                                            </button>
-                                        @endif
+                                        <button id="followButton" onclick="toggleFollow({{ $profileUser->id }})" class="inline-flex items-center px-4 py-2 {{ $isFollowing ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700' }} text-white rounded-lg transition">
+                                            <i class="fas {{ $isFollowing ? 'fa-user-check' : 'fa-user-plus' }} mr-2"></i> 
+                                            <span id="followButtonText">{{ $isFollowing ? 'Following' : 'Follow' }}</span>
+                                        </button>
+                                        <button onclick="startConversation({{ $profileUser->id }})" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                            <i class="fas fa-envelope mr-2"></i> Mesej
+                                        </button>
                                     @endif
                                 </div>
+                            </div>
+
+                            <!-- Follow Stats -->
+                            <div class="mt-6 flex space-x-6">
+                                <button onclick="showFollowingModal({{ $profileUser->id }})" class="text-center hover:text-blue-600 transition cursor-pointer">
+                                    <div class="text-2xl font-bold text-gray-900">{{ $followingCount }}</div>
+                                    <div class="text-sm text-gray-500">Following</div>
+                                </button>
+                                <button onclick="showFollowersModal({{ $profileUser->id }})" class="text-center hover:text-blue-600 transition cursor-pointer">
+                                    <div class="text-2xl font-bold text-gray-900">{{ $followersCount }}</div>
+                                    <div class="text-sm text-gray-500">Followed by</div>
+                                </button>
                             </div>
 
                             <!-- Profile Details -->
@@ -74,10 +80,6 @@
                                         <p class="text-gray-900">{{ $profileUser->class }}</p>
                                     </div>
                                 @endif
-                                <div>
-                                    <span class="text-sm font-medium text-gray-500">Friends</span>
-                                    <p class="text-gray-900">{{ $friendCount }}</p>
-                                </div>
                             </div>
 
                             @if($profileUser->bio)
@@ -158,7 +160,7 @@
                     <div class="mb-6 space-y-4">
                         <!-- Category Filter -->
                         <div>
-                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Kategori</label>
+                            <span class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Kategori</span>
                             <div class="flex flex-wrap gap-2" id="profileCategoryFilters">
                                 <button class="filter-btn active px-3 py-1 text-sm rounded-full border border-blue-500 bg-blue-500 text-white transition-colors" data-filter="all" data-type="category">Semua</button>
                                 @foreach($categories as $cat)
@@ -175,7 +177,7 @@
 
                         <!-- Status Filter -->
                         <div>
-                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</label>
+                            <span class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</span>
                             <div class="flex flex-wrap gap-2" id="profileStatusFilters">
                                 <button class="filter-btn active px-3 py-1 text-sm rounded-full border border-blue-500 bg-blue-500 text-white transition-colors" data-filter="all" data-type="status">Semua</button>
                                 <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" data-filter="earned" data-type="status">Tercapai</button>
@@ -640,6 +642,254 @@
                 }
             });
         });
+
+        // Follow/Unfollow functionality
+        async function toggleFollow(userId) {
+            const button = document.getElementById('followButton');
+            const buttonText = document.getElementById('followButtonText');
+            const icon = button.querySelector('i');
+            
+            const isFollowing = buttonText.textContent === 'Following';
+            const endpoint = isFollowing ? `/api/profile/${userId}/unfollow` : `/api/profile/${userId}/follow`;
+            
+            // Disable button during request
+            button.disabled = true;
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 200) {
+                    // Update button state
+                    if (isFollowing) {
+                        button.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                        button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                        icon.classList.remove('fa-user-check');
+                        icon.classList.add('fa-user-plus');
+                        buttonText.textContent = 'Follow';
+                    } else {
+                        button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                        button.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                        icon.classList.remove('fa-user-plus');
+                        icon.classList.add('fa-user-check');
+                        buttonText.textContent = 'Following';
+                    }
+                    
+                    // Update followers count
+                    updateFollowCounts(userId);
+                } else {
+                    alert(data.message || 'Failed to update follow status');
+                }
+            } catch (error) {
+                console.error('Error toggling follow:', error);
+                alert('Failed to update follow status');
+            } finally {
+                button.disabled = false;
+            }
+        }
+        
+        // Update follow counts
+        async function updateFollowCounts(userId) {
+            try {
+                const followingResponse = await fetch(`/api/profile/${userId}/following`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const followersResponse = await fetch(`/api/profile/${userId}/followers`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const followingData = await followingResponse.json();
+                const followersData = await followersResponse.json();
+                
+                if (followingData.status === 200 && followersData.status === 200) {
+                    const followingCount = followingData.data.users.length;
+                    const followersCount = followersData.data.users.length;
+                    
+                    // Update the display
+                    const followingElement = document.querySelector('[onclick*="showFollowingModal"]');
+                    const followersElement = document.querySelector('[onclick*="showFollowersModal"]');
+                    
+                    if (followingElement) {
+                        const countElement = followingElement.querySelector('.text-2xl');
+                        if (countElement) countElement.textContent = followingCount;
+                    }
+                    
+                    if (followersElement) {
+                        const countElement = followersElement.querySelector('.text-2xl');
+                        if (countElement) countElement.textContent = followersCount;
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating follow counts:', error);
+            }
+        }
+        
+        // Show following modal
+        async function showFollowingModal(userId) {
+            try {
+                const response = await fetch(`/api/profile/${userId}/following`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 200) {
+                    showUserListModal('Following', data.data.users);
+                } else {
+                    alert('Failed to load following list');
+                }
+            } catch (error) {
+                console.error('Error loading following:', error);
+                alert('Failed to load following list');
+            }
+        }
+        
+        // Show followers modal
+        async function showFollowersModal(userId) {
+            try {
+                const response = await fetch(`/api/profile/${userId}/followers`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 200) {
+                    showUserListModal('Followed by', data.data.users);
+                } else {
+                    alert('Failed to load followers list');
+                }
+            } catch (error) {
+                console.error('Error loading followers:', error);
+                alert('Failed to load followers list');
+            }
+        }
+        
+        // Show user list modal
+        function showUserListModal(title, users) {
+            const modal = document.createElement('div');
+            modal.id = 'userListModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">${title}</h3>
+                        <button onclick="closeUserListModal()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="px-6 py-4 overflow-y-auto flex-1">
+                        ${users.length === 0 ? `
+                            <p class="text-gray-500 text-center py-8">No users found</p>
+                        ` : `
+                            <div class="space-y-3">
+                                ${users.map(user => `
+                                    <div class="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer" onclick="window.location.href='/profile/${user.id}'">
+                                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                            ${user.avatar_url ? `
+                                                <img src="${user.avatar_url.startsWith('/') ? user.avatar_url : '/' + user.avatar_url}" alt="${user.full_name}" class="w-full h-full object-cover">
+                                            ` : `
+                                                <span class="text-lg font-bold text-gray-600">
+                                                    ${(user.full_name || user.username || 'U').charAt(0).toUpperCase()}
+                                                </span>
+                                            `}
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-semibold text-gray-900 truncate">${user.full_name || user.username}</div>
+                                            <div class="text-sm text-gray-500 truncate">@${user.username}</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close on outside click
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeUserListModal();
+                }
+            });
+        }
+        
+        // Close user list modal
+        function closeUserListModal() {
+            const modal = document.getElementById('userListModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        async function startConversation(userId) {
+            try {
+                // Show loading state
+                const button = event.target.closest('button');
+                const originalText = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Membuka...';
+                
+                // Create or get existing conversation
+                const response = await fetch('/api/messaging/conversation/direct', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ user_id: userId }),
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 200 && data.data.conversation_id) {
+                    // Redirect to messaging page with conversation
+                    window.location.href = '{{ route("messaging.index") }}?conversation=' + data.data.conversation_id;
+                } else {
+                    // Fallback: redirect to messaging page
+                    window.location.href = '{{ route("messaging.index") }}';
+                }
+            } catch (error) {
+                console.error('Error starting conversation:', error);
+                // Fallback: redirect to messaging page
+                window.location.href = '{{ route("messaging.index") }}';
+            }
+        }
     </script>
 </x-app-layout>
 

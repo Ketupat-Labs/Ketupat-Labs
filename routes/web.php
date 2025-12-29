@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Http\Request;
 
 // Favicon route
@@ -59,6 +60,16 @@ Route::get('/login', function () {
 Route::get('/register', function () {
     return view('auth.login'); // Same page with registration form
 })->name('register');
+
+// Password reset routes
+Route::get('/reset-password/{token}', function ($token) {
+    return view('auth.reset-password', ['token' => $token]);
+})->name('password.reset');
+
+// Broadcasting authentication routes for WebSocket
+// Note: Broadcast routes need 'web' middleware for session and CSRF, 
+// and 'auth' middleware to get the authenticated user for channel authorization
+Broadcast::routes(['middleware' => ['web', 'auth']]);
 
 // Dashboard route - using DashboardController from Ketupat-Labs
 // Note: DashboardController uses session('user_id') for auth, not Auth::check()
@@ -138,7 +149,6 @@ Route::prefix('forum')->group(function () {
 
 // Messaging routes - using session-based auth
 // Note: Using direct route instead of prefix to avoid conflict with public/Messaging directory
-Route::get('/friends', [\App\Http\Controllers\FriendController::class, 'index'])->name('friends.index')->middleware('auth');
 
 Route::get('/messaging', function () {
     $userId = session('user_id');
@@ -167,6 +177,9 @@ Route::middleware('auth')->group(function () {
     // Settings routes
     Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'update'])->name('settings.update');
+    
+    // Notifications routes
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'showAll'])->name('notifications.index');
     
     // Badge Routes
     Route::get('/badges', [\App\Http\Controllers\AchievementController::class, 'badgesIndex'])->name('badges.index');

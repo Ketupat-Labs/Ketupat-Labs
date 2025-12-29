@@ -18,11 +18,14 @@
             <x-input-label for="avatar" :value="__('Profile Picture')" />
             <div class="mt-2 flex items-center gap-4">
                 <div class="flex-shrink-0">
-                    <div class="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border-2 border-gray-300">
+                    <div class="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border-2 border-gray-300" id="avatarContainer">
                         @if($user->avatar_url)
-                            <img id="avatarPreview" src="{{ asset($user->avatar_url) }}" alt="{{ $user->full_name }}" class="h-full w-full object-cover">
+                            <img id="avatarPreview" src="{{ asset($user->avatar_url) }}" alt="{{ $user->full_name }}" class="h-full w-full object-cover" onerror="this.style.display='none'; document.getElementById('avatarPreviewText').style.display='flex';">
+                            <span id="avatarPreviewText" class="text-2xl font-bold text-gray-600" style="display: none;">
+                                {{ strtoupper(substr($user->full_name ?? $user->username ?? 'U', 0, 1)) }}
+                            </span>
                         @else
-                            <span id="avatarPreviewText" class="text-2xl font-bold text-gray-600">
+                            <span id="avatarPreviewText" class="text-2xl font-bold text-gray-600" style="display: flex;">
                                 {{ strtoupper(substr($user->full_name ?? $user->username ?? 'U', 0, 1)) }}
                             </span>
                         @endif
@@ -89,25 +92,33 @@
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
+                    const container = document.querySelector('.flex-shrink-0 > div');
                     const preview = document.getElementById('avatarPreview');
                     const previewText = document.getElementById('avatarPreviewText');
+                    
                     if (preview) {
+                        // Update existing image
                         preview.src = e.target.result;
                         preview.style.display = 'block';
-                    }
-                    if (previewText) {
-                        previewText.style.display = 'none';
-                    }
-                    // Create img element if it doesn't exist
-                    if (!preview) {
-                        const container = input.closest('div').querySelector('.flex-shrink-0 > div');
+                    } else {
+                        // Create new image element
                         const img = document.createElement('img');
                         img.id = 'avatarPreview';
                         img.src = e.target.result;
                         img.alt = 'Preview';
                         img.className = 'h-full w-full object-cover';
-                        container.innerHTML = '';
-                        container.appendChild(img);
+                        img.style.display = 'block';
+                        
+                        // Clear container and add image
+                        if (container) {
+                            container.innerHTML = '';
+                            container.appendChild(img);
+                        }
+                    }
+                    
+                    // Hide text preview if it exists
+                    if (previewText) {
+                        previewText.style.display = 'none';
                     }
                 };
                 reader.readAsDataURL(input.files[0]);

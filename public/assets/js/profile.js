@@ -26,66 +26,6 @@ function showSection(sectionName) {
     }
 }
 
-async function addFriend(friendId) {
-    try {
-        const response = await fetch('/api/friends/add', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            credentials: 'include',
-            body: JSON.stringify({ friend_id: friendId })
-        });
-
-        const data = await response.json();
-
-        if (data.status === 200) {
-            alert('Friend request sent!');
-            window.location.reload();
-        } else {
-            alert(data.message || 'Failed to send friend request');
-        }
-    } catch (error) {
-        console.error('Error adding friend:', error);
-        alert('Failed to send friend request');
-    }
-}
-
-async function removeFriend(friendId) {
-    if (!confirm('Are you sure you want to remove this friend?')) {
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/friends/remove', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            credentials: 'include',
-            body: JSON.stringify({ friend_id: friendId })
-        });
-
-        const data = await response.json();
-
-        if (data.status === 200) {
-            alert('Friend removed');
-            window.location.reload();
-        } else {
-            alert(data.message || 'Failed to remove friend');
-        }
-    } catch (error) {
-        console.error('Error removing friend:', error);
-        alert('Failed to remove friend');
-    }
-}
-
 // Helper function to escape HTML
 function escapeHtml(text) {
     const div = document.createElement('div');

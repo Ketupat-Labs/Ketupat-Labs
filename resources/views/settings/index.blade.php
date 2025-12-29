@@ -50,45 +50,12 @@
                 </div>
             </div>
 
-            <!-- Privacy Settings -->
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    <header>
-                        <h2 class="text-lg font-medium text-gray-900">
-                            {{ __('Privacy') }}
-                        </h2>
-                        <p class="mt-1 text-sm text-gray-600">
-                            {{ __('Control who can interact with you.') }}
-                        </p>
-                    </header>
-
-                    <div class="mt-6 space-y-6">
-                        <!-- Allow Friend Requests Toggle -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1">
-                                <label for="allow_friend_requests" class="block text-sm font-medium text-gray-700">
-                                    {{ __('Allow Friend Requests') }}
-                                </label>
-                                <p class="mt-1 text-sm text-gray-500">
-                                    {{ __('Enable or disable other users from adding you as a friend.') }}
-                                </p>
-                            </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="allow_friend_requests" name="allow_friend_requests" 
-                                    class="sr-only peer" {{ $user->allow_friend_requests ?? true ? 'checked' : '' }}>
-                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const chatbotToggle = document.getElementById('chatbot_enabled');
-            const friendRequestsToggle = document.getElementById('allow_friend_requests');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
 
@@ -156,10 +123,6 @@
                         }
                     }
                 }
-            });
-
-            friendRequestsToggle.addEventListener('change', () => {
-                updateSetting('allow_friend_requests', friendRequestsToggle.checked);
             });
         });
     </script>

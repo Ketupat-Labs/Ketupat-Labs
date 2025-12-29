@@ -11,7 +11,6 @@ class PostAttachment extends Model
 
     protected $fillable = [
         'post_id',
-        'attachment_type',
         'file_url',
         'file_name',
         'file_type',

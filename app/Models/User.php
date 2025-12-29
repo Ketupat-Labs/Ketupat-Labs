@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use App\Notifications\ResetPasswordNotification;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, CanResetPassword;
 
     protected $table = 'user';
 
@@ -137,6 +139,17 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Badge::class, 'user_badge', 'user_id', 'badge_code', 'id', 'code')
             ->withTimestamps();
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
 

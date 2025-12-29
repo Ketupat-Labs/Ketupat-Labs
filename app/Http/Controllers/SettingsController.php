@@ -34,15 +34,11 @@ class SettingsController extends Controller
 
         $validated = $request->validate([
             'chatbot_enabled' => 'nullable|boolean',
-            'allow_friend_requests' => 'nullable|boolean',
         ]);
 
         // Update settings
         if (isset($validated['chatbot_enabled'])) {
             $user->chatbot_enabled = $validated['chatbot_enabled'];
-        }
-        if (isset($validated['allow_friend_requests'])) {
-            $user->allow_friend_requests = $validated['allow_friend_requests'];
         }
 
         $user->save();

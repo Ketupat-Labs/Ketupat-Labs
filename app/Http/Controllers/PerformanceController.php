@@ -32,6 +32,11 @@ class PerformanceController extends Controller
              $selectedClassId = $request->get('class_id', $classrooms->first()->id ?? null);
              $selectedClass = $classrooms->find($selectedClassId);
              
+             // Reset filter if class changed or no class selected
+             if (!$selectedClass) {
+                 $selectedFilter = 'all';
+             }
+             
              if ($selectedClass) {
                  $students = $selectedClass->students;
                  
@@ -60,22 +65,34 @@ class PerformanceController extends Controller
              }
         }
 
-        // Fetch Lessons
-        if ($user->role === 'teacher') {
-            $lessons = Lesson::where('is_published', true)->get();
+        // Fetch Lessons - Only show lessons assigned to the selected class
+        if ($selectedClass) {
+            if ($user->role === 'teacher') {
+                // For teachers: Only show lessons assigned to the selected class
+                $lessons = Lesson::where('is_published', true)
+                    ->whereHas('assignments', function($q) use ($selectedClass) {
+                        $q->where('classroom_id', $selectedClass->id);
+                    })->get();
+            } else {
+                // For students: Show public lessons OR lessons assigned to their enrolled classes
+                $lessons = Lesson::where('is_published', true)
+                    ->where(function($q) use ($user, $selectedClass) {
+                         $q->where('is_public', true)
+                           ->orWhereHas('assignments', function($q2) use ($selectedClass) {
+                                $q2->where('classroom_id', $selectedClass->id);
+                           });
+                    })->get();
+            }
         } else {
-            $lessons = Lesson::where('is_published', true)
-                ->where(function($q) use ($user) {
-                     $q->where('is_public', true)
-                       ->orWhereHas('assignments', function($q2) use ($user) {
-                            $q2->whereIn('classroom_id', $user->enrolledClassrooms->pluck('id'));
-                       });
-                })->get();
+            // No class selected - show empty
+            $lessons = collect();
         }
 
-        // Combine for Dropdown
-        foreach($lessons as $l) $filterItems->push(['id' => 'lesson-'.$l->id, 'name' => $l->title]);
-        foreach($activities as $a) $filterItems->push(['id' => 'activity-'.$a->id, 'name' => $a->title]);
+        // Combine for Dropdown - Only if class is selected
+        if ($selectedClass) {
+            foreach($lessons as $l) $filterItems->push(['id' => 'lesson-'.$l->id, 'name' => $l->title]);
+            foreach($activities as $a) $filterItems->push(['id' => 'activity-'.$a->id, 'name' => $a->title]);
+        }
         $filterItems = $filterItems->values();
 
         // Determine Mode

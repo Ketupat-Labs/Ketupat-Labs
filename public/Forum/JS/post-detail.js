@@ -124,8 +124,15 @@ function processVideoLinks(content) {
                 const urlIndex = content.indexOf(firstUrl);
                 const description = content.substring(urlIndex + firstUrl.length).trim();
 
-                // Create compact link preview
-                return createLinkPreview(firstUrl, domain, description);
+                // Display description as separate paragraph, then link preview
+                const descriptionHtml = description
+                    ? '<div class="post-description" style="margin-bottom: 16px; color: #333; line-height: 1.6; white-space: pre-wrap;">' +
+                      escapeHtml(description) +
+                      '</div>'
+                    : '';
+
+                // Create compact link preview (without description inside)
+                return descriptionHtml + createLinkPreview(firstUrl, domain, '');
             } catch (e) {
                 // Invalid URL, just escape and return
                 return escapeHtml(content);
@@ -236,14 +243,71 @@ function processVideoLinks(content) {
     return escapedDescription + processedUrl;
 }
 
+// Cache for link previews to avoid multiple requests
+const linkPreviewCache = {};
+
+// Fetch link preview data
+async function fetchLinkPreview(url) {
+    // Check cache first
+    if (linkPreviewCache[url]) {
+        return linkPreviewCache[url];
+    }
+
+    const apiBaseUrl = window.location.origin;
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/link-preview?url=${encodeURIComponent(url)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.status === 200 && data.data) {
+                // Cache the result
+                linkPreviewCache[url] = data.data;
+                return data.data;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching link preview:', error);
+    }
+
+    // Return fallback
+    return {
+        title: new URL(url).hostname,
+        site_name: new URL(url).hostname,
+    };
+}
+
 // Helper function to create a compact link preview (for non-video links)
+// Note: description parameter is kept for backward compatibility but is no longer used
+// Description should be displayed separately as a paragraph before calling this function
 function createLinkPreview(url, domain, description) {
-    // Extract title from description or use domain
-    const title = description ? description.split('\n')[0].substring(0, 100) : domain;
-    const fullDescription = description ? description.substring(title.length).trim() : '';
+    // Use domain as initial title (will be updated async)
+    const containerId = 'link-preview-' + Math.random().toString(36).substr(2, 9);
+    
+    // Fetch preview asynchronously and update
+    fetchLinkPreview(url).then(preview => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const titleLink = container.querySelector('.link-preview-title a');
+            if (titleLink && preview.title) {
+                titleLink.textContent = preview.title;
+            }
+            const siteElement = container.querySelector('.link-preview-site');
+            if (siteElement && preview.site_name) {
+                siteElement.textContent = preview.site_name;
+            }
+        }
+    });
 
     return `
-        <div class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
+        <div id="${containerId}" class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
              onclick="event.stopPropagation(); window.open('${escapeHtml(url)}', '_blank')" 
              onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
              onmouseout="this.style.boxShadow='none'">
@@ -255,15 +319,12 @@ function createLinkPreview(url, domain, description) {
                 </svg>
             </div>
             <div style="flex: 1; padding: 12px; padding-left: 0; min-width: 0;">
-                <div style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                    ${escapeHtml(title)}
+                <div class="link-preview-title" style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #1877f2; text-decoration: none;" onclick="event.stopPropagation();">
+                        ${escapeHtml(domain)}
+                    </a>
                 </div>
-                ${fullDescription ? `
-                    <div style="font-size: 0.9em; color: #666; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                        ${escapeHtml(fullDescription.substring(0, 150))}${fullDescription.length > 150 ? '...' : ''}
-                    </div>
-                ` : ''}
-                <div style="font-size: 0.85em; color: #999; margin-top: 4px;">
+                <div class="link-preview-site" style="font-size: 0.85em; color: #999; margin-top: 4px;">
                     ${escapeHtml(domain)}
                 </div>
             </div>
@@ -337,19 +398,33 @@ function updateCommentInputAvatar() {
 
 function initMentionHandlers() {
     // Use event delegation for dynamically created textareas
+    // Remove existing listeners first to avoid duplicates
+    document.removeEventListener('input', handleMentionInput);
+    document.removeEventListener('keydown', handleMentionKeydown);
+    document.removeEventListener('click', handleMentionClickOutside);
+    
+    // Add event listeners
     document.addEventListener('input', handleMentionInput);
     document.addEventListener('keydown', handleMentionKeydown);
     document.addEventListener('click', handleMentionClickOutside);
+    
+    console.log('Mention handlers initialized');
 }
 
 function handleMentionInput(event) {
     const textarea = event.target;
-    if (!textarea || !textarea.classList.contains('comment-input')) {
+    
+    // Check if it's a textarea with comment-input class
+    if (!textarea || textarea.tagName !== 'TEXTAREA' || !textarea.classList.contains('comment-input')) {
+        // If mention is active but focus moved away, hide it
+        if (mentionState.isActive && mentionState.currentTextarea && mentionState.currentTextarea !== textarea) {
+            hideMentionDropdown();
+        }
         return;
     }
 
     const value = textarea.value;
-    const cursorPos = textarea.selectionStart;
+    const cursorPos = textarea.selectionStart || 0;
 
     // Find @ symbol before cursor
     const textBeforeCursor = value.substring(0, cursorPos);
@@ -383,10 +458,22 @@ function handleMentionInput(event) {
     mentionState.currentTextarea = textarea;
     mentionState.selectedIndex = -1;
 
+    console.log('Mention detected, loading users for search:', textAfterAt);
+    // Always load users when @ is detected
     loadMentionableUsers(textAfterAt);
 }
 
 function handleMentionKeydown(event) {
+    // Check if the event target is a comment input textarea
+    const textarea = event.target;
+    if (!textarea || !textarea.classList.contains('comment-input')) {
+        // If mention is active but focus moved away, hide it
+        if (mentionState.isActive && mentionState.currentTextarea !== textarea) {
+            hideMentionDropdown();
+        }
+        return;
+    }
+
     if (!mentionState.isActive || !mentionState.currentTextarea) {
         return;
     }
@@ -456,16 +543,26 @@ async function loadMentionableUsers(search = '') {
 
         if (data.status === 200) {
             mentionState.users = data.data.users || [];
+            // Always show dropdown when mention is active, even if no users found
+            showMentionDropdown();
+        } else {
+            // Still show dropdown with empty state
+            mentionState.users = [];
             showMentionDropdown();
         }
     } catch (error) {
         console.error('Error loading mentionable users:', error);
-        hideMentionDropdown();
+        // Show dropdown with error state
+        mentionState.users = [];
+        showMentionDropdown();
     }
 }
 
 function showMentionDropdown() {
-    if (!mentionState.currentTextarea) return;
+    if (!mentionState.currentTextarea) {
+        console.log('Cannot show mention dropdown: no current textarea');
+        return;
+    }
 
     let dropdown = document.getElementById('mentionDropdown');
     if (!dropdown) {
@@ -484,10 +581,15 @@ function showMentionDropdown() {
     dropdown.style.maxHeight = '200px';
     dropdown.style.overflowY = 'auto';
     dropdown.style.zIndex = '10000';
+    dropdown.style.display = 'block';
+    dropdown.style.background = 'white';
+    dropdown.style.border = '1px solid #e4e6eb';
+    dropdown.style.borderRadius = '8px';
+    dropdown.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
 
     // Render users
     if (mentionState.users.length === 0) {
-        dropdown.innerHTML = '<div class="mention-item" style="padding: 8px 12px; color: #65676b;">No users found</div>';
+        dropdown.innerHTML = '<div class="mention-item" style="padding: 8px 12px; color: #65676b;">No users found. Start typing to search.</div>';
     } else {
         dropdown.innerHTML = mentionState.users.map((user, index) => `
             <div class="mention-item ${index === mentionState.selectedIndex ? 'selected' : ''}" 
@@ -501,14 +603,14 @@ function showMentionDropdown() {
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: 600; font-size: 14px; color: #050505;">${escapeHtml(user.full_name)}</div>
-                    <div style="font-size: 12px; color: #65676b;">@${escapeHtml(user.username)}${user.is_friend ? ' • Friend' : ''}</div>
+                    <div style="font-size: 12px; color: #65676b;">@${escapeHtml(user.username)}${user.is_dm_contact ? ' • DM Contact' : ''}</div>
                 </div>
             </div>
         `).join('');
     }
 
-    dropdown.style.display = 'block';
     updateMentionSelection();
+    console.log('Mention dropdown shown with', mentionState.users.length, 'users');
 }
 
 function updateMentionSelection() {
@@ -687,15 +789,6 @@ function renderPostDetail(post) {
     container.innerHTML = `
         <!-- Post Card -->
         <div class="post-detail-card">
-            <div class="post-vote-section">
-                <button class="vote-btn like ${post.user_reacted ? 'active' : ''}" onclick="toggleReaction(${post.id})">
-                    <i class="${post.user_reacted ? 'fas' : 'far'} fa-heart"></i>
-                </button>
-                <div class="vote-count">${post.reaction_count || 0}</div>
-                <button class="vote-btn" style="display: none;">
-                    <i class="fas fa-heart"></i>
-                </button>
-            </div>
             <div class="post-content-section">
                 <div class="post-detail-header">
                     <div class="post-detail-header-left">
@@ -1488,9 +1581,33 @@ async function submitComment(event) {
 
         if (data.status === 200) {
             document.getElementById('commentInput').value = '';
+            
+            // Update post reply count
+            if (postState.post) {
+                postState.post.reply_count = (postState.post.reply_count || 0) + 1;
+                // Update the comment count display
+                const commentCountElement = document.querySelector('.comments-header span');
+                if (commentCountElement) {
+                    commentCountElement.textContent = `${postState.post.reply_count} Comments`;
+                }
+            }
+            
+            // Preserve expanded replies state before reloading
+            const currentExpanded = Array.from(expandedReplies);
+            
             // Reload comments to show the new comment
             commentState.offset = 0;
             await loadComments(postState.postId, true);
+            
+            // Restore expanded replies state after reloading
+            currentExpanded.forEach(id => {
+                expandedReplies.add(id);
+            });
+            
+            // Re-render comments to show expanded state
+            if (currentExpanded.length > 0) {
+                renderComments(commentState.comments);
+            }
         } else {
             alert(data.message || 'Failed to post comment');
         }
@@ -1531,9 +1648,35 @@ async function submitReply(commentId, postId) {
         if (data.status === 200) {
             replyInput.value = '';
             toggleReplyForm(commentId); // Hide the form
+            
+            // Update post reply count
+            if (postState.post) {
+                postState.post.reply_count = (postState.post.reply_count || 0) + 1;
+                // Update the comment count display
+                const commentCountElement = document.querySelector('.comments-header span');
+                if (commentCountElement) {
+                    commentCountElement.textContent = `${postState.post.reply_count} Comments`;
+                }
+            }
+            
+            // Preserve expanded replies state before reloading
+            const currentExpanded = Array.from(expandedReplies);
+            // Make sure the parent comment is expanded so we can see the new reply
+            if (!currentExpanded.includes(commentId)) {
+                currentExpanded.push(commentId);
+            }
+            
             // Reload comments to show the new reply
             commentState.offset = 0;
             await loadComments(postId, true);
+            
+            // Restore expanded replies state after reloading
+            currentExpanded.forEach(id => {
+                expandedReplies.add(id);
+            });
+            
+            // Re-render comments to show expanded state
+            renderComments(commentState.comments);
         } else {
             alert(data.message || 'Failed to post reply');
         }
@@ -2141,13 +2284,10 @@ async function shareToConversation(conversationId, conversationType) {
     const forumName = modal.querySelector('.share-post-forum')?.textContent || '';
     const postUrl = `${window.location.origin}/forum/post/${postId}`;
 
-    // Create a preview message with post details
-    const previewMessage = `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}\n\n${postUrl}`;
-
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-        // Send the message with post preview
+        // Send the message with shared_post type - post_id stored in attachment_url
         const response = await fetch('/api/messaging/send', {
             method: 'POST',
             headers: {
@@ -2159,8 +2299,10 @@ async function shareToConversation(conversationId, conversationType) {
             credentials: 'include',
             body: JSON.stringify({
                 conversation_id: parseInt(conversationId),
-                content: previewMessage,
-                message_type: 'text'
+                content: `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}`,
+                message_type: 'shared_post',
+                attachment_url: postId.toString(), // Store post_id in attachment_url
+                attachment_name: postUrl // Store post URL in attachment_name for fallback
             })
         });
 

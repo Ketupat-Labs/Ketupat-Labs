@@ -168,6 +168,17 @@ class ClassroomController extends Controller
             'enrolled_at' => now(),
         ]);
 
+        // Create notification for student enrollment
+        \App\Models\Notification::create([
+            'user_id' => $student->id,
+            'type' => 'class_enrollment',
+            'title' => 'Anda Telah Ditambah ke Kelas',
+            'message' => 'Anda telah ditambah ke kelas "' . $classroom->name . '" oleh ' . $user->full_name,
+            'related_type' => 'classroom',
+            'related_id' => $classroom->id,
+            'is_read' => false,
+        ]);
+
         // Add student to forum if forum exists for this classroom
         $forum = \App\Models\Forum::where('class_id', $classroom->id)->first();
         if ($forum) {
