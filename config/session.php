@@ -7,6 +7,7 @@ return [
     'lifetime' => env('SESSION_LIFETIME', 120),
     'expire_on_close' => false,
     'encrypt' => env('SESSION_ENCRYPT', false),
+<<<<<<< HEAD
     'files' => storage_path('framework/sessions'),
     'connection' => env('SESSION_CONNECTION'),
     'table' => env('SESSION_TABLE', 'sessions'),
@@ -21,3 +22,6 @@ return [
     'partitioned' => env('SESSION_PARTITIONED_COOKIE', false),
 ];
 
+=======
+    'files' => storage_
+>>>>>>> 6d44d3eac56b827c0904d252e11f4532a06f0633
