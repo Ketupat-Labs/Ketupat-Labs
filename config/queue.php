@@ -38,7 +38,6 @@ return [
         'database' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),
-<<<<<<< HEAD
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
             'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
@@ -52,10 +51,6 @@ return [
             'retry_after' => (int) env('BEANSTALKD_QUEUE_RETRY_AFTER', 90),
             'block_for' => 0,
             'after_commit' => false,
-=======
-            't
-
->>>>>>> 6d44d3eac56b827c0904d252e11f4532a06f0633
         ],
 
         'sqs' => [

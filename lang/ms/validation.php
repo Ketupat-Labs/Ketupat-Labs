@@ -11,7 +11,6 @@ return [
     'active_url' => ':attribute bukan URL yang sah.',
     'after' => ':attribute mesti tarikh selepas :date.',
     'after_or_equal' => ':attribute mesti tarikh selepas atau sama dengan :date.',
-<<<<<<< HEAD
     'alpha' => ':attribute hanya boleh mengandungi huruf.',
     'alpha_dash' => ':attribute hanya boleh mengandungi huruf, nombor, sengkang dan garis bawah.',
     'alpha_num' => ':attribute hanya boleh mengandungi huruf dan nombor.',
@@ -28,9 +27,6 @@ return [
     'confirmed' => 'Pengesahan :attribute tidak sepadan.',
     'date' => ':attribute bukan tarikh yang sah.',
     'date_equals' => ':attribute mesti tarikh sama dengan :date.',
-=======
-    'alpha' => ':attributeengan :date.',
->>>>>>> 6d44d3eac56b827c0904d252e11f4532a06f0633
     'date_format' => ':attribute tidak sepadan dengan format :format.',
     'different' => ':attribute dan :other mesti berbeza.',
     'digits' => ':attribute mesti :digits digit.',

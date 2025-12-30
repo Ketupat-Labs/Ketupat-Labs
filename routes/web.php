@@ -13,7 +13,6 @@ Route::get('/favicon.ico', function () {
 // PHP Settings diagnostic route
 Route::get('/php-settings', function () {
     return response()->json([
-<<<<<<< HEAD
         'upload_max_filesize' => ini_get('upload_max_filesize'),
         'post_max_size' => ini_get('post_max_size'),
         'max_file_uploads' => ini_get('max_file_uploads'),
@@ -27,9 +26,6 @@ Route::get('/php-settings', function () {
                     $last = strtolower($val[strlen($val)-1]);
                     $val = (int)$val;
                     switch($last) {
-=======
-        'upload_max_filesize'
->>>>>>> 6d44d3eac56b827c0904d252e11f4532a06f0633
                         case 'g': $val *= 1024;
                         case 'm': $val *= 1024;
                         case 'k': $val *= 1024;
@@ -61,7 +57,6 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-<<<<<<< HEAD
 Route::get('/register', function () {
     return view('auth.login'); // Same page with registration form
 })->name('register');
@@ -71,8 +66,6 @@ Route::get('/reset-password/{token}', function ($token) {
     return view('auth.reset-password', ['token' => $token]);
 })->name('password.reset');
 
-=======
->>>>>>> 6d44d3eac56b827c0904d252e11f4532a06f0633
 // Broadcasting authentication routes for WebSocket
 // Note: Broadcast routes need 'web' middleware for session and CSRF, 
 // and 'auth' middleware to get the authenticated user for channel authorization
