@@ -15,20 +15,24 @@
                             <i class="fas fa-file-upload text-purple-600 text-xl mr-3"></i>
                             <h3 class="text-lg font-semibold text-gray-900">{{ __('Upload Document (Optional)') }}</h3>
                         </div>
-                        <p class="text-sm text-gray-600 mb-3">{{ __('Upload a document (PDF, DOCX, TXT) and AI will read it to generate slides based on its content.') }}</p>
-                        
+                        <p class="text-sm text-gray-600 mb-3">{{ __('Upload a TXT document and AI will read it to generate slides based on its content.') }}</p>
+                        <p class="text-xs text-orange-600 mb-3">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            <strong>Note:</strong> TXT, PDF, and DOCX are supported. PDF/DOCX must contain selectable text (not scanned images). TXT is still the most reliable.
+                        </p>
+
                         <div class="flex items-center space-x-3">
                             <label for="document-upload" class="cursor-pointer inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                                 <i class="fas fa-cloud-upload-alt mr-2"></i>
                                 {{ __('Choose File') }}
                             </label>
-                            <input type="file" id="document-upload" name="document" accept=".pdf,.docx,.doc,.txt" class="hidden" multiple>
+                            <input type="file" id="document-upload" name="document" accept=".txt,.pdf,.docx,.doc" class="hidden" multiple>
                             <span id="file-name" class="text-sm text-gray-600 italic">{{ __('No file chosen') }}</span>
                             <button type="button" id="clear-file" class="hidden text-red-600 hover:text-red-700">
                                 <i class="fas fa-times-circle"></i>
                             </button>
                         </div>
-                        
+
                         <div id="document-preview" class="hidden mt-3 p-3 bg-white rounded border border-purple-200">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-2">
@@ -42,7 +46,7 @@
                             </div>
                             <div id="file-list" class="mt-2 space-y-1"></div>
                         </div>
-                        
+
                         <div class="mt-3 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
                             <p class="text-xs text-blue-800">
                                 <i class="fas fa-info-circle mr-1"></i>
@@ -99,9 +103,17 @@
                     <div id="slides-result" class="hidden mt-8">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold text-gray-900">{{ __('Generated Slides') }}</h3>
-                            <button onclick="exportSlides()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                <i class="fas fa-download mr-2"></i>{{ __('Export') }}
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <select id="export-format" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="pdf">PDF (Print)</option>
+                                    <option value="pptx">PPTX</option>
+                                    <option value="docx">DOCX</option>
+                                    <option value="txt">TXT</option>
+                                </select>
+                                <button type="button" onclick="exportSlides()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                    <i class="fas fa-download mr-2"></i>{{ __('Export') }}
+                                </button>
+                            </div>
                         </div>
                         <div id="slides-container" class="space-y-4"></div>
                     </div>
@@ -119,7 +131,7 @@
         const previewFileName = document.getElementById('preview-file-name');
         const previewFileSize = document.getElementById('preview-file-size');
         const topicInput = document.getElementById('topic');
-        
+
         documentUpload.addEventListener('change', function(e) {
             const files = Array.from(e.target.files);
             if (files.length > 0) {
@@ -130,7 +142,7 @@
                     e.target.value = '';
                     return;
                 }
-                
+
                 // Check file types
                 const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
                 for (const file of files) {
@@ -140,12 +152,12 @@
                         return;
                     }
                 }
-                
+
                 // Display file info
                 fileName.textContent = files.length + ' file(s) selected';
                 clearFileBtn.classList.remove('hidden');
                 documentPreview.classList.remove('hidden');
-                
+
                 // Show file list
                 const fileListDiv = document.getElementById('file-list');
                 fileListDiv.innerHTML = '';
@@ -158,13 +170,13 @@
                     `;
                     fileListDiv.appendChild(fileItem);
                 });
-                
+
                 // Make topic optional when document is uploaded
                 topicInput.required = false;
                 topicInput.placeholder = '{{ __('Optional - AI will extract from document') }}';
             }
         });
-        
+
         clearFileBtn.addEventListener('click', function() {
             documentUpload.value = '';
             fileName.textContent = '{{ __('No file chosen') }}';
@@ -174,32 +186,32 @@
             topicInput.required = true;
             topicInput.placeholder = '{{ __('e.g., Introduction to Machine Learning (or leave empty if uploading document)') }}';
         });
-        
+
         document.getElementById('slide-generator-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const form = e.target;
             const generateBtn = document.getElementById('generate-btn');
             const generateBtnText = document.getElementById('generate-btn-text');
             const generateBtnLoading = document.getElementById('generate-btn-loading');
             const resultDiv = document.getElementById('slides-result');
             const container = document.getElementById('slides-container');
-            
+
             // Show loading state
             generateBtn.disabled = true;
             generateBtnText.classList.add('hidden');
             generateBtnLoading.classList.remove('hidden');
             resultDiv.classList.add('hidden');
-            
+
             try {
                 const formData = new FormData(form);
-                
+
                 // Add document file if uploaded
                 const documentFile = documentUpload.files[0];
                 if (documentFile) {
                     formData.append('document', documentFile);
                 }
-                
+
                 const response = await fetch('/api/ai-generator/slides', {
                     method: 'POST',
                     headers: {
@@ -209,10 +221,11 @@
                     credentials: 'include',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 200 && data.data && data.data.slides) {
+                    window.lastGeneratedSlides = data.data.slides;
                     displaySlides(data.data.slides);
                     resultDiv.classList.remove('hidden');
                 } else {
@@ -227,11 +240,11 @@
                 generateBtnLoading.classList.add('hidden');
             }
         });
-        
+
         function displaySlides(slides) {
             const container = document.getElementById('slides-container');
             container.innerHTML = '';
-            
+
             slides.forEach((slide, index) => {
                 const slideDiv = document.createElement('div');
                 slideDiv.className = 'bg-gray-50 rounded-lg p-6 border border-gray-200';
@@ -242,7 +255,7 @@
                     </div>
                     <div class="mb-3">
                         <ul class="list-disc list-inside space-y-1 text-gray-700">
-                            ${Array.isArray(slide.content) 
+                            ${Array.isArray(slide.content)
                                 ? slide.content.map(point => `<li>${escapeHtml(point)}</li>`).join('')
                                 : `<li>${escapeHtml(slide.content || '{{ __('No content') }}')}</li>`}
                         </ul>
@@ -252,9 +265,10 @@
                 container.appendChild(slideDiv);
             });
         }
-        
-        function exportSlides() {
-            const slides = Array.from(document.querySelectorAll('#slides-container > div')).map(div => {
+
+        async function exportSlides() {
+            // Prefer the original slide JSON from the last generation if available
+            const slides = window.lastGeneratedSlides || Array.from(document.querySelectorAll('#slides-container > div')).map(div => {
                 // Extract title by removing "Slide X: " prefix (works in both languages)
                 const titleText = div.querySelector('h4').textContent;
                 const title = titleText.replace(/^[^:]+: /, '');
@@ -262,17 +276,54 @@
                 const summary = div.querySelector('p.italic')?.textContent || '';
                 return { title, content, summary };
             });
-            
-            const dataStr = JSON.stringify(slides, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'slides.json';
-            link.click();
-            URL.revokeObjectURL(url);
+
+            const format = document.getElementById('export-format').value;
+            const topic = document.getElementById('topic').value || 'slides';
+
+            try {
+                const response = await fetch('/api/ai-generator/slides/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ slides, topic, format })
+                });
+
+                if (!response.ok) {
+                    // Try to parse JSON error
+                    let msg = '{{ __('Failed to export slides') }}';
+                    try {
+                        const err = await response.json();
+                        msg = err.message || msg;
+                    } catch (e) {
+                        // ignore
+                    }
+                    alert(msg);
+                    return;
+                }
+
+                const blob = await response.blob();
+                const contentDisposition = response.headers.get('Content-Disposition') || '';
+                const fileNameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+                const fileName = fileNameMatch ? fileNameMatch[1] : `slides.${format}`;
+
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('{{ __('An error occurred while exporting slides') }}');
+            }
         }
-        
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;

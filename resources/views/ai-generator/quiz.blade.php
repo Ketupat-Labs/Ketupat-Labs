@@ -15,20 +15,29 @@
                             <i class="fas fa-file-upload text-purple-600 text-xl mr-3"></i>
                             <h3 class="text-lg font-semibold text-gray-900">{{ __('Upload Document (Optional)') }}</h3>
                         </div>
-                        <p class="text-sm text-gray-600 mb-3">{{ __('Upload a document (PDF, DOCX, TXT) and AI will read it to generate quiz questions based on its content.') }}</p>
-                        
+
+                        <!-- Warning about TXT only -->
+                        <div class="mb-3 p-3 bg-orange-100 border-l-4 border-orange-500 text-orange-700">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <span class="text-sm font-medium">{{ __('TXT, PDF, and DOCX are supported. PDF/DOCX must contain selectable text (no scanned images). TXT is still the most reliable.') }}</span>
+                            </div>
+                        </div>
+
+                        <p class="text-sm text-gray-600 mb-3">{{ __('Upload a TXT/PDF/DOCX document with readable text and AI will generate quiz questions based on its content.') }}</p>
+
                         <div class="flex items-center space-x-3">
                             <label for="document-upload-quiz" class="cursor-pointer inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                                 <i class="fas fa-cloud-upload-alt mr-2"></i>
                                 {{ __('Choose File') }}
                             </label>
-                            <input type="file" id="document-upload-quiz" name="document" accept=".pdf,.docx,.doc,.txt" class="hidden">
+                            <input type="file" id="document-upload-quiz" name="document" accept=".txt,.pdf,.docx,.doc" class="hidden">
                             <span id="file-name-quiz" class="text-sm text-gray-600 italic">{{ __('No file chosen') }}</span>
                             <button type="button" id="clear-file-quiz" class="hidden text-red-600 hover:text-red-700">
                                 <i class="fas fa-times-circle"></i>
                             </button>
                         </div>
-                        
+
                         <div id="document-preview-quiz" class="hidden mt-3 p-3 bg-white rounded border border-purple-200">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-2">
@@ -103,9 +112,17 @@
                     <div id="quiz-result" class="hidden mt-8">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold text-gray-900">{{ __('Generated Quiz') }}</h3>
-                            <button onclick="exportQuiz()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                <i class="fas fa-download mr-2"></i>{{ __('Export') }}
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <select id="quiz-export-format" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                    <option value="txt">TXT</option>
+                                    <option value="docx">DOCX</option>
+                                    <option value="pdf">PDF (Print)</option>
+                                    <option value="pptx">PPTX</option>
+                                </select>
+                                <button onclick="exportQuiz()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                    <i class="fas fa-download mr-2"></i>{{ __('Export') }}
+                                </button>
+                            </div>
                         </div>
                         <div id="quiz-container" class="space-y-6"></div>
                     </div>
@@ -123,7 +140,7 @@
         const previewFileNameQuiz = document.getElementById('preview-file-name-quiz');
         const previewFileSizeQuiz = document.getElementById('preview-file-size-quiz');
         const topicInputQuiz = document.getElementById('topic');
-        
+
         documentUploadQuiz.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -133,7 +150,7 @@
                     e.target.value = '';
                     return;
                 }
-                
+
                 // Check file type
                 const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
                 if (!allowedTypes.includes(file.type)) {
@@ -141,19 +158,19 @@
                     e.target.value = '';
                     return;
                 }
-                
+
                 fileNameQuiz.textContent = file.name;
                 clearFileBtnQuiz.classList.remove('hidden');
                 documentPreviewQuiz.classList.remove('hidden');
                 previewFileNameQuiz.textContent = file.name;
                 previewFileSizeQuiz.textContent = `(${(file.size / 1024).toFixed(2)} KB)`;
-                
+
                 // Make topic optional when document is uploaded
                 topicInputQuiz.required = false;
                 topicInputQuiz.placeholder = '{{ __('Optional - AI will extract from document') }}';
             }
         });
-        
+
         clearFileBtnQuiz.addEventListener('click', function() {
             documentUploadQuiz.value = '';
             fileNameQuiz.textContent = '{{ __('No file chosen') }}';
@@ -162,32 +179,32 @@
             topicInputQuiz.required = true;
             topicInputQuiz.placeholder = '{{ __('e.g., Python Programming Basics (or leave empty if uploading document)') }}';
         });
-        
+
         document.getElementById('quiz-generator-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const form = e.target;
             const generateBtn = document.getElementById('generate-btn');
             const generateBtnText = document.getElementById('generate-btn-text');
             const generateBtnLoading = document.getElementById('generate-btn-loading');
             const resultDiv = document.getElementById('quiz-result');
             const container = document.getElementById('quiz-container');
-            
+
             // Show loading state
             generateBtn.disabled = true;
             generateBtnText.classList.add('hidden');
             generateBtnLoading.classList.remove('hidden');
             resultDiv.classList.add('hidden');
-            
+
             try {
                 const formData = new FormData(form);
-                
+
                 // Add document file if uploaded
                 const documentFile = documentUploadQuiz.files[0];
                 if (documentFile) {
                     formData.append('document', documentFile);
                 }
-                
+
                 const response = await fetch('/api/ai-generator/quiz', {
                     method: 'POST',
                     headers: {
@@ -197,11 +214,12 @@
                     credentials: 'include',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 200 && data.data && data.data.quiz) {
                     displayQuiz(data.data.quiz);
+                    window.lastGeneratedQuiz = data.data.quiz;
                     resultDiv.classList.remove('hidden');
                 } else {
                     alert(data.message || '{{ __('Failed to generate quiz') }}');
@@ -215,16 +233,16 @@
                 generateBtnLoading.classList.add('hidden');
             }
         });
-        
+
         function displayQuiz(questions) {
             const container = document.getElementById('quiz-container');
             container.innerHTML = '';
-            
+
             questions.forEach((question, index) => {
                 const questionDiv = document.createElement('div');
                 questionDiv.className = 'bg-gray-50 rounded-lg p-6 border border-gray-200';
-                
-                const optionsHtml = Array.isArray(question.options) 
+
+                const optionsHtml = Array.isArray(question.options)
                     ? question.options.map((option, optIndex) => {
                         const isCorrect = optIndex === question.correct_answer;
                         return `
@@ -236,7 +254,7 @@
                         `;
                     }).join('')
                     : '<p class="text-gray-500">{{ __('No options available') }}</p>';
-                
+
                 questionDiv.innerHTML = `
                     <div class="flex items-start justify-between mb-3">
                         <h4 class="text-lg font-semibold text-gray-900">{{ __('Question') }} ${index + 1}</h4>
@@ -255,30 +273,60 @@
                 container.appendChild(questionDiv);
             });
         }
-        
-        function exportQuiz() {
-            const questions = Array.from(document.querySelectorAll('#quiz-container > div')).map(div => {
-                const question = div.querySelector('p.font-medium').textContent;
-                const options = Array.from(div.querySelectorAll('.flex.items-center')).map(opt => {
-                    return opt.querySelector('span.flex-1').textContent.trim();
+
+        async function exportQuiz() {
+            const quiz = window.lastGeneratedQuiz;
+            if (!quiz || !Array.isArray(quiz) || quiz.length === 0) {
+                alert('{{ __('Please generate a quiz first before exporting.') }}');
+                return;
+            }
+
+            const format = document.getElementById('quiz-export-format')?.value || 'txt';
+            const topic = document.getElementById('topic')?.value || 'quiz';
+
+            try {
+                const response = await fetch('/api/ai-generator/quiz/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/octet-stream',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ quiz, topic, format })
                 });
-                const correctAnswer = Array.from(div.querySelectorAll('.flex.items-center')).findIndex(opt => 
-                    opt.classList.contains('bg-green-100')
-                );
-                const explanation = div.querySelector('.bg-blue-50 p')?.textContent.replace('{{ __('Explanation') }}:', '').trim() || '';
-                return { question, options, correct_answer: correctAnswer, explanation };
-            });
-            
-            const dataStr = JSON.stringify(questions, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'quiz.json';
-            link.click();
-            URL.revokeObjectURL(url);
+
+                if (!response.ok) {
+                    let message = '{{ __('Failed to export quiz') }}';
+                    try {
+                        const err = await response.json();
+                        message = err.message || message;
+                    } catch (e) {
+                        // ignore
+                    }
+                    alert(message);
+                    return;
+                }
+
+                const contentDisposition = response.headers.get('Content-Disposition') || '';
+                const match = contentDisposition.match(/filename="?([^";]+)"?/i);
+                const fileName = match ? match[1] : `quiz.${format}`;
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('{{ __('An error occurred while exporting quiz') }}');
+            }
         }
-        
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;

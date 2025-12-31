@@ -26,28 +26,28 @@ Route::middleware('auth:web')->group(function () {
     // Auth routes
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
-    
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-    
+
     // Upload route
     Route::post('/upload', [UploadController::class, 'upload']);
-    
+
     // Forum routes - specific routes must come before parameterized routes
     Route::prefix('forum')->group(function () {
         Route::post('/', [ForumController::class, 'createForum']);
         Route::get('/', [ForumController::class, 'getForums']);
         Route::get('/categories', [ForumController::class, 'getCategories']);
         Route::get('/tags', [ForumController::class, 'getAllTags']);
-        
+
         // Post routes - must come before /{id} route
         Route::post('/post', [ForumController::class, 'createPost']);
         Route::get('/post', [ForumController::class, 'getPosts']);
         Route::get('/post/{postId}/comments', [ForumController::class, 'getComments']);
         Route::put('/post/{id}', [ForumController::class, 'editPost']);
         Route::delete('/post/{id}', [ForumController::class, 'deletePost']);
-        
+
         // Comment and other routes
         Route::post('/comment', [ForumController::class, 'createComment']);
         Route::put('/comment/{id}', [ForumController::class, 'editComment']);
@@ -60,25 +60,25 @@ Route::middleware('auth:web')->group(function () {
         Route::post('/leave', [ForumController::class, 'leaveForum']);
         Route::post('/{id}/mute', [ForumController::class, 'muteForum']);
         Route::post('/{id}/unmute', [ForumController::class, 'unmuteForum']);
-        
+
         // Report routes
         Route::post('/post/report', [ForumController::class, 'reportPost']);
         Route::get('/post/{postId}/reports', [ForumController::class, 'getPostReports']);
         Route::post('/post/{id}/hide', [ForumController::class, 'hidePost']);
         Route::get('/{forumId}/reports', [ForumController::class, 'getForumReports']);
         Route::put('/report/{reportId}/status', [ForumController::class, 'updateReportStatus']);
-        
+
         // Forum management routes - must come before /{id} route
         Route::get('/{id}/members', [ForumController::class, 'getForumMembers']);
         Route::post('/{id}/members/promote', [ForumController::class, 'promoteMemberToAdmin']);
         Route::delete('/{id}/members', [ForumController::class, 'removeMember']);
         Route::put('/{id}', [ForumController::class, 'updateForum']);
         Route::delete('/{id}', [ForumController::class, 'deleteForum']);
-        
+
         // This must be last to avoid catching other routes
         Route::get('/{id}', [ForumController::class, 'getForum']);
     });
-    
+
     // Messaging routes
     Route::prefix('messaging')->group(function () {
         Route::post('/send', [MessagingController::class, 'sendMessage']);
@@ -98,7 +98,7 @@ Route::middleware('auth:web')->group(function () {
         Route::delete('/conversation/{conversationId}/messages', [MessagingController::class, 'clearAllMessages']);
         Route::get('/available-users', [MessagingController::class, 'getAvailableUsers']);
     });
-    
+
     // Notification routes
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
@@ -108,16 +108,16 @@ Route::middleware('auth:web')->group(function () {
         Route::delete('/{id}', [NotificationController::class, 'destroy']);
         Route::delete('/', [NotificationController::class, 'clearAll']);
     });
-    
-    
+
+
     // Mention routes
     Route::prefix('mentions')->group(function () {
         Route::get('/users', [\App\Http\Controllers\ForumController::class, 'getMentionableUsers']);
     });
-    
+
     // User search route
     Route::get('/user/search', [\App\Http\Controllers\ForumController::class, 'searchUserByUsername']);
-    
+
     // Follow routes
     // IMPORTANT: Specific routes (like /me/following) must come BEFORE parameterized routes (/{userId}/following)
     Route::prefix('profile')->group(function () {
@@ -127,23 +127,25 @@ Route::middleware('auth:web')->group(function () {
         Route::get('/{userId}/following', [\App\Http\Controllers\ProfileController::class, 'getFollowing']);
         Route::get('/{userId}/followers', [\App\Http\Controllers\ProfileController::class, 'getFollowers']);
     });
-    
+
     // Classroom routes
     Route::get('/classrooms', [\App\Http\Controllers\ClassroomController::class, 'index']);
     Route::post('/classroom/{classroom}/create-forum', [\App\Http\Controllers\ClassroomController::class, 'createForum']);
-    
-    
+
+
     // Chatbot routes
     Route::prefix('chatbot')->group(function () {
         Route::post('/chat', [ChatbotController::class, 'chat']);
     });
-    
+
     // AI Generator routes (Legacy)
     Route::prefix('ai-generator')->group(function () {
         Route::post('/slides', [\App\Http\Controllers\AIGeneratorController::class, 'generateSlides']);
         Route::post('/quiz', [\App\Http\Controllers\AIGeneratorController::class, 'generateQuiz']);
+            Route::post('/slides/export', [\App\Http\Controllers\AIGeneratorController::class, 'exportSlides']);
+            Route::post('/quiz/export', [\App\Http\Controllers\AIGeneratorController::class, 'exportQuiz']);
     });
-    
+
     // AI Content routes (New Document Analyzer)
     Route::prefix('ai-content')->group(function () {
         Route::post('/analyze', [\App\Http\Controllers\AiContentController::class, 'analyze']);
@@ -152,7 +154,7 @@ Route::middleware('auth:web')->group(function () {
         Route::put('/{id}', [\App\Http\Controllers\AiContentController::class, 'update']);
         Route::delete('/{id}', [\App\Http\Controllers\AiContentController::class, 'destroy']);
     });
-    
+
     // Lesson block editor routes
     Route::prefix('lessons')->group(function () {
         Route::post('/upload-image', [\App\Http\Controllers\LessonController::class, 'uploadImage']);
