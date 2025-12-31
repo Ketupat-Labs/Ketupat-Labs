@@ -222,7 +222,10 @@
                                                 {{ strtoupper(substr($student->full_name, 0, 1)) }}
                                             @endif
                                         </div>
-                                        <span class="text-sm text-gray-700 font-medium hover:text-[#5FAD56] transition-colors">{{ $student->full_name }}</span>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm text-gray-700 font-medium hover:text-[#5FAD56] transition-colors line-clamp-1">{{ $student->full_name }}</span>
+                                            <span class="text-xs text-gray-400 line-clamp-1">{{ $student->email }}</span>
+                                        </div>
                                     </a>
                                     @if($user->role === 'teacher')
                                         <form method="POST"
