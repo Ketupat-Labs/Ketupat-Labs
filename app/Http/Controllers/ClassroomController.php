@@ -201,68 +201,80 @@ class ClassroomController extends Controller
             abort(403);
 
         $validated = $request->validate([
-            'student_id' => ['required', 'exists:user,id'],
+            'student_ids' => ['required', 'array'],
+            'student_ids.*' => ['exists:user,id'],
         ]);
 
-        $student = \App\Models\User::find($validated['student_id']);
+        $addedCount = 0;
+        $errors = [];
 
-        if ($student->role !== 'student') {
-            return back()->with('error', 'User is not a student.');
-        }
+        foreach ($validated['student_ids'] as $studentId) {
+            $student = \App\Models\User::find($studentId);
 
-        if ($classroom->students()->where('user.id', $student->id)->exists()) {
-            return back()->with('error', 'Student is already enrolled.');
-        }
-
-        $classroom->students()->attach($student->id, [
-            'enrolled_at' => now(),
-        ]);
-
-        // Create notification for student enrollment
-        \App\Models\Notification::create([
-            'user_id' => $student->id,
-            'type' => 'class_enrollment',
-            'title' => 'Anda Telah Ditambah ke Kelas',
-            'message' => 'Anda telah ditambah ke kelas "' . $classroom->name . '" oleh ' . $user->full_name,
-            'related_type' => 'classroom',
-            'related_id' => $classroom->id,
-            'is_read' => false,
-        ]);
-
-        // Add student to forum if forum exists for this classroom
-        $forum = \App\Models\Forum::where('class_id', $classroom->id)->first();
-        if ($forum) {
-            // Check if student is already a member
-            if (!$forum->members()->where('user_id', $student->id)->exists()) {
-                $forum->members()->attach($student->id, ['role' => 'member']);
-                // Update member count
-                $forum->member_count = $forum->members()->count();
-                $forum->save();
+            if ($student->role !== 'student') {
+                $errors[] = "User {$student->full_name} is not a student.";
+                continue;
             }
-        }
 
-        // Add student to group chat if it exists for this classroom
-        $groupChat = $classroom->getClassroomGroupChat();
-        if ($groupChat) {
-            // Check if student is already a participant
-            if (!$groupChat->participants()->where('user_id', $student->id)->exists()) {
-                $groupChat->participants()->attach($student->id);
+            if ($classroom->students()->where('user.id', $student->id)->exists()) {
+                // Silently skip if already enrolled, or add to notice
+                continue;
             }
-        }
 
-        // Backfill existing assignments for this student (US002-05 / US006-01)
-        $assignments = $classroom->assignments; // Uses the new relationship
-        foreach ($assignments as $assignment) {
-            \App\Models\Enrollment::firstOrCreate([
-                'user_id' => $student->id,
-                'lesson_id' => $assignment->lesson_id,
-            ], [
-                'status' => 'in_progress',
-                'progress' => 0,
+            $classroom->students()->attach($student->id, [
+                'enrolled_at' => now(),
             ]);
+
+            // Create notification for student enrollment
+            \App\Models\Notification::create([
+                'user_id' => $student->id,
+                'type' => 'class_enrollment',
+                'title' => 'Anda Telah Ditambah ke Kelas',
+                'message' => 'Anda telah ditambah ke kelas "' . $classroom->name . '" oleh ' . $user->full_name,
+                'related_type' => 'classroom',
+                'related_id' => $classroom->id,
+                'is_read' => false,
+            ]);
+
+            // Add student to forum if forum exists for this classroom
+            $forum = \App\Models\Forum::where('class_id', $classroom->id)->first();
+            if ($forum) {
+                if (!$forum->members()->where('user_id', $student->id)->exists()) {
+                    $forum->members()->attach($student->id, ['role' => 'member']);
+                    $forum->member_count = $forum->members()->count();
+                    $forum->save();
+                }
+            }
+
+            // Add student to group chat if it exists for this classroom
+            $groupChat = $classroom->getClassroomGroupChat();
+            if ($groupChat) {
+                if (!$groupChat->participants()->where('user_id', $student->id)->exists()) {
+                    $groupChat->participants()->attach($student->id);
+                }
+            }
+
+            // Backfill existing assignments for this student
+            $assignments = $classroom->assignments;
+            foreach ($assignments as $assignment) {
+                \App\Models\Enrollment::firstOrCreate([
+                    'user_id' => $student->id,
+                    'lesson_id' => $assignment->lesson_id,
+                ], [
+                    'status' => 'in_progress',
+                    'progress' => 0,
+                ]);
+            }
+
+            $addedCount++;
         }
 
-        return back()->with('success', 'Student added and enrolled in existing lessons successfully.');
+        $message = "{$addedCount} pelajar telah berjaya ditambah.";
+        if (!empty($errors)) {
+            $message .= " Namun terdapat ralat: " . implode(', ', $errors);
+        }
+
+        return back()->with('success', $message);
     }
 
     public function removeStudent(Classroom $classroom, $studentId)

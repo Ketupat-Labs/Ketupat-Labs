@@ -21,6 +21,17 @@
                 </div>
             @endif
 
+            @if($errors->any())
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6"
+                    role="alert">
+                    <ul class="list-disc list-inside text-sm">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             {{-- Classroom Banner --}}
             <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8 border border-gray-200">
                 <div class="bg-gradient-to-r from-[#2454FF] to-[#1a3fcc] p-8 text-white">
@@ -112,12 +123,21 @@
                                     <div x-data="{ 
                                             open: false, 
                                             search: '', 
-                                            selectedId: ''
+                                            selectedIds: [],
+                                            toggleStudent(id) {
+                                                if (this.selectedIds.includes(id)) {
+                                                    this.selectedIds = this.selectedIds.filter(i => i !== id);
+                                                } else {
+                                                    this.selectedIds.push(id);
+                                                }
+                                            }
                                         }" 
                                         class="relative flex-1"
                                         @click.away="open = false">
                                         
-                                        <input type="hidden" name="student_id" x-model="selectedId" required>
+                                        <template x-for="id in selectedIds" :key="id">
+                                            <input type="hidden" name="student_ids[]" :value="id">
+                                        </template>
 
                                         <div class="relative">
                                             <input 
@@ -125,8 +145,8 @@
                                                 type="text" 
                                                 x-model="search"
                                                 @focus="open = true"
-                                                @input="open = true; selectedId = ''"
-                                                placeholder="Cari Pelajar..."
+                                                @input="open = true"
+                                                :placeholder="selectedIds.length > 0 ? selectedIds.length + ' Pelajar Terpilih' : 'Cari Pelajar...'"
                                                 class="w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 autocomplete="off"
                                             >
@@ -149,25 +169,23 @@
                                             
                                             <ul class="pt-1">
                                                 @foreach($availableStudents as $student)
-                                                    <li class="cursor-pointer select-none relative py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white group"
+                                                    <li class="cursor-pointer select-none relative py-2 pl-3 pr-9 text-gray-900 hover:bg-slate-50 transition-colors group border-b border-gray-50 last:border-0"
                                                         x-show="'{{ strtolower($student->full_name) }} {{ strtolower($student->email) }}'.includes(search.toLowerCase())"
-                                                        @click="selectedId = '{{ $student->id }}'; search = '{{ $student->full_name }}'; open = false">
-                                                        <div class="flex flex-col">
-                                                            <span class="block truncate font-normal group-hover:font-semibold">
-                                                                {{ $student->full_name }}
-                                                            </span>
-                                                            <span class="block truncate text-gray-500 group-hover:text-indigo-100">
-                                                                {{ $student->email }}
-                                                            </span>
+                                                        @click.stop="toggleStudent('{{ $student->id }}')">
+                                                        <div class="flex items-center space-x-3 w-full">
+                                                            <input type="checkbox" :checked="selectedIds.includes('{{ $student->id }}')" @click.stop="toggleStudent('{{ $student->id }}')" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                                            <div class="flex flex-col flex-1">
+                                                                <span class="block truncate font-medium text-gray-900">
+                                                                    {{ $student->full_name }}
+                                                                </span>
+                                                                <span class="block truncate text-gray-500 text-xs">
+                                                                    {{ $student->email }}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                        <span x-show="selectedId === '{{ $student->id }}'" class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600 group-hover:text-white">
-                                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                                            </svg>
-                                                        </span>
                                                     </li>
                                                 @endforeach
-                                                <li x-show="search !== '' && $el.parentNode.querySelectorAll('li[x-show]:not([style*=\'display: none\'])').length === 0" class="cursor-default select-none relative py-2 pl-3 pr-9 text-gray-500 italic">
+                                                <li x-show="search !== '' && $el.parentNode.querySelectorAll('li[x-show]:not([style*=\'display: none\'])').length === 0" class="cursor-default select-none relative py-2 pl-3 pr-9 text-gray-500 italic text-sm">
                                                     Tiada pelajar dijumpai.
                                                 </li>
                                             </ul>
