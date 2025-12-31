@@ -1,3 +1,25 @@
+<<<<<<< HEAD
+﻿/vendor
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+.env
+.env.production
+.env.backup
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.idea
+/.vscode
+*.sql
+*.sqlite
+.DS_Store
+Thumbs.db
+=======
 ﻿# Laravel
 /vendor
 /node_modules
@@ -36,3 +58,4 @@ Homestead.json
 Homestead.yaml
 .env.backup
 .phpunit.result.cache
+>>>>>>> 6d44d3eac56b827c0904d252e11f4532a06f0633
