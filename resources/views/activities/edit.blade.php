@@ -74,17 +74,29 @@
                             let memoryPairs = [];
                             let quizQuestions = [];
                             
-                            try {
-                                const initialContent = JSON.parse(document.getElementById('content').value || '{}');
-                                if (initialContent.customPairs) {
-                                    memoryPairs = initialContent.customPairs;
+                            // Load existing content when page loads
+                            function loadExistingContent() {
+                                try {
+                                    const contentValue = document.getElementById('content').value;
+                                    if (contentValue && contentValue.trim() !== '') {
+                                        const initialContent = JSON.parse(contentValue);
+                                        if (initialContent.customPairs && Array.isArray(initialContent.customPairs)) {
+                                            memoryPairs = initialContent.customPairs;
+                                        }
+                                        if (initialContent.questions && Array.isArray(initialContent.questions)) {
+                                            quizQuestions = initialContent.questions;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to parse existing content", e);
+                                    // If parsing fails, reset to empty
+                                    memoryPairs = [];
+                                    quizQuestions = [];
                                 }
-                                if (initialContent.questions) {
-                                    quizQuestions = initialContent.questions;
-                                }
-                            } catch (e) {
-                                console.error("Failed to parse existing content", e);
                             }
+                            
+                            // Load content immediately
+                            loadExistingContent();
 
                             function toggleGameConfig() {
                                 const type = document.getElementById('type').value;
@@ -93,22 +105,24 @@
                                 const quizBuilder = document.getElementById('quiz-builder');
                                 const title = document.getElementById('builder-title');
 
-                                builderArea.classList.remove('hidden');
-                                memoryBuilder.classList.add('hidden');
-                                quizBuilder.classList.add('hidden');
-
                                 if (type === 'Game') {
-                                    title.innerText = "Memory Game Builder";
+                                    builderArea.classList.remove('hidden');
                                     memoryBuilder.classList.remove('hidden');
+                                    quizBuilder.classList.add('hidden');
+                                    title.innerText = "Memory Game Builder";
                                     renderMemoryPairs();
                                     if (memoryPairs.length === 0) addMemoryPair(); 
                                 } else if (type === 'Quiz') {
-                                    title.innerText = "Quiz Game Builder";
+                                    builderArea.classList.remove('hidden');
+                                    memoryBuilder.classList.add('hidden');
                                     quizBuilder.classList.remove('hidden');
+                                    title.innerText = "Quiz Game Builder";
                                     renderQuizQuestions();
                                     if (quizQuestions.length === 0) addQuizQuestion();
                                 } else {
                                     builderArea.classList.add('hidden');
+                                    memoryBuilder.classList.add('hidden');
+                                    quizBuilder.classList.add('hidden');
                                 }
                             }
 
@@ -188,10 +202,17 @@
                                         // Serialize Memory Pairs
                                         const pairs = [];
                                         document.querySelectorAll('.pair-item').forEach(row => {
-                                            const c1 = row.querySelector('.card-1-input').value;
-                                            const c2 = row.querySelector('.card-2-input').value;
-                                            if (c1 && c2) pairs.push({ card1: c1, card2: c2 });
+                                            const c1 = row.querySelector('.card-1-input')?.value?.trim();
+                                            const c2 = row.querySelector('.card-2-input')?.value?.trim();
+                                            if (c1 && c2) {
+                                                pairs.push({ card1: c1, card2: c2 });
+                                            }
                                         });
+                                        
+                                        if (pairs.length === 0) {
+                                            alert('Sila tambah sekurang-kurangnya satu pasangan untuk Memory Game.');
+                                            return false;
+                                        }
                                         
                                         data = {
                                             mode: "custom",
@@ -202,21 +223,29 @@
                                         // Serialize Quiz Questions
                                         const questions = [];
                                         document.querySelectorAll('.question-item').forEach(block => {
-                                            const qText = block.querySelector('.question-input').value;
-                                            const answers = Array.from(block.querySelectorAll('.answer-input')).map(i => i.value);
+                                            const qText = block.querySelector('.question-input')?.value?.trim();
+                                            const answers = Array.from(block.querySelectorAll('.answer-input')).map(i => i.value.trim()).filter(a => a);
                                             const correctIndex = Array.from(block.querySelectorAll('.correct-radio')).findIndex(r => r.checked);
                                             
                                             // Make sure at least question and some answer exists
-                                            if (qText) {
+                                            if (qText && answers.length > 0) {
                                                 questions.push({
                                                     question: qText,
                                                     answers: answers,
-                                                    correctAnswer: correctIndex
+                                                    correctAnswer: correctIndex >= 0 ? correctIndex : 0
                                                 });
                                             }
                                         });
 
+                                        if (questions.length === 0) {
+                                            alert('Sila tambah sekurang-kurangnya satu soalan untuk Quiz Game.');
+                                            return false;
+                                        }
+
                                         data = { questions: questions };
+                                    } else {
+                                        // For Exercise and Video types, use empty object
+                                        data = {};
                                     }
 
                                     console.log('Submitting data:', data);
@@ -224,12 +253,13 @@
                                     return true;
                                 } catch (e) {
                                     console.error("Submission preparation failed:", e);
-                                    alert("Error preparing data. Please check console.");
+                                    alert("Ralat menyediakan data. Sila semak konsol.");
                                     return false;
                                 }
                             }
 
-                            // Initialize
+                            // Initialize - Load content and show builder
+                            loadExistingContent();
                             toggleGameConfig();
                         </script>
 

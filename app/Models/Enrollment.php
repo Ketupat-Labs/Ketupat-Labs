@@ -11,7 +11,11 @@ class Enrollment extends Model
 
     protected $table = 'enrollment';
 
-    protected $fillable = ['user_id', 'lesson_id', 'status', 'progress'];
+    protected $fillable = ['user_id', 'lesson_id', 'status', 'progress', 'completed_items'];
+
+    protected $casts = [
+        'completed_items' => 'array',
+    ];
 
     public function user()
     {

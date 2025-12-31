@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Notification;
@@ -22,7 +23,7 @@ class MessagingController extends Controller
         $request->validate([
             'conversation_id' => 'required|integer',
             'content' => 'required_if:message_type,text|string',
-            'message_type' => 'in:text,file,image',
+            'message_type' => 'in:text,file,image,link,shared_post',
             'attachment_url' => 'nullable|string',
             'attachment_name' => 'nullable|string',
             'attachment_size' => 'nullable|integer',
@@ -39,11 +40,18 @@ class MessagingController extends Controller
             ], 403);
         }
         
+        // Validate and sanitize message_type
+        $validMessageTypes = ['text', 'file', 'image', 'link', 'shared_post'];
+        $messageType = $request->message_type ?? 'text';
+        if (!in_array($messageType, $validMessageTypes)) {
+            $messageType = 'text';
+        }
+        
         $message = Message::create([
             'conversation_id' => $request->conversation_id,
             'sender_id' => $user->id,
             'content' => $request->content ?? '',
-            'message_type' => $request->message_type ?? 'text',
+            'message_type' => $messageType,
             'attachment_url' => $request->attachment_url,
             'attachment_name' => $request->attachment_name,
             'attachment_size' => $request->attachment_size,
@@ -51,6 +59,9 @@ class MessagingController extends Controller
         
         // Update conversation timestamp
         $conversation->touch();
+        
+        // Broadcast the message event
+        broadcast(new MessageSent($message))->toOthers();
         
         // Create notifications for other participants
         $otherParticipants = $conversation->participants()
@@ -61,8 +72,8 @@ class MessagingController extends Controller
             Notification::create([
                 'user_id' => $participant->id,
                 'type' => 'message',
-                'title' => 'New message from ' . $user->username,
-                'message' => $request->content ?? 'Sent an attachment',
+                'title' => 'Mesej Baharu daripada ' . $user->username,
+                'message' => $request->content ?? 'Menghantar lampiran',
                 'related_type' => 'message',
                 'related_id' => $message->id,
             ]);
@@ -170,7 +181,7 @@ class MessagingController extends Controller
                 if ($otherUser) {
                     $convData['other_username'] = $otherUser->username;
                     $convData['other_full_name'] = $otherUser->full_name;
-                    $convData['other_avatar'] = $otherUser->avatar_url;
+                    $convData['other_avatar'] = $otherUser->avatar_url ? asset($otherUser->avatar_url) : null;
                     $convData['is_online'] = $otherUser->is_online;
                     $convData['other_user_id'] = $otherUser->id;
                     // Track that this user already has a conversation
@@ -195,68 +206,7 @@ class MessagingController extends Controller
             $result[] = $convData;
         }
         
-        // Get all accepted friends - batch load to avoid N+1 queries
-        $friends = DB::table('friend')
-            ->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)->where('status', 'accepted');
-            })
-            ->orWhere(function ($q) use ($user) {
-                $q->where('friend_id', $user->id)->where('status', 'accepted');
-            })
-            ->get();
-        
-        // Collect all friend IDs that don't have conversations
-        $friendIdsToLoad = [];
-        foreach ($friends as $friend) {
-            $friendId = $friend->user_id === $user->id ? $friend->friend_id : $friend->user_id;
-            
-            // Skip if this friend already has a conversation
-            if (!in_array($friendId, $conversationUserIds)) {
-                $friendIdsToLoad[] = $friendId;
-            }
-        }
-        
-        // Batch load all friend users in one query
-        if (!empty($friendIdsToLoad)) {
-            $friendUsers = User::whereIn('id', $friendIdsToLoad)
-                ->select('id', 'username', 'full_name', 'avatar_url', 'is_online')
-                ->get()
-                ->keyBy('id');
-            
-            // Add friends who don't have conversations yet
-            foreach ($friends as $friend) {
-                $friendId = $friend->user_id === $user->id ? $friend->friend_id : $friend->user_id;
-                
-                // Skip if this friend already has a conversation or not in loaded users
-                if (in_array($friendId, $conversationUserIds) || !isset($friendUsers[$friendId])) {
-                    continue;
-                }
-                
-                $friendUser = $friendUsers[$friendId];
-                
-                // Create a virtual conversation entry for this friend
-                $friendConvData = [
-                    'id' => null, // No conversation ID yet
-                    'type' => 'direct',
-                    'name' => '',
-                    'created_at' => null,
-                    'updated_at' => null,
-                    'other_user_id' => $friendUser->id,
-                    'other_username' => $friendUser->username,
-                    'other_full_name' => $friendUser->full_name,
-                    'other_avatar' => $friendUser->avatar_url,
-                    'is_online' => $friendUser->is_online ?? false,
-                    'last_message' => null,
-                    'last_message_time' => null,
-                    'unread_count' => 0,
-                    'is_friend_only' => true, // Flag to indicate this is a friend without conversation
-                ];
-                
-                $result[] = $friendConvData;
-            }
-        }
-        
-        // Sort results by updated_at or created_at (friends will be at the end)
+        // Sort results by updated_at or created_at
         usort($result, function ($a, $b) use ($order) {
             $timeA = $a['updated_at'] ?? $a['created_at'] ?? '1970-01-01';
             $timeB = $b['updated_at'] ?? $b['created_at'] ?? '1970-01-01';
@@ -297,16 +247,30 @@ class MessagingController extends Controller
         $limit = 50;
         $offset = ($page - 1) * $limit;
         
-        // Get message IDs that are deleted for this user
-        $deletedMessageIds = DB::table('message_user_deleted')
-            ->where('user_id', $user->id)
-            ->pluck('message_id')
-            ->toArray();
+        // Get message IDs that are deleted for this user (optimized - only if needed)
+        $deletedMessageIds = [];
+        // Only check if table exists and has records for this user
+        try {
+            if (DB::table('message_user_deleted')->where('user_id', $user->id)->exists()) {
+                $deletedMessageIds = DB::table('message_user_deleted')
+                    ->where('user_id', $user->id)
+                    ->pluck('message_id')
+                    ->toArray();
+            }
+        } catch (\Exception $e) {
+            // Table might not exist, ignore
+            $deletedMessageIds = [];
+        }
         
-        $messages = Message::where('conversation_id', $conversationId)
-            ->where('is_deleted', false)
-            ->whereNotIn('id', $deletedMessageIds ?: [0]) // Use [0] to prevent empty IN clause
-            ->with('sender:id,username,full_name,avatar_url')
+        $query = Message::where('conversation_id', $conversationId)
+            ->where('is_deleted', false);
+            
+        // Only add whereNotIn if there are deleted messages
+        if (!empty($deletedMessageIds)) {
+            $query->whereNotIn('id', $deletedMessageIds);
+        }
+        
+        $messages = $query->with('sender:id,username,full_name,avatar_url')
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->offset($offset)
@@ -673,7 +637,7 @@ class MessagingController extends Controller
                 if ($otherUser) {
                     $convData['other_username'] = $otherUser->username;
                     $convData['other_full_name'] = $otherUser->full_name;
-                    $convData['other_avatar'] = $otherUser->avatar_url;
+                    $convData['other_avatar'] = $otherUser->avatar_url ? asset($otherUser->avatar_url) : null;
                     $convData['is_online'] = $otherUser->is_online;
                 }
             }

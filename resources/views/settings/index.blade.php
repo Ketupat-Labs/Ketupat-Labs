@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Settings') }}
+            Tetapan
         </h2>
     </x-slot>
 
@@ -22,10 +22,10 @@
                 <div class="max-w-xl">
                     <header>
                         <h2 class="text-lg font-medium text-gray-900">
-                            {{ __('General') }}
+                            Umum
                         </h2>
                         <p class="mt-1 text-sm text-gray-600">
-                            {{ __('Manage your general application settings.') }}
+                            Urus tetapan umum aplikasi anda.
                         </p>
                     </header>
 
@@ -34,10 +34,10 @@
                         <div class="flex items-center justify-between">
                             <div class="flex-1">
                                 <label for="chatbot_enabled" class="block text-sm font-medium text-gray-700">
-                                    {{ __('AI Chatbot') }}
+                                    Chatbot AI
                                 </label>
                                 <p class="mt-1 text-sm text-gray-500">
-                                    {{ __('Enable or disable the AI chatbot function.') }}
+                                    Aktifkan atau nyahaktifkan fungsi chatbot AI.
                                 </p>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
@@ -50,45 +50,65 @@
                 </div>
             </div>
 
-            <!-- Privacy Settings -->
+            <!-- Badge Privacy Settings -->
             <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
                 <div class="max-w-xl">
                     <header>
                         <h2 class="text-lg font-medium text-gray-900">
-                            {{ __('Privacy') }}
+                            Privasi Lencana
                         </h2>
                         <p class="mt-1 text-sm text-gray-600">
-                            {{ __('Control who can interact with you.') }}
+                            Kawal lencana yang boleh dilihat pada profil dan kad prestasi anda.
                         </p>
                     </header>
 
                     <div class="mt-6 space-y-6">
-                        <!-- Allow Friend Requests Toggle -->
+                        <!-- Share Badges Toggle -->
                         <div class="flex items-center justify-between">
                             <div class="flex-1">
-                                <label for="allow_friend_requests" class="block text-sm font-medium text-gray-700">
-                                    {{ __('Allow Friend Requests') }}
+                                <label for="share_badges_on_profile" class="block text-sm font-medium text-gray-700">
+                                    Kongsi Lencana pada Profil
                                 </label>
                                 <p class="mt-1 text-sm text-gray-500">
-                                    {{ __('Enable or disable other users from adding you as a friend.') }}
+                                    Benarkan orang lain melihat lencana yang anda perolehi.
                                 </p>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="allow_friend_requests" name="allow_friend_requests" 
-                                    class="sr-only peer" {{ $user->allow_friend_requests ?? true ? 'checked' : '' }}>
+                                <input type="checkbox" id="share_badges_on_profile" name="share_badges_on_profile" 
+                                    class="sr-only peer" {{ ($user->share_badges_on_profile ?? true) ? 'checked' : '' }}>
                                 <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
+                        </div>
+
+                        <!-- Badge Selection (shown when sharing is enabled) -->
+                        <div id="badgeSelectionContainer" class="{{ ($user->share_badges_on_profile ?? true) ? '' : 'hidden' }}">
+                            <label class="block text-sm font-medium text-gray-700 mb-3">
+                                Pilih lencana untuk dipaparkan:
+                            </label>
+                            <div id="badgeListContainer" class="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4">
+                                <!-- Badge checkboxes will be populated by JavaScript -->
+                                <p class="text-sm text-gray-500 text-center py-4">Loading badges...</p>
+                            </div>
+                        </div>
+
+                        <!-- Info message when sharing is disabled -->
+                        <div id="badgeSharingDisabled" class="{{ ($user->share_badges_on_profile ?? true) ? 'hidden' : '' }} bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                            <i class="fas fa-eye-slash text-gray-400 text-3xl mb-3"></i>
+                            <h3 class="font-semibold text-gray-900 mb-1">Perkongsian Lencana Dimatikan</h3>
+                            <p class="text-sm text-gray-600">
+                                Aktifkan togol di atas untuk memaparkan lencana pencapaian anda kepada pengguna lain di profil anda.
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const chatbotToggle = document.getElementById('chatbot_enabled');
-            const friendRequestsToggle = document.getElementById('allow_friend_requests');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
 
@@ -158,9 +178,80 @@
                 }
             });
 
-            friendRequestsToggle.addEventListener('change', () => {
-                updateSetting('allow_friend_requests', friendRequestsToggle.checked);
+            // Badge Privacy Toggle
+            const shareBadgesToggle = document.getElementById('share_badges_on_profile');
+            const badgeSelectionContainer = document.getElementById('badgeSelectionContainer');
+            const badgeSharingDisabled = document.getElementById('badgeSharingDisabled');
+            
+            shareBadgesToggle.addEventListener('change', () => {
+                const isEnabled = shareBadgesToggle.checked;
+                updateSetting('share_badges_on_profile', isEnabled);
+                
+                if (isEnabled) {
+                    badgeSelectionContainer.classList.remove('hidden');
+                    badgeSharingDisabled.classList.add('hidden');
+                } else {
+                    badgeSelectionContainer.classList.add('hidden');
+                    badgeSharingDisabled.classList.remove('hidden');
+                }
             });
+
+            // Load user's earned badges for selection
+            function loadUserBadges() {
+                fetch('/api/settings/badges', {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    credentials: 'include'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && data.badges) {
+                        renderBadgeCheckboxes(data.badges, data.visible_badge_codes || []);
+                    } else {
+                        document.getElementById('badgeListContainer').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No badges earned yet.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading badges:', error);
+                    document.getElementById('badgeListContainer').innerHTML = '<p class="text-sm text-red-500 text-center py-4">Error loading badges.</p>';
+                });
+            }
+
+            function renderBadgeCheckboxes(badges, visibleCodes) {
+                const container = document.getElementById('badgeListContainer');
+                if (badges.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No badges earned yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = badges.map(badge => `
+                    <label class="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                        <input type="checkbox" class="badge-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                               value="${badge.code}" ${visibleCodes.includes(badge.code) ? 'checked' : ''}>
+                        <div class="flex-1 flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg" style="background-color: ${badge.color || '#3B82F6'}20; color: ${badge.color || '#3B82F6'};">
+                                <i class="${badge.icon || 'fas fa-trophy'}"></i>
+                            </div>
+                            <span class="text-sm font-medium text-gray-900">${badge.name}</span>
+                        </div>
+                    </label>
+                `).join('');
+
+                // Add event listeners to checkboxes
+                container.querySelectorAll('.badge-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', () => {
+                        const checkedBadges = Array.from(container.querySelectorAll('.badge-checkbox:checked')).map(cb => cb.value);
+                        updateSetting('visible_badge_codes', checkedBadges);
+                    });
+                });
+            }
+
+            // Load badges on page load
+            loadUserBadges();
         });
     </script>
 </x-app-layout>

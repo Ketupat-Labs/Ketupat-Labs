@@ -159,10 +159,16 @@
                                     // Serialize Memory Pairs
                                     const pairs = [];
                                     document.querySelectorAll('.pair-item').forEach(row => {
-                                        const c1 = row.querySelector('.card-1-input').value;
-                                        const c2 = row.querySelector('.card-2-input').value;
+                                        const c1 = row.querySelector('.card-1-input').value.trim();
+                                        const c2 = row.querySelector('.card-2-input').value.trim();
                                         if (c1 && c2) pairs.push({ card1: c1, card2: c2 });
                                     });
+                                    
+                                    if (pairs.length === 0) {
+                                        e.preventDefault();
+                                        alert('Sila tambah sekurang-kurangnya satu pasangan untuk Memory Game.');
+                                        return false;
+                                    }
                                     
                                     data = {
                                         mode: "custom",
@@ -173,23 +179,36 @@
                                     // Serialize Quiz Questions
                                     const questions = [];
                                     document.querySelectorAll('.question-item').forEach(block => {
-                                        const qText = block.querySelector('.question-input').value;
-                                        const answers = Array.from(block.querySelectorAll('.answer-input')).map(i => i.value);
+                                        const qText = block.querySelector('.question-input').value.trim();
+                                        const answers = Array.from(block.querySelectorAll('.answer-input')).map(i => i.value.trim()).filter(a => a);
                                         const correctIndex = Array.from(block.querySelectorAll('.correct-radio')).findIndex(r => r.checked);
                                         
-                                        if (qText && answers.some(a => a)) {
+                                        if (qText && answers.length > 0) {
                                             questions.push({
                                                 question: qText,
                                                 answers: answers,
-                                                correctAnswer: correctIndex
+                                                correctAnswer: correctIndex >= 0 ? correctIndex : 0
                                             });
                                         }
                                     });
 
+                                    if (questions.length === 0) {
+                                        e.preventDefault();
+                                        alert('Sila tambah sekurang-kurangnya satu soalan untuk Quiz Game.');
+                                        return false;
+                                    }
+
                                     data = { questions: questions };
+                                } else {
+                                    // For Exercise and Video types, use empty object instead of empty string
+                                    data = {};
                                 }
 
+                                // Always set valid JSON (empty object if no content)
                                 contentInput.value = JSON.stringify(data);
+                                
+                                // Debug: Log the content being sent
+                                console.log('Saving activity with content:', contentInput.value);
                             });
 
                             // Initialize

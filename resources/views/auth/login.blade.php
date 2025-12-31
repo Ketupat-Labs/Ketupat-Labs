@@ -50,7 +50,7 @@
                             <label for="loginEmail">
                                 <i class="fas fa-envelope"></i> Alamat Emel
                             </label>
-                            <input type="email" id="loginEmail" placeholder="Masukkan alamat emel anda" required>
+                            <input type="email" id="loginEmail" placeholder="Masukkan alamat emel anda" autocomplete="email" required>
                         </div>
 
                         <div class="form-group">
@@ -58,7 +58,7 @@
                                 <i class="fas fa-lock"></i> Kata Laluan
                             </label>
                             <div class="password-container">
-                                <input type="password" id="loginPassword" placeholder="Masukkan kata laluan anda" required>
+                                <input type="password" id="loginPassword" placeholder="Masukkan kata laluan anda" autocomplete="current-password" required>
                                 <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', 'loginPasswordIcon')">
                                     <i class="fas fa-eye" id="loginPasswordIcon"></i>
                                 </button>
@@ -70,7 +70,7 @@
                                 <input type="checkbox" id="rememberMe">
                                 <span>Ingat saya</span>
                             </label>
-                            <a href="#" class="forgot-password">Lupa kata laluan?</a>
+                            <a href="#" class="forgot-password" onclick="showForgotPasswordModal(); return false;">Lupa kata laluan?</a>
                         </div>
 
                         <button type="submit" class="btn-primary">
@@ -98,14 +98,14 @@
                             <label for="registerName">
                                 <i class="fas fa-user"></i> Nama Penuh
                             </label>
-                            <input type="text" id="registerName" placeholder="Masukkan nama penuh anda" required>
+                            <input type="text" id="registerName" placeholder="Masukkan nama penuh anda" autocomplete="name" required>
                         </div>
 
                         <div class="form-group">
                             <label for="registerEmail">
                                 <i class="fas fa-envelope"></i> Alamat Emel
                             </label>
-                            <input type="email" id="registerEmail" placeholder="Masukkan alamat emel anda" required>
+                            <input type="email" id="registerEmail" placeholder="Masukkan alamat emel anda" autocomplete="email" required>
                         </div>
 
                         <div class="form-group">
@@ -113,7 +113,7 @@
                                 <i class="fas fa-lock"></i> Kata Laluan
                             </label>
                             <div class="password-container">
-                                <input type="password" id="registerPassword" placeholder="Masukkan kata laluan (min. 8 aksara)" required minlength="8">
+                                <input type="password" id="registerPassword" placeholder="Masukkan kata laluan (min. 8 aksara)" autocomplete="new-password" required minlength="8">
                                 <button type="button" class="password-toggle" onclick="togglePassword('registerPassword', 'registerPasswordIcon')">
                                     <i class="fas fa-eye" id="registerPasswordIcon"></i>
                                 </button>
@@ -125,7 +125,7 @@
                                 <i class="fas fa-lock"></i> Sahkan Kata Laluan
                             </label>
                             <div class="password-container">
-                                <input type="password" id="registerConfirmPassword" placeholder="Masukkan semula kata laluan" required>
+                                <input type="password" id="registerConfirmPassword" placeholder="Masukkan semula kata laluan" autocomplete="new-password" required>
                                 <button type="button" class="password-toggle" onclick="togglePassword('registerConfirmPassword', 'registerConfirmPasswordIcon')">
                                     <i class="fas fa-eye" id="registerConfirmPasswordIcon"></i>
                                 </button>
@@ -138,7 +138,7 @@
                                 <i class="fas fa-key"></i> Kod Pengesahan (OTP)
                             </label>
                             <div class="otp-container">
-                                <input type="text" id="registerOtp" placeholder="Masukkan kod 6 digit" maxlength="6" pattern="[0-9]{6}">
+                                <input type="text" id="registerOtp" placeholder="" maxlength="6" pattern="[0-9]{6}">
                                 <button type="button" class="btn-resend-otp" id="resendOtpBtn" onclick="resendOtp()">
                                     <i class="fas fa-redo"></i> Hantar Semula
                                 </button>
@@ -165,6 +165,36 @@
                 <a href="{{ route('home') }}">
                     <i class="fas fa-arrow-left"></i> Kembali ke Laman Utama
                 </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Lupa Kata Laluan?</h2>
+                <button class="modal-close" onclick="closeForgotPasswordModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    Masukkan alamat emel anda dan kami akan menghantar pautan untuk menetapkan semula kata laluan anda.
+                </p>
+                <div class="error-message" id="forgotPasswordError"></div>
+                <div class="success-message" id="forgotPasswordSuccess"></div>
+                <form id="forgotPasswordForm">
+                    <div class="form-group">
+                        <label for="forgotPasswordEmail">
+                            <i class="fas fa-envelope"></i> Alamat Emel
+                        </label>
+                        <input type="email" id="forgotPasswordEmail" placeholder="Masukkan alamat emel anda" autocomplete="email" required>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-paper-plane"></i> Hantar Pautan Set Semula
+                    </button>
+                </form>
             </div>
         </div>
     </div>

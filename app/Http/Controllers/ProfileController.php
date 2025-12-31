@@ -6,9 +6,9 @@ use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\User;
 use App\Models\ForumPost;
 use App\Models\Forum;
-use App\Models\Friend;
 use App\Models\SavedPost;
 use App\Models\Badge;
+use App\Models\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,8 +35,6 @@ class ProfileController extends Controller
         $profileUser = User::findOrFail($profileUserId);
         
         $isOwnProfile = $currentUser->id === $profileUser->id;
-        $isFriend = $currentUser->isFriendWith($profileUserId);
-        $hasPendingRequest = $currentUser->hasPendingRequestWith($profileUserId);
 
         // Get user's forum posts
         // Only show posts from:
@@ -75,12 +73,8 @@ class ProfileController extends Controller
             ->get();
 
         // Sync Rakan Baik badge progress if viewing own profile or if needed for display
-        $friendCount = Friend::where(function ($q) use ($profileUserId) {
-            $q->where('user_id', $profileUserId)->where('status', 'accepted');
-        })->orWhere(function ($q) use ($profileUserId) {
-            $q->where('friend_id', $profileUserId)->where('status', 'accepted');
-        })->count();
-
+        // Note: Friend functionality removed, but badge logic remains for existing data
+        $friendCount = 0; // Friend functionality removed
         $rakanBaikBadge = DB::table('badge')->where('code', 'friendly')->first();
         if ($rakanBaikBadge) {
             $isEarned = $friendCount >= ($rakanBaikBadge->points_required ?? 5);
@@ -140,8 +134,9 @@ class ProfileController extends Controller
 
             $badge->progress = (int)($userBadge->progress ?? 0);
             
-            // Calculate percentage
-            $required = (int)($badge->points_required ?? 0);
+            // Use requirement_value or points_required (for compatibility)
+            $required = (int)($badge->requirement_value ?? $badge->points_required ?? 0);
+            $badge->points_required = $required; // Add for consistency
             if ($required <= 0) $required = 100; // Default to 100 if invalid
             
             $percentage = min(100, round(($badge->progress / $required) * 100));
@@ -150,12 +145,8 @@ class ProfileController extends Controller
             return $badge;
         });
 
-        // Get friend count
-        $friendCount = Friend::where(function ($q) use ($profileUserId) {
-            $q->where('user_id', $profileUserId)->where('status', 'accepted');
-        })->orWhere(function ($q) use ($profileUserId) {
-            $q->where('friend_id', $profileUserId)->where('status', 'accepted');
-        })->count();
+        // Friend count - functionality removed
+        $friendCount = 0;
 
         // Get saved posts (only for own profile)
         $savedPosts = collect();
@@ -179,17 +170,35 @@ class ProfileController extends Controller
         $activeCategoryIds = $allBadges->pluck('category_id')->unique()->filter()->toArray();
         $categories = \App\Models\BadgeCategory::whereIn('id', $activeCategoryIds)->orderBy('name')->get();
 
+        // Get follow counts
+        $followingCount = DB::table('follow')
+            ->where('follower_id', $profileUserId)
+            ->count();
+        
+        $followersCount = DB::table('follow')
+            ->where('following_id', $profileUserId)
+            ->count();
+
+        // Check if current user is following this profile user
+        $isFollowing = false;
+        if (!$isOwnProfile) {
+            $isFollowing = DB::table('follow')
+                ->where('follower_id', $currentUser->id)
+                ->where('following_id', $profileUserId)
+                ->exists();
+        }
+
         return view('profile.show', [
             'profileUser' => $profileUser,
             'currentUser' => $currentUser,
             'isOwnProfile' => $isOwnProfile,
-            'isFriend' => $isFriend,
-            'hasPendingRequest' => $hasPendingRequest,
             'posts' => $posts,
             'savedPosts' => $savedPosts,
             'badges' => $badges,
             'categories' => $categories,
-            'friendCount' => $friendCount,
+            'followingCount' => $followingCount,
+            'followersCount' => $followersCount,
+            'isFollowing' => $isFollowing,
         ]);
     }
 
@@ -202,6 +211,9 @@ class ProfileController extends Controller
         if (!$user) {
             return redirect()->route('login');
         }
+        
+        // Refresh user to get latest avatar_url
+        $user->refresh();
         
         return view('profile.edit', [
             'user' => $user,
@@ -321,6 +333,184 @@ class ProfileController extends Controller
         $request->session()->regenerateToken();
 
         return Redirect::to('/');
+    }
+
+    /**
+     * Follow a user
+     */
+    public function follow(Request $request, $userId)
+    {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $userToFollow = User::findOrFail($userId);
+
+        // Can't follow yourself
+        if ($currentUser->id === $userToFollow->id) {
+            return response()->json(['status' => 400, 'message' => 'Cannot follow yourself'], 400);
+        }
+
+        // Check if already following
+        $existingFollow = DB::table('follow')
+            ->where('follower_id', $currentUser->id)
+            ->where('following_id', $userToFollow->id)
+            ->first();
+
+        if ($existingFollow) {
+            return response()->json(['status' => 200, 'message' => 'Already following', 'data' => ['is_following' => true]], 200);
+        }
+
+        // Create follow relationship
+        DB::table('follow')->insert([
+            'follower_id' => $currentUser->id,
+            'following_id' => $userToFollow->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Create notification for the user being followed
+        // The NotificationObserver will automatically broadcast this via WebSocket
+        $followerName = $currentUser->full_name ?? $currentUser->username;
+        Notification::create([
+            'user_id' => $userToFollow->id,
+            'type' => 'follow',
+            'title' => 'Pengguna Baharu Mengikuti Anda',
+            'message' => $followerName . ' telah mula mengikuti anda',
+            'related_type' => 'user',
+            'related_id' => $currentUser->id,
+            'is_read' => false,
+        ]);
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Successfully followed user',
+            'data' => ['is_following' => true]
+        ], 200);
+    }
+
+    /**
+     * Unfollow a user
+     */
+    public function unfollow(Request $request, $userId)
+    {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $userToUnfollow = User::findOrFail($userId);
+
+        // Remove follow relationship
+        DB::table('follow')
+            ->where('follower_id', $currentUser->id)
+            ->where('following_id', $userToUnfollow->id)
+            ->delete();
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Successfully unfollowed user',
+            'data' => ['is_following' => false]
+        ], 200);
+    }
+
+    /**
+     * Get users that a user is following
+     */
+    public function getFollowing(Request $request, $userId)
+    {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $profileUser = User::findOrFail($userId);
+
+        $following = DB::table('follow')
+            ->where('follower_id', $profileUser->id)
+            ->join('user', 'follow.following_id', '=', 'user.id')
+            ->select('user.id', 'user.username', 'user.full_name', 'user.avatar_url')
+            ->orderBy('follow.created_at', 'desc')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'full_name' => $user->full_name ?? $user->username,
+                    'avatar_url' => $user->avatar_url,
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
+            'data' => ['users' => $following]
+        ], 200);
+    }
+
+    /**
+     * Get users that are following a user
+     */
+    public function getFollowers(Request $request, $userId)
+    {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $profileUser = User::findOrFail($userId);
+
+        $followers = DB::table('follow')
+            ->where('following_id', $profileUser->id)
+            ->join('user', 'follow.follower_id', '=', 'user.id')
+            ->select('user.id', 'user.username', 'user.full_name', 'user.avatar_url')
+            ->orderBy('follow.created_at', 'desc')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'full_name' => $user->full_name ?? $user->username,
+                    'avatar_url' => $user->avatar_url,
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
+            'data' => ['users' => $followers]
+        ], 200);
+    }
+
+    /**
+     * Get current user's following list (for DM creation)
+     */
+    public function getMyFollowing(Request $request)
+    {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $following = DB::table('follow')
+            ->where('follower_id', $currentUser->id)
+            ->join('user', 'follow.following_id', '=', 'user.id')
+            ->select('user.id', 'user.username', 'user.full_name', 'user.avatar_url', 'user.is_online')
+            ->orderBy('follow.created_at', 'desc')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'full_name' => $user->full_name ?? $user->username,
+                    'avatar_url' => $user->avatar_url,
+                    'is_online' => $user->is_online ?? false,
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
+            'data' => ['users' => $following]
+        ], 200);
     }
 
     /**

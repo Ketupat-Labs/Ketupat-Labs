@@ -9,6 +9,8 @@ const API_ENDPOINTS = {
     resendOtp: `${API_BASE_URL}/api/auth/resend-otp`,
     logout: `${API_BASE_URL}/api/auth/logout`,
     me: `${API_BASE_URL}/api/auth/me`,
+    forgotPassword: `${API_BASE_URL}/api/auth/forgot-password`,
+    resetPassword: `${API_BASE_URL}/api/auth/reset-password`,
 };
 
 // Get CSRF token from meta tag

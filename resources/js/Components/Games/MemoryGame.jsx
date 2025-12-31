@@ -126,7 +126,7 @@ const MemoryGame = ({ config = {} }) => {
             <div className="memory-game-container p-6 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200">
                 <div className="text-center py-12">
                     <p className="text-xl text-gray-600">
-                        ⚠️ No valid card pairs configured. Please add matching pairs in the editor.
+                        ⚠️ Tiada pasangan kad yang sah dikonfigurasi. Sila tambah pasangan yang sepadan dalam editor.
                     </p>
                 </div>
             </div>
@@ -137,17 +137,17 @@ const MemoryGame = ({ config = {} }) => {
         <div className="memory-game-container p-6 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-purple-700">🎮 Memory Game</h3>
+                <h3 className="text-2xl font-bold text-purple-700">🎮 Permainan Ingatan</h3>
                 <div className="flex gap-4">
                     <div className="bg-white px-4 py-2 rounded-lg shadow">
-                        <span className="text-gray-600 text-sm">Moves:</span>
+                        <span className="text-gray-600 text-sm">Langkah:</span>
                         <span className="ml-2 font-bold text-purple-600">{moves}</span>
                     </div>
                     <button
                         onClick={initializeGame}
                         className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold transition"
                     >
-                        🔄 Restart
+                        🔄 Mula Semula
                     </button>
                 </div>
             </div>
@@ -156,7 +156,7 @@ const MemoryGame = ({ config = {} }) => {
             {gameWon && (
                 <div className="mb-4 p-4 bg-green-100 border-2 border-green-400 rounded-lg text-center">
                     <p className="text-2xl font-bold text-green-700">
-                        🎉 Congratulations! You won in {moves} moves! 🎉
+                        🎉 Tahniah! Anda menang dalam {moves} langkah! 🎉
                     </p>
                 </div>
             )}
@@ -202,7 +202,7 @@ const MemoryGame = ({ config = {} }) => {
             {/* Instructions */}
             <div className="mt-6 p-4 bg-white rounded-lg border border-purple-200">
                 <p className="text-sm text-gray-600 text-center">
-                    Click on cards to flip them. Find matching pairs to win the game!
+                    Klik pada kad untuk membalikkannya. Cari pasangan yang sepadan untuk memenangi permainan!
                 </p>
             </div>
         </div>

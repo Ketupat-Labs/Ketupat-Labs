@@ -40,13 +40,28 @@ class ActivityController extends Controller
             'content' => 'nullable|string', // Allow JSON content
         ]);
 
+        // Ensure content is valid JSON or null
+        $content = $request->content;
+        if ($content) {
+            // Validate JSON
+            $decoded = json_decode($content, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return back()->withInput()->withErrors(['content' => 'Kandungan tidak sah. Sila pastikan format JSON adalah betul.']);
+            }
+            // Re-encode to ensure proper formatting
+            $content = json_encode($decoded, JSON_UNESCAPED_UNICODE);
+        } else {
+            // Set empty object for types that don't need content
+            $content = '{}';
+        }
+
         Activity::create([
             'teacher_id' => session('user_id'),
             'title' => $request->title,
             'type' => $request->type,
             'suggested_duration' => $request->suggested_duration,
             'description' => $request->description,
-            'content' => $request->content,
+            'content' => $content,
         ]);
 
         return redirect()->route('lessons.index', ['tab' => 'activities'])->with('success', 'Aktiviti berjaya dicipta.');
@@ -92,12 +107,27 @@ class ActivityController extends Controller
             'content' => 'nullable|string',
         ]);
 
+        // Ensure content is valid JSON or null (same as store method)
+        $content = $request->content;
+        if ($content) {
+            // Validate JSON
+            $decoded = json_decode($content, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return back()->withInput()->withErrors(['content' => 'Kandungan tidak sah. Sila pastikan format JSON adalah betul.']);
+            }
+            // Re-encode to ensure proper formatting
+            $content = json_encode($decoded, JSON_UNESCAPED_UNICODE);
+        } else {
+            // Set empty object for types that don't need content
+            $content = '{}';
+        }
+
         $activity->update([
             'title' => $request->title,
             'type' => $request->type,
             'suggested_duration' => $request->suggested_duration,
             'description' => $request->description,
-            'content' => $request->content,
+            'content' => $content,
         ]);
 
         return redirect()->route('lessons.index', ['tab' => 'activities'])->with('success', 'Aktiviti berjaya dikemaskini.');
@@ -130,6 +160,11 @@ class ActivityController extends Controller
             abort(403);
         }
 
+        $wasGraded = \App\Models\ActivitySubmission::where('activity_assignment_id', $assignment->id)
+            ->where('user_id', $request->user_id)
+            ->whereNotNull('score')
+            ->exists();
+            
         \App\Models\ActivitySubmission::updateOrCreate(
             [
                 'activity_assignment_id' => $assignment->id,
@@ -141,6 +176,19 @@ class ActivityController extends Controller
                 'completed_at' => now(), // Mark as completed when graded
             ]
         );
+
+        // Notify student when activity is graded (first time only)
+        if (!$wasGraded) {
+            \App\Models\Notification::create([
+                'user_id' => $request->user_id,
+                'type' => 'activity_graded',
+                'title' => 'Aktiviti Dinilai',
+                'message' => 'Aktiviti "' . $assignment->activity->title . '" telah dinilai. Markah: ' . $request->score,
+                'related_type' => 'activity',
+                'related_id' => $assignment->activity->id,
+                'is_read' => false,
+            ]);
+        }
 
         return back()->with('success', 'Markah berjaya disimpan.');
     }
@@ -197,6 +245,12 @@ class ActivityController extends Controller
 
         // 3. Save Submission
         // We now support both assignment-linked results and direct activity-linked results (for public plays)
+        $wasCompleted = \App\Models\ActivitySubmission::where('activity_assignment_id', $assignment ? $assignment->id : null)
+            ->where('activity_id', $activity->id)
+            ->where('user_id', $user->id)
+            ->whereNotNull('completed_at')
+            ->exists();
+            
         \App\Models\ActivitySubmission::updateOrCreate(
             [
                 'activity_assignment_id' => $assignment ? $assignment->id : null,
@@ -210,12 +264,39 @@ class ActivityController extends Controller
             ]
         );
 
+        // Create notification for activity completion (first time only)
+        if (!$wasCompleted) {
+            \App\Models\Notification::create([
+                'user_id' => $user->id,
+                'type' => 'activity_completed',
+                'title' => 'Aktiviti Selesai!',
+                'message' => 'Tahniah! Anda telah menamatkan aktiviti "' . $activity->title . '"',
+                'related_type' => 'activity',
+                'related_id' => $activity->id,
+                'is_read' => false,
+            ]);
+            
+            // Notify teacher if assignment exists
+            if ($assignment && $activity->teacher_id) {
+                \App\Models\Notification::create([
+                    'user_id' => $activity->teacher_id,
+                    'type' => 'activity_submission',
+                    'title' => 'Penyerahan Aktiviti Baharu',
+                    'message' => $user->full_name . ' telah menyerahkan aktiviti "' . $activity->title . '"',
+                    'related_type' => 'activity',
+                    'related_id' => $activity->id,
+                    'is_read' => false,
+                ]);
+            }
+        }
+
         return response()->json(['success' => true, 'message' => 'Rekod disimpan']);
     }
 
     public function viewSubmissions(ActivityAssignment $assignment)
     {
         $this->authorizeTeacher();
+        $assignment->load('activity', 'classroom');
         $submissions = $assignment->submissions()->with('user')->get();
         return view('activity_submissions.index', compact('assignment', 'submissions'));
     }
@@ -223,13 +304,19 @@ class ActivityController extends Controller
     public function showSubmission(ActivitySubmission $submission)
     {
         $this->authorizeTeacher();
-        $submission->load(['user', 'assignment.activity']);
+        $submission->load(['user', 'assignment.activity', 'activity']);
         return view('activity_submissions.show', compact('submission'));
     }
 
     protected function authorizeTeacher()
     {
-        if (auth()->user()->role !== 'teacher') {
+        $userId = session('user_id');
+        if (!$userId) {
+            abort(401, 'Sila log masuk semula.');
+        }
+        
+        $user = \App\Models\User::find($userId);
+        if (!$user || $user->role !== 'teacher') {
             abort(403, 'Akses tidak dibenarkan.');
         }
     }

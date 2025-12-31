@@ -6,6 +6,7 @@ use App\Http\Controllers\ForumController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\LinkPreviewController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +15,11 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/forgot-password', [AuthController::class, 'sendPasswordResetLink']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
+// Link preview endpoint (public, but can be rate-limited)
+Route::get('/link-preview', [LinkPreviewController::class, 'fetch']);
 
 // Protected routes
 Route::middleware('auth:web')->group(function () {
@@ -96,21 +102,13 @@ Route::middleware('auth:web')->group(function () {
     // Notification routes
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/{id}/redirect', [NotificationController::class, 'getRedirectUrl']);
         Route::post('/{id}/read', [NotificationController::class, 'markRead']);
         Route::post('/read-all', [NotificationController::class, 'markRead']); // mark_all=true
         Route::delete('/{id}', [NotificationController::class, 'destroy']);
         Route::delete('/', [NotificationController::class, 'clearAll']);
     });
     
-    // Friend routes
-    Route::prefix('friends')->group(function () {
-        Route::post('/add', [\App\Http\Controllers\FriendController::class, 'addFriend']);
-        Route::post('/accept', [\App\Http\Controllers\FriendController::class, 'acceptFriend']);
-        Route::post('/remove', [\App\Http\Controllers\FriendController::class, 'removeFriend']);
-        Route::get('/list', [\App\Http\Controllers\FriendController::class, 'getFriends']);
-        Route::get('/search', [\App\Http\Controllers\FriendController::class, 'searchNewFriends']);
-        Route::get('/request/{requestId}', [\App\Http\Controllers\FriendController::class, 'getFriendRequest']);
-    });
     
     // Mention routes
     Route::prefix('mentions')->group(function () {
@@ -119,6 +117,16 @@ Route::middleware('auth:web')->group(function () {
     
     // User search route
     Route::get('/user/search', [\App\Http\Controllers\ForumController::class, 'searchUserByUsername']);
+    
+    // Follow routes
+    // IMPORTANT: Specific routes (like /me/following) must come BEFORE parameterized routes (/{userId}/following)
+    Route::prefix('profile')->group(function () {
+        Route::get('/me/following', [\App\Http\Controllers\ProfileController::class, 'getMyFollowing']); // Get current user's following - must be first!
+        Route::post('/{userId}/follow', [\App\Http\Controllers\ProfileController::class, 'follow']);
+        Route::post('/{userId}/unfollow', [\App\Http\Controllers\ProfileController::class, 'unfollow']);
+        Route::get('/{userId}/following', [\App\Http\Controllers\ProfileController::class, 'getFollowing']);
+        Route::get('/{userId}/followers', [\App\Http\Controllers\ProfileController::class, 'getFollowers']);
+    });
     
     // Classroom routes
     Route::get('/classrooms', [\App\Http\Controllers\ClassroomController::class, 'index']);

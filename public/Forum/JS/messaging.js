@@ -20,7 +20,10 @@ const messagingState = {
     isSelectionMode: false, // Message selection mode
     selectedMessages: new Set(), // Set of selected message IDs
     replyingTo: null, // Message being replied to
-    pinnedMessages: new Set() // Set of pinned message IDs
+    pinnedMessages: new Set(), // Set of pinned message IDs
+    pollingInterval: null, // Track polling interval to prevent duplicates
+    isWebSocketConnected: false, // Track WebSocket connection status
+    lastMessageLoadTime: null, // Track when messages were last loaded to prevent rapid reloads
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/login';
         return;
     }
+    
+    // Clear old message caches on page load
+    clearOldMessageCaches();
     
     initNavigation();
     loadNavigationUserInfo();
@@ -58,20 +64,22 @@ async function handleSharedPost() {
     const conversationId = urlParams.get('conversation');
     const shareUrl = urlParams.get('share');
     
-    if (conversationId && shareUrl) {
+    if (conversationId) {
         // Wait for conversations to load
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Select the conversation
         await selectConversation(parseInt(conversationId));
         
-        // Pre-fill the message input with the shared post link
-        const messageInput = document.getElementById('messageInput');
-        if (messageInput) {
-            messageInput.value = `Check out this post: ${decodeURIComponent(shareUrl)}`;
-            messageInput.style.height = 'auto';
-            messageInput.style.height = messageInput.scrollHeight + 'px';
-            messageInput.focus();
+        if (shareUrl) {
+            // Pre-fill the message input with the shared post link
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+                messageInput.value = `Check out this post: ${decodeURIComponent(shareUrl)}`;
+                messageInput.style.height = 'auto';
+                messageInput.style.height = messageInput.scrollHeight + 'px';
+                messageInput.focus();
+            }
         }
         
         // Clean up URL parameters
@@ -108,12 +116,18 @@ function initEventListeners() {
     });
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
     
-    document.getElementById('btnCreateGroup').addEventListener('click', openCreateGroupModal);
+    document.getElementById('btnCreateConversation').addEventListener('click', openCreateConversationModal);
+    document.getElementById('closeConversationModal').addEventListener('click', closeCreateConversationModal);
+    document.getElementById('cancelConversationModal').addEventListener('click', closeCreateConversationModal);
+    
+    document.getElementById('closeDMModal').addEventListener('click', closeCreateDMModal);
+    document.getElementById('cancelDMModal').addEventListener('click', closeCreateDMModal);
+    
     document.getElementById('closeGroupModal').addEventListener('click', closeCreateGroupModal);
     document.getElementById('cancelGroupModal').addEventListener('click', closeCreateGroupModal);
     document.getElementById('createGroupForm').addEventListener('submit', createGroupChat);
     
-    // Search members functionality
+    // Search members functionality (for group chat)
     const searchMembersInput = document.getElementById('searchMembers');
     if (searchMembersInput) {
         let searchTimeout = null;
@@ -122,6 +136,19 @@ function initEventListeners() {
             const searchTerm = e.target.value.trim();
             searchTimeout = setTimeout(() => {
                 loadAvailableMembers(searchTerm);
+            }, 300); // Debounce search
+        });
+    }
+    
+    // Search DM users functionality
+    const dmSearchUsersInput = document.getElementById('dmSearchUsers');
+    if (dmSearchUsersInput) {
+        let dmSearchTimeout = null;
+        dmSearchUsersInput.addEventListener('input', (e) => {
+            clearTimeout(dmSearchTimeout);
+            const searchTerm = e.target.value.trim();
+            dmSearchTimeout = setTimeout(() => {
+                loadDMUsers(searchTerm);
             }, 300); // Debounce search
         });
     }
@@ -307,10 +334,15 @@ function renderConversations() {
              onclick="selectConversation(${conversationId})">
             <div class="conversation-avatar ${conv.other_avatar ? '' : ''}">
                 ${conv.other_avatar ? 
-                    `<img src="${conv.other_avatar}" alt="${conv.other_username}">` :
+                    `<img src="${escapeHtml(conv.other_avatar)}" alt="${escapeHtml(conv.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                        ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
+                     </div>` :
                     conv.type === 'group' ? 
                         '<i class="fas fa-users"></i>' :
-                        (conv.other_username ? conv.other_username.charAt(0).toUpperCase() : '?')
+                        `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                            ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
+                         </div>`
                 }
             </div>
             <div class="conversation-details">
@@ -487,8 +519,189 @@ function scrollToBottom(smooth = false) {
     }
 }
 
-async function loadMessages(conversationId, page = 1) {
+// LocalStorage cache functions for messages
+const MESSAGE_CACHE_PREFIX = 'msg_cache_';
+const CACHE_EXPIRY_HOURS = 24; // Cache expires after 24 hours
+
+function getMessageCacheKey(conversationId) {
+    return `${MESSAGE_CACHE_PREFIX}${conversationId}`;
+}
+
+function getCachedMessages(conversationId) {
     try {
+        const cacheKey = getMessageCacheKey(conversationId);
+        const cached = localStorage.getItem(cacheKey);
+        if (!cached) return null;
+        
+        const cacheData = JSON.parse(cached);
+        const now = Date.now();
+        const cacheAge = now - cacheData.timestamp;
+        const expiryMs = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
+        
+        // Check if cache is expired
+        if (cacheAge > expiryMs) {
+            localStorage.removeItem(cacheKey);
+            return null;
+        }
+        
+        return cacheData.messages || null;
+    } catch (error) {
+        console.error('Error reading message cache:', error);
+        return null;
+    }
+}
+
+function saveMessagesToCache(conversationId, messages) {
+    try {
+        const cacheKey = getMessageCacheKey(conversationId);
+        const cacheData = {
+            timestamp: Date.now(),
+            messages: messages,
+            conversationId: conversationId
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    } catch (error) {
+        console.error('Error saving message cache:', error);
+        // If storage is full, try to clear old caches
+        if (error.name === 'QuotaExceededError') {
+            clearOldMessageCaches();
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            } catch (e) {
+                console.error('Still unable to save cache after cleanup:', e);
+            }
+        }
+    }
+}
+
+function clearOldMessageCaches() {
+    try {
+        const now = Date.now();
+        const expiryMs = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
+        const keysToRemove = [];
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(MESSAGE_CACHE_PREFIX)) {
+                try {
+                    const cached = JSON.parse(localStorage.getItem(key));
+                    const cacheAge = now - cached.timestamp;
+                    if (cacheAge > expiryMs) {
+                        keysToRemove.push(key);
+                    }
+                } catch (e) {
+                    // Invalid cache entry, remove it
+                    keysToRemove.push(key);
+                }
+            }
+        }
+        
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+        console.error('Error clearing old caches:', error);
+    }
+}
+
+function updateMessageInCache(conversationId, message) {
+    try {
+        const cacheKey = getMessageCacheKey(conversationId);
+        const cached = localStorage.getItem(cacheKey);
+        if (!cached) return;
+        
+        const cacheData = JSON.parse(cached);
+        const messages = cacheData.messages || [];
+        
+        // Check if message already exists
+        const existingIndex = messages.findIndex(m => m.id === message.id);
+        if (existingIndex >= 0) {
+            // Update existing message
+            messages[existingIndex] = message;
+        } else {
+            // Add new message (append to end since messages are sorted by time)
+            messages.push(message);
+            // Re-sort by created_at
+            messages.sort((a, b) => {
+                return new Date(a.created_at) - new Date(b.created_at);
+            });
+        }
+        
+        cacheData.messages = messages;
+        cacheData.timestamp = Date.now();
+        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    } catch (error) {
+        console.error('Error updating message in cache:', error);
+    }
+}
+
+function removeMessageFromCache(conversationId, messageId) {
+    try {
+        const cacheKey = getMessageCacheKey(conversationId);
+        const cached = localStorage.getItem(cacheKey);
+        if (!cached) return;
+        
+        const cacheData = JSON.parse(cached);
+        const messages = (cacheData.messages || []).filter(m => m.id !== messageId);
+        
+        cacheData.messages = messages;
+        cacheData.timestamp = Date.now();
+        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    } catch (error) {
+        console.error('Error removing message from cache:', error);
+    }
+}
+
+function clearConversationCache(conversationId) {
+    try {
+        const cacheKey = getMessageCacheKey(conversationId);
+        localStorage.removeItem(cacheKey);
+    } catch (error) {
+        console.error('Error clearing conversation cache:', error);
+    }
+}
+
+async function loadMessages(conversationId, page = 1, forceReload = false) {
+    try {
+        // Prevent rapid reloads (throttle to max once per 2 seconds for same conversation)
+        const now = Date.now();
+        if (!forceReload && page === 1 && messagingState.lastMessageLoadTime && 
+            messagingState.lastMessageLoadTime.conversationId === conversationId &&
+            (now - messagingState.lastMessageLoadTime.timestamp) < 2000) {
+            console.log('Skipping rapid reload for conversation', conversationId);
+            return;
+        }
+        
+        // For page 1, try to load from cache first
+        if (page === 1 && !forceReload) {
+            const cachedMessages = getCachedMessages(conversationId);
+            if (cachedMessages && cachedMessages.length > 0) {
+                // Load from cache immediately
+                messagingState.messages = cachedMessages;
+                
+                // Double-check conversation ID before rendering
+                if (messagingState.currentConversationId === conversationId) {
+                    renderMessages();
+                    hideMessagesLoading();
+                    scrollToBottom();
+                    
+                    // Still fetch from server in background to get latest messages
+                    // This ensures we have the most up-to-date data
+                    // But only if WebSocket is not connected (to avoid duplicate updates)
+                    if (!messagingState.isWebSocketConnected) {
+                        // Continue to fetch from server below
+                    } else {
+                        // WebSocket is connected, skip server fetch to avoid flickering
+                        messagingState.lastMessageLoadTime = {
+                            conversationId: conversationId,
+                            timestamp: now
+                        };
+                        return;
+                    }
+                } else {
+                    return; // Conversation changed, don't render cached messages
+                }
+            }
+        }
+        
         // Check if this is a group conversation to request members
         const conversation = messagingState.conversations.find(c => c.id === conversationId);
         const isGroup = conversation && conversation.type === 'group';
@@ -523,10 +736,14 @@ async function loadMessages(conversationId, page = 1) {
             if (page === 1) {
                 // Reverse messages since API returns DESC (newest first), but we want oldest first for display
                 messagingState.messages = newMessages.reverse();
+                // Save to cache
+                saveMessagesToCache(conversationId, messagingState.messages);
             } else {
                 // For pagination, prepend older messages (but only if still on same conversation)
                 if (messagingState.currentConversationId === conversationId) {
                     messagingState.messages = [...newMessages.reverse(), ...messagingState.messages];
+                    // Update cache with merged messages
+                    saveMessagesToCache(conversationId, messagingState.messages);
                 } else {
                     return; // Don't update if conversation changed
                 }
@@ -553,9 +770,22 @@ async function loadMessages(conversationId, page = 1) {
                 return new Date(a.created_at) - new Date(b.created_at);
             });
             
+            // Update cache with deduplicated and sorted messages
+            if (page === 1) {
+                saveMessagesToCache(conversationId, messagingState.messages);
+            }
+            
             // Final check before rendering
             if (messagingState.currentConversationId === conversationId) {
-                renderMessages();
+                // Only re-render if messages actually changed (compare message IDs)
+                const currentMessageIds = new Set(messagingState.messages.map(m => m.id));
+                const previousMessageIds = new Set(Array.from(lastRenderedMessageIds));
+                const messagesChanged = currentMessageIds.size !== previousMessageIds.size ||
+                    Array.from(currentMessageIds).some(id => !previousMessageIds.has(id));
+                
+                if (messagesChanged || page !== 1) {
+                    renderMessages();
+                }
                 
                 // Store participants for typing indicator
                 if (data.data.conversation && data.data.conversation.members) {
@@ -567,6 +797,12 @@ async function loadMessages(conversationId, page = 1) {
                 if (data.data.conversation && data.data.conversation.type === 'group') {
                     loadGroupInfo(data.data.conversation);
                 }
+                
+                // Update last load time
+                messagingState.lastMessageLoadTime = {
+                    conversationId: conversationId,
+                    timestamp: Date.now()
+                };
             }
         } else {
             showError(data.message || 'Gagal memuatkan mesej');
@@ -705,9 +941,16 @@ function renderMessages() {
                         ` : '<div class="message-avatar" style="visibility: hidden; width: 34px;"></div>'}
                         <div class="message-content">
                             ${!isGrouped && !isOwn ? `<div style="font-size: 12px; color: #666; margin-bottom: 5px;">${escapeHtml(msg.full_name || msg.username || 'Unknown')}</div>` : ''}
-                            <div class="message-bubble" ${messagingState.isSelectionMode ? '' : `oncontextmenu="event.preventDefault(); event.stopPropagation(); showMessageContextMenu(event, ${msg.id}, ${isOwn ? 'true' : 'false'})"`}>
+                            <div class="message-bubble ${msg.message_type === 'shared_post' ? 'has-shared-post' : ''}" ${messagingState.isSelectionMode ? '' : `oncontextmenu="event.preventDefault(); event.stopPropagation(); showMessageContextMenu(event, ${msg.id}, ${isOwn ? 'true' : 'false'})"`}>
                                 ${msg.message_type === 'text' ? 
                                     `<div>${formatMessageContent(msg.content)}</div>` :
+                                    msg.message_type === 'shared_post' && msg.attachment_url ?
+                                    `<div id="shared-post-${msg.id}" class="shared-post-container" style="min-width: 300px; max-width: 500px; width: 100%;">Loading post preview...</div>` :
+                                    msg.message_type === 'image' && msg.attachment_url ?
+                                    `<div class="message-image-container" style="max-width: 400px; max-height: 400px; border-radius: 8px; overflow: hidden; cursor: pointer;" onclick="window.open('${escapeHtml(msg.attachment_url)}', '_blank');">
+                                        <img src="${escapeHtml(msg.attachment_url)}" alt="${escapeHtml(msg.attachment_name || 'Image')}" style="width: 100%; height: auto; display: block;" onerror="this.parentElement.innerHTML='<div style=\\'padding: 20px; text-align: center; color: #999;\\'><i class=\\'fas fa-image\\'></i><br>Image not available</div>';">
+                                        ${msg.content ? `<div style="padding: 8px; background: rgba(0,0,0,0.05); font-size: 0.9rem; color: #333;">${formatMessageContent(msg.content)}</div>` : ''}
+                                    </div>` :
                                     msg.message_type === 'link' && msg.attachment_url ?
                                     renderLinkPreview(msg) :
                                     `<div class="message-attachment">
@@ -741,6 +984,46 @@ function renderMessages() {
     // Clear container and append fragment (single DOM operation)
     container.innerHTML = '';
     container.appendChild(fragment);
+    
+    // Load shared post previews asynchronously after DOM is updated
+    setTimeout(() => {
+        messagesToRender.forEach(msg => {
+            if (msg.message_type === 'shared_post' && msg.attachment_url) {
+                const previewContainer = document.getElementById(`shared-post-${msg.id}`);
+                if (previewContainer) {
+                    renderSharedPostPreview(msg).then(html => {
+                        // Double-check container still exists (might have been removed)
+                        const container = document.getElementById(`shared-post-${msg.id}`);
+                        if (container && container.parentElement) {
+                            // Find parent message bubble and add class to remove bubble styling
+                            const messageBubble = container.closest('.message-bubble');
+                            if (messageBubble) {
+                                messageBubble.classList.add('has-shared-post');
+                            }
+                            // Replace container with preview HTML using proper DOM manipulation
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = html.trim();
+                            const previewElement = tempDiv.firstElementChild;
+                            if (previewElement) {
+                                container.replaceWith(previewElement);
+                                // Update cache to prevent re-rendering
+                                messageElementsCache.delete(msg.id);
+                            } else {
+                                console.error('Failed to parse preview HTML for message', msg.id);
+                                container.innerHTML = html;
+                            }
+                        }
+                    }).catch(error => {
+                        console.error('Error rendering shared post preview:', error);
+                        const container = document.getElementById(`shared-post-${msg.id}`);
+                        if (container) {
+                            container.innerHTML = `<div style="padding: 12px; color: #999; font-size: 0.9em;">Failed to load post preview. <a href="${escapeHtml(msg.attachment_name || '#')}" target="_blank" style="color: #2454FF;">View post</a></div>`;
+                        }
+                    });
+                }
+            }
+        });
+    }, 100); // Small delay to ensure DOM is ready
     
     // Update cache tracking
     lastRenderedMessageIds = new Set(currentMessageIds);
@@ -869,6 +1152,12 @@ async function sendMessage() {
                 if (!messageExists) {
                     // Message not received via WebSocket, reload from server
                     await loadMessages(messagingState.currentConversationId);
+                } else {
+                    // Message exists, just update cache to ensure it's saved
+                    const message = messagingState.messages.find(m => m.id === data.data.message_id);
+                    if (message) {
+                        updateMessageInCache(messagingState.currentConversationId, message);
+                    }
                 }
                 
                 // Update pin indicators after loading
@@ -1015,10 +1304,15 @@ function renderFilteredConversations(conversations) {
              onclick="selectConversation(${conv.id})">
             <div class="conversation-avatar ${conv.other_avatar ? '' : ''}">
                 ${conv.other_avatar ? 
-                    `<img src="${conv.other_avatar}" alt="${conv.other_username}">` :
+                    `<img src="${escapeHtml(conv.other_avatar)}" alt="${escapeHtml(conv.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                        ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
+                     </div>` :
                     conv.type === 'group' ? 
                         '<i class="fas fa-users"></i>' :
-                        (conv.other_username ? conv.other_username.charAt(0).toUpperCase() : '?')
+                        `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                            ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
+                         </div>`
                 }
             </div>
             <div class="conversation-details">
@@ -1289,7 +1583,178 @@ async function createGroupChat(event) {
     }
 }
 
+// Conversation type selection modal
+function openCreateConversationModal() {
+    document.getElementById('createConversationModal').classList.add('active');
+}
+
+function closeCreateConversationModal() {
+    document.getElementById('createConversationModal').classList.remove('active');
+}
+
+// DM creation modal
+function openCreateDMModal() {
+    closeCreateConversationModal();
+    document.getElementById('createDMModal').classList.add('active');
+    document.getElementById('dmSearchUsers').value = '';
+    loadDMUsers();
+}
+
+function closeCreateDMModal() {
+    document.getElementById('createDMModal').classList.remove('active');
+    document.getElementById('dmSearchUsers').value = '';
+    const dmUsersList = document.getElementById('dmUsersList');
+    if (dmUsersList) {
+        dmUsersList.innerHTML = '';
+    }
+}
+
+// Load users for DM creation (following users + search)
+async function loadDMUsers(search = '') {
+    const container = document.getElementById('dmUsersList');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="loading" style="text-align: center; padding: 20px;">Loading users...</div>';
+    
+    try {
+        // Get following users
+        const followingResponse = await fetch('/api/profile/me/following', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include'
+        });
+        
+        let followingUsers = [];
+        if (followingResponse.ok) {
+            const followingData = await followingResponse.json();
+            if (followingData.status === 200 && followingData.data && followingData.data.users) {
+                followingUsers = followingData.data.users.map(u => ({ ...u, is_following: true }));
+            }
+        }
+        
+        // If search is provided, also search all users
+        let searchUsers = [];
+        if (search) {
+            const searchResponse = await fetch(`/api/messaging/available-users?search=${encodeURIComponent(search)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include'
+            });
+            
+            if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                if (searchData.status === 200 && searchData.data && searchData.data.users) {
+                    searchUsers = searchData.data.users.map(u => ({ ...u, is_following: false }));
+                }
+            }
+        }
+        
+        // Combine and deduplicate
+        const usersMap = new Map();
+        [...followingUsers, ...searchUsers].forEach(user => {
+            if (!usersMap.has(user.id)) {
+                usersMap.set(user.id, user);
+            } else {
+                // Prefer following status if exists
+                if (user.is_following) {
+                    usersMap.set(user.id, user);
+                }
+            }
+        });
+        
+        const users = Array.from(usersMap.values());
+        
+        if (users.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No users found</div>';
+            return;
+        }
+        
+        // Group by following/other
+        const following = users.filter(u => u.is_following);
+        const others = users.filter(u => !u.is_following);
+        
+        let html = '';
+        
+        if (following.length > 0) {
+            html += '<div class="members-section-header" style="font-weight: 600; color: #6b7280; font-size: 0.875rem; padding: 0.75rem 1rem; text-transform: uppercase; letter-spacing: 0.05em;">Following</div>';
+            html += following.map(user => createDMUserItem(user)).join('');
+        }
+        
+        if (others.length > 0) {
+            if (following.length > 0) {
+                html += '<div class="members-section-header" style="font-weight: 600; color: #6b7280; font-size: 0.875rem; padding: 0.75rem 1rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.5rem;">Other Users</div>';
+            }
+            html += others.map(user => createDMUserItem(user)).join('');
+        }
+        
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading DM users:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Error loading users</div>';
+    }
+}
+
+// Create DM user item HTML
+function createDMUserItem(user) {
+    const avatarUrl = user.avatar_url ? (user.avatar_url.startsWith('/') ? user.avatar_url : '/' + user.avatar_url) : null;
+    const initials = (user.full_name || user.username || 'U').charAt(0).toUpperCase();
+    const fullName = escapeHtml(user.full_name || user.username);
+    const username = escapeHtml(user.username);
+    
+    return `
+        <div class="dm-user-item" onclick="createDirectConversation(${user.id})" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; cursor: pointer; border-radius: 0.5rem; transition: background 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+            <div class="member-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; flex-shrink: 0; overflow: hidden;">
+                ${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="${fullName}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 500; color: #1f2937; font-size: 0.95rem;">${fullName}</div>
+                <div style="font-size: 0.85rem; color: #6b7280;">@${username}</div>
+            </div>
+            ${user.is_online ? '<div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; flex-shrink: 0;"></div>' : ''}
+        </div>
+    `;
+}
+
+// Create direct conversation
+async function createDirectConversation(userId) {
+    try {
+        const response = await fetch('/api/messaging/conversation/direct', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ user_id: userId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 200) {
+            closeCreateDMModal();
+            await loadConversations();
+            if (data.data && data.data.conversation_id) {
+                await selectConversation(data.data.conversation_id);
+            }
+        } else {
+            alert(data.message || 'Failed to create conversation');
+        }
+    } catch (error) {
+        console.error('Error creating direct conversation:', error);
+        alert('Failed to create conversation');
+    }
+}
+
+// Group chat modal (existing)
 function openCreateGroupModal() {
+    closeCreateConversationModal();
     document.getElementById('createGroupModal').classList.add('active');
     document.getElementById('searchMembers').value = '';
     loadAvailableMembers();
@@ -1433,10 +1898,15 @@ function loadConversationDetailsFromCache(conversation) {
         <div class="chat-info">
             <div class="chat-info-avatar">
                 ${conversation.other_avatar ?
-                    `<img src="${conversation.other_avatar}" alt="${conversation.other_username}">` :
+                    `<img src="${escapeHtml(conversation.other_avatar)}" alt="${escapeHtml(conversation.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem;">
+                        ${conversation.other_username ? escapeHtml(conversation.other_username.charAt(0).toUpperCase()) : '?'}
+                     </div>` :
                     conversation.type === 'group' ?
                         '<i class="fas fa-users"></i>' :
-                        (conversation.other_username ? conversation.other_username.charAt(0).toUpperCase() : '?')
+                        `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem;">
+                            ${conversation.other_username ? escapeHtml(conversation.other_username.charAt(0).toUpperCase()) : '?'}
+                         </div>`
                 }
             </div>
             <div class="chat-info-details">
@@ -1587,7 +2057,7 @@ function closeInfoSidebar() {
     document.getElementById('infoSidebar').style.display = 'none';
 }
 
-// WebSocket connection management
+// WebSocket connection management - Using Laravel Echo (Reverb)
 function connectWebSocket() {
     // Get user ID from sessionStorage or fetch from API
     let userId = getCurrentUserId();
@@ -1607,72 +2077,34 @@ function connectWebSocket() {
         return;
     }
     
-    // Determine WebSocket URL (adjust port/host as needed)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.hostname;
-    const wsPort = '8080'; // WebSocket server port
-    const wsUrl = `${wsProtocol}//${wsHost}:${wsPort}`;
-    
-    try {
-        messagingState.ws = new WebSocket(wsUrl);
+    // Use Laravel Echo if available (from app.blade.php)
+    if (typeof window.Echo !== 'undefined' && (window.Echo.connector || window.Echo.private)) {
+        console.log('Using Laravel Echo for messaging WebSocket');
         
-        messagingState.ws.onopen = () => {
-            console.log('WebSocket connected');
-            messagingState.wsReconnectAttempts = 0;
-            
-            // Authenticate with user ID
-            messagingState.ws.send(JSON.stringify({
-                type: 'auth',
-                user_id: userId
-            }));
+        try {
+            // Join current conversation if any (will be set up when conversation is selected)
+            if (messagingState.currentConversationId) {
+                joinConversation(messagingState.currentConversationId);
+            }
             
             // Update online status
             updateOnlineStatus(true);
             
-            // Join current conversation if any
-            if (messagingState.currentConversationId) {
-                joinConversation(messagingState.currentConversationId);
-            }
-        };
-        
-        messagingState.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                handleWebSocketMessage(data);
-            } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
-            }
-        };
-        
-        messagingState.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-        
-        messagingState.ws.onclose = () => {
-            console.log('WebSocket disconnected');
-            messagingState.ws = null;
+            // Mark as connected
+            messagingState.echoConnected = true;
+            messagingState.isWebSocketConnected = true;
+            stopPollingFallback(); // Stop polling since WebSocket is connected
+            console.log('Laravel Echo connected for messaging');
             
-            // Update offline status
-            updateOnlineStatus(false);
-            
-            // Attempt to reconnect
-            if (messagingState.wsReconnectAttempts < messagingState.maxReconnectAttempts) {
-                messagingState.wsReconnectAttempts++;
-                const delay = messagingState.reconnectDelay * messagingState.wsReconnectAttempts;
-                console.log(`Reconnecting in ${delay}ms (attempt ${messagingState.wsReconnectAttempts})...`);
-                setTimeout(() => {
-                    connectWebSocket();
-                }, delay);
-            } else {
-                console.error('Max reconnection attempts reached. Falling back to polling.');
-                // Fallback to polling if WebSocket fails
-                startPollingFallback();
-            }
-        };
-        
-    } catch (error) {
-        console.error('Error creating WebSocket connection:', error);
-        // Fallback to polling
+        } catch (error) {
+            console.error('Error setting up Laravel Echo:', error);
+            messagingState.isWebSocketConnected = false;
+            startPollingFallback();
+        }
+    } else {
+        // Echo not available, use polling fallback
+        console.log('Laravel Echo not available, using polling fallback');
+        messagingState.isWebSocketConnected = false;
         startPollingFallback();
     }
 }
@@ -1699,12 +2131,17 @@ function handleWebSocketMessage(data) {
                     messagingState.messages.sort((a, b) => {
                         return new Date(a.created_at) - new Date(b.created_at);
                     });
+                    // Update cache with new message
+                    updateMessageInCache(data.conversation_id, newMessage);
                     renderMessages();
                     // Auto-scroll to bottom when new message arrives
                     setTimeout(() => scrollToBottom(true), 100);
                 } else {
                     console.log('Message already exists:', newMessage.id);
                 }
+            } else if (data.message) {
+                // Message for a different conversation - still update cache
+                updateMessageInCache(data.conversation_id, data.message);
             }
             // Always reload conversations to update last message preview
             loadConversations();
@@ -1738,9 +2175,75 @@ function handleWebSocketMessage(data) {
     }
 }
 
-// Join a conversation via WebSocket
+// Join a conversation via WebSocket/Echo
 function joinConversation(conversationId) {
-    if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
+    if (!conversationId) return;
+    
+    // Use Laravel Echo if available
+    if (typeof window.Echo !== 'undefined' && (window.Echo.connector || window.Echo.private)) {
+        try {
+            // Leave previous conversation channel if exists
+            if (messagingState.echoChannels && messagingState.currentConversationId && messagingState.currentConversationId !== conversationId) {
+                const oldChannel = messagingState.echoChannels[messagingState.currentConversationId];
+                if (oldChannel) {
+                    window.Echo.leave(`conversation.${messagingState.currentConversationId}`);
+                    delete messagingState.echoChannels[messagingState.currentConversationId];
+                }
+            }
+            
+            // Join new conversation channel
+            const channel = window.Echo.private(`conversation.${conversationId}`);
+            
+            channel.listen('.new_message', (data) => {
+                console.log('New message via Echo:', data);
+                // Mark WebSocket as connected when we receive messages
+                messagingState.isWebSocketConnected = true;
+                stopPollingFallback();
+                handleWebSocketMessage({
+                    type: 'new_message',
+                    conversation_id: data.conversation_id || data.conversationId || conversationId,
+                    message: data.message
+                });
+            });
+            
+            channel.listen('.user_typing', (data) => {
+                if (data.conversation_id === conversationId) {
+                    handleWebSocketMessage({
+                        type: 'user_typing',
+                        conversation_id: conversationId,
+                        user_id: data.user_id
+                    });
+                }
+            });
+            
+            channel.listen('.user_stopped_typing', (data) => {
+                if (data.conversation_id === conversationId) {
+                    handleWebSocketMessage({
+                        type: 'user_stopped_typing',
+                        conversation_id: conversationId,
+                        user_id: data.user_id
+                    });
+                }
+            });
+            
+            channel.listen('.online_status_update', (data) => {
+                handleWebSocketMessage({
+                    type: 'online_status_update',
+                    user_id: data.user_id,
+                    is_online: data.is_online
+                });
+            });
+            
+            // Store channel reference
+            messagingState.echoChannels = messagingState.echoChannels || {};
+            messagingState.echoChannels[conversationId] = channel;
+            
+            console.log('Joined conversation channel via Echo:', conversationId);
+        } catch (error) {
+            console.error('Error joining conversation via Echo:', error);
+        }
+    } else if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
+        // Fallback to old WebSocket if Echo not available
         messagingState.ws.send(JSON.stringify({
             type: 'join_conversation',
             conversation_id: conversationId
@@ -1900,13 +2403,35 @@ function updateConversationOnlineStatus(userId, isOnline) {
 
 // Fallback to polling if WebSocket fails
 function startPollingFallback() {
+    // Clear any existing polling interval to prevent duplicates
+    if (messagingState.pollingInterval) {
+        clearInterval(messagingState.pollingInterval);
+        messagingState.pollingInterval = null;
+    }
+    
+    // Don't start polling if WebSocket is already connected
+    if (messagingState.isWebSocketConnected) {
+        return;
+    }
+    
     console.warn('Using polling fallback for real-time updates');
-    setInterval(() => {
-        if (messagingState.currentConversationId) {
+    // Increase interval to 15 seconds to avoid rate limiting and reduce flickering
+    messagingState.pollingInterval = setInterval(() => {
+        // Only poll if WebSocket is still not connected
+        if (!messagingState.isWebSocketConnected && messagingState.currentConversationId) {
             loadMessages(messagingState.currentConversationId, 1);
         }
         loadConversations();
-    }, 2000);
+    }, 15000); // 15 seconds to reduce flickering
+}
+
+// Stop polling fallback (called when WebSocket connects)
+function stopPollingFallback() {
+    if (messagingState.pollingInterval) {
+        clearInterval(messagingState.pollingInterval);
+        messagingState.pollingInterval = null;
+        console.log('Stopped polling fallback - WebSocket connected');
+    }
 }
 
 async function updateOnlineStatus(isOnline) {
@@ -2089,6 +2614,164 @@ function formatMessageContent(text) {
     
     return escaped;
 }
+
+// Cache for shared post data
+const sharedPostCache = new Map();
+
+// Fetch and render shared post preview
+async function renderSharedPostPreview(msg) {
+    const postId = parseInt(msg.attachment_url);
+    if (!postId) {
+        // Fallback to link if post_id is invalid
+        return `<div class="shared-post-preview"><a href="${escapeHtml(msg.attachment_name || '#')}" target="_blank">${escapeHtml(msg.content || 'Shared Post')}</a></div>`;
+    }
+
+    // Check cache first
+    if (sharedPostCache.has(postId)) {
+        return renderSharedPostCard(sharedPostCache.get(postId), msg);
+    }
+
+    // Fetch post data
+    try {
+        const response = await fetch(`/api/forum/post?post_id=${postId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+        if (data.status === 200 && data.data.posts && data.data.posts.length > 0) {
+            const post = data.data.posts[0];
+            sharedPostCache.set(postId, post);
+            return renderSharedPostCard(post, msg);
+        } else {
+            // Post not found or access denied, show fallback
+            return `<div class="shared-post-preview"><a href="${escapeHtml(msg.attachment_name || '/forum/post/' + postId)}" target="_blank">${escapeHtml(msg.content || 'Shared Post')}</a></div>`;
+        }
+    } catch (error) {
+        console.error('Error fetching shared post:', error);
+        // Fallback to link
+        return `<div class="shared-post-preview"><a href="${escapeHtml(msg.attachment_name || '/forum/post/' + postId)}" target="_blank">${escapeHtml(msg.content || 'Shared Post')}</a></div>`;
+    }
+}
+
+// Render shared post card (similar to forum main page)
+function renderSharedPostCard(post, msg) {
+    const postUrl = `/forum/post/${post.id}`;
+    const forumUrl = `/forum/${post.forum_id}`;
+    const authorUrl = post.author_id ? `/profile/${post.author_id}` : '#';
+    
+    // Process content preview (first 200 chars)
+    let contentPreview = '';
+    if (post.content) {
+        const content = post.content.substring(0, 200);
+        contentPreview = escapeHtml(content) + (post.content.length > 200 ? '...' : '');
+    }
+
+    // Get first image attachment for preview
+    let imagePreview = '';
+    if (post.attachments && Array.isArray(post.attachments) && post.attachments.length > 0) {
+        const imageAtt = post.attachments.find(att => {
+            const ext = (att.name || '').split('.').pop().toLowerCase();
+            return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+        });
+        if (imageAtt) {
+            imagePreview = `<div class="shared-post-image" style="width: 100%; max-height: 200px; overflow: hidden; border-radius: 8px 8px 0 0; margin: -12px -12px 12px -12px;">
+                <img src="${escapeHtml(imageAtt.url)}" alt="${escapeHtml(post.title)}" style="width: 100%; height: auto; display: block;" onerror="this.parentElement.style.display='none';">
+            </div>`;
+        }
+    }
+
+    // Poll options preview
+    let pollPreview = '';
+    if (post.post_type === 'poll' && post.poll_options && Array.isArray(post.poll_options)) {
+        pollPreview = `<div class="shared-post-poll" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: #666; font-size: 0.9em;">Poll Options:</div>
+            ${post.poll_options.slice(0, 3).map((option, idx) => `
+                <div style="padding: 6px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; font-size: 0.9em;">
+                    <span style="font-weight: 600; color: #ff4500;">${idx + 1}.</span>
+                    <span>${escapeHtml(option.text)}</span>
+                    ${option.vote_count > 0 ? `<span style="margin-left: auto; color: #666; font-size: 0.85em;">${option.vote_count} vote${option.vote_count !== 1 ? 's' : ''}</span>` : ''}
+                </div>
+            `).join('')}
+            ${post.poll_options.length > 3 ? `<div style="font-size: 0.85em; color: #999; margin-top: 4px;">+${post.poll_options.length - 3} more options</div>` : ''}
+            ${post.total_poll_votes > 0 ? `<div style="font-size: 0.85em; color: #666; margin-top: 8px;">Total votes: ${post.total_poll_votes}</div>` : ''}
+        </div>`;
+    }
+
+    return `
+        <div class="shared-post-preview" 
+             onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')"
+             onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
+             onmouseout="this.style.boxShadow='none'"
+             style="border: 1px solid #e0e0e0; border-radius: 8px; background: white; overflow: hidden; cursor: pointer; transition: box-shadow 0.2s; display: block; width: 100%; max-width: 500px; min-width: 300px; box-sizing: border-box;">
+            ${imagePreview}
+            <div style="padding: 12px; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.85em; color: #666; flex-wrap: wrap;">
+                    <span style="font-weight: 600; color: #ff4500; cursor: pointer;" onclick="event.stopPropagation(); window.open('${forumUrl}', '_blank')">r/${escapeHtml(post.forum_name || 'Forum')}</span>
+                    <span>•</span>
+                    <span onclick="event.stopPropagation(); window.open('${authorUrl}', '_blank')" style="cursor: pointer; color: #666;">${escapeHtml(post.author_name || post.author_username || 'Unknown')}</span>
+                    <span>•</span>
+                    <span style="color: #666;">${formatTime(post.created_at)}</span>
+                </div>
+                <div style="font-weight: 600; font-size: 1.1em; color: #333; margin-bottom: 8px; cursor: pointer; word-wrap: break-word; line-height: 1.3;" onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')">
+                    ${escapeHtml(post.title)}
+                </div>
+                ${contentPreview ? `<div style="color: #666; font-size: 0.9em; margin-bottom: 8px; line-height: 1.4; word-wrap: break-word;">${contentPreview}</div>` : ''}
+                ${pollPreview}
+                <div style="display: flex; align-items: center; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; font-size: 0.85em;">
+                    <span onclick="event.stopPropagation(); togglePostReaction(${post.id}, '${postUrl}')" style="cursor: pointer; display: flex; align-items: center; gap: 4px; color: #666;">
+                        <i class="${post.user_reacted ? 'fas' : 'far'} fa-heart" style="color: ${post.user_reacted ? '#ff4500' : '#666'};"></i>
+                        <span>${post.reaction_count || 0}</span>
+                    </span>
+                    <span onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')" style="cursor: pointer; display: flex; align-items: center; gap: 4px; color: #666;">
+                        <i class="far fa-comment"></i>
+                        <span>${post.reply_count || 0}</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Toggle post reaction from shared post preview
+window.togglePostReaction = async function(postId, postUrl) {
+    try {
+        const response = await fetch('/api/forum/react', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                target_type: 'post',
+                target_id: postId
+            })
+        });
+
+        const data = await response.json();
+        if (data.status === 200) {
+            // Update cache
+            if (sharedPostCache.has(postId)) {
+                const post = sharedPostCache.get(postId);
+                post.user_reacted = data.data.is_reacted;
+                post.reaction_count = data.data.reaction_count;
+                sharedPostCache.set(postId, post);
+            }
+            // Re-render messages to update the preview
+            renderMessages();
+        }
+    } catch (error) {
+        console.error('Error toggling reaction:', error);
+    }
+};
 
 // Render link preview card
 function renderLinkPreview(msg) {
@@ -2933,6 +3616,8 @@ async function confirmDeleteMessage(messageId, showConfirm = true) {
             // Remove message from state
             messagingState.messages = messagingState.messages.filter(m => m.id !== messageId);
             messageElementsCache.delete(messageId);
+            // Remove from cache
+            removeMessageFromCache(messagingState.currentConversationId, messageId);
             renderMessages();
         } else {
             alert(data.message || 'Failed to delete message');
@@ -2966,6 +3651,8 @@ async function permanentlyDeleteMessage(messageId) {
             // Remove message from state
             messagingState.messages = messagingState.messages.filter(m => m.id !== messageId);
             messageElementsCache.delete(messageId);
+            // Remove from cache
+            removeMessageFromCache(messagingState.currentConversationId, messageId);
             renderMessages();
         } else {
             alert(data.message || 'Failed to permanently delete message');
@@ -3008,6 +3695,9 @@ async function confirmDeleteConversation(conversationId) {
             messagingState.messages = [];
             messageElementsCache.clear();
             lastRenderedMessageIds.clear();
+            
+            // Clear cache for this conversation
+            clearConversationCache(conversationId);
             
             // Clear UI
             document.getElementById('chatHeader').innerHTML = `
@@ -3248,7 +3938,11 @@ window.starSelectedMessages = starSelectedMessages;
 window.copySelectedMessages = copySelectedMessages;
 window.forwardSelectedMessages = forwardSelectedMessages;
 window.deleteSelectedMessages = deleteSelectedMessages;
-window.shareMessage = shareMessage;
+// shareMessage function - placeholder for future implementation
+window.shareMessage = function(messageId) {
+    console.log('Share message:', messageId);
+    // TODO: Implement share message functionality
+};
 window.addReaction = addReaction;
 window.showMoreReactions = showMoreReactions;
 window.toggleConversationOptions = toggleConversationOptions;

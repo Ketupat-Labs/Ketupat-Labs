@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use App\Notifications\ResetPasswordNotification;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, CanResetPassword;
 
     protected $table = 'user';
 
@@ -27,6 +29,8 @@ class User extends Authenticatable
         'bio',
         'chatbot_enabled',
         'allow_friend_requests',
+        'share_badges_on_profile',
+        'visible_badge_codes',
     ];
 
     protected $hidden = [
@@ -39,6 +43,8 @@ class User extends Authenticatable
         'password' => 'hashed',
         'is_online' => 'boolean',
         'last_seen' => 'datetime',
+        'share_badges_on_profile' => 'boolean',
+        'visible_badge_codes' => 'array',
     ];
 
     // Helper method to get UI role
@@ -137,6 +143,17 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Badge::class, 'user_badge', 'user_id', 'badge_code', 'id', 'code')
             ->withTimestamps();
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
 

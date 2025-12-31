@@ -62,6 +62,11 @@ class SubmissionController extends Controller
         return view('submission.student-index', compact('submissions'));
     }
 
+    public function submit(Request $request): RedirectResponse
+    {
+        return $this->store($request);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
@@ -86,7 +91,7 @@ class SubmissionController extends Controller
             // For now, just update the existing one or error
             if ($existingSubmission->status === 'Graded') {
                 return redirect()->route('lesson.show', $request->lesson_id)
-                    ->with('error', 'You have already been graded for this lesson.');
+                    ->with('error', 'Anda telah dinilai untuk pelajaran ini.');
             }
 
             // Delete old file if exists
@@ -149,7 +154,7 @@ class SubmissionController extends Controller
         }
 
         return redirect()->route('lesson.show', $request->lesson_id)
-            ->with('success', 'Your file has been submitted and is awaiting teacher grade.');
+            ->with('success', 'Fail anda telah dihantar dan sedang menunggu penilaian guru.');
     }
 
     public function grade(Request $request, Submission $submission): RedirectResponse

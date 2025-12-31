@@ -409,14 +409,20 @@ async function loadReports() {
             renderReportStatusBadges(data.data.status_counts || {});
             renderReports(forumState.reports);
         } else {
-            showError(data.message || 'Failed to load reports');
+            console.error('Failed to load reports:', data);
+            document.getElementById('reportsList').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>${data.message || 'Failed to load reports'}</p>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error loading reports:', error);
         document.getElementById('reportsList').innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle"></i>
-                <p>Failed to load reports</p>
+                <p>Failed to load reports: ${error.message}</p>
             </div>
         `;
     }

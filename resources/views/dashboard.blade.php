@@ -227,7 +227,22 @@
                     </div>
                     <div class="space-y-4">
                         @php
-                            $recentLessons = \App\Models\Lesson::where('is_published', true)->latest()->take(3)->get();
+                            $user = auth()->user();
+                            $recentLessons = \App\Models\Lesson::where('is_published', true)
+                                ->where(function($query) use ($user) {
+                                    $query->where('is_public', true);
+                                    if ($user && $user->role === 'student') {
+                                        $classroomIds = $user->enrolledClassrooms()->pluck('class.id');
+                                        if ($classroomIds->isNotEmpty()) {
+                                            $query->orWhereHas('assignments', function($q) use ($classroomIds) {
+                                                $q->whereIn('classroom_id', $classroomIds);
+                                            });
+                                        }
+                                    }
+                                })
+                                ->latest()
+                                ->take(3)
+                                ->get();
                         @endphp
                         @forelse($recentLessons as $lesson)
                             <a href="{{ route('lesson.show', $lesson->id) }}"

@@ -4,7 +4,9 @@
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 {{ __('Inventori Pelajaran & Aktiviti') }}
             </h2>
-            <div x-data="{ activeTab: '{{ request('tab', 'lessons') }}' }">
+            <div x-data="{ activeTab: '{{ request('tab', 'lessons') }}' }" 
+                 @tab-changed.window="activeTab = $event.detail"
+                 x-init="$watch('activeTab', value => { $dispatch('header-tab-updated', value); })">
                 <a :href="activeTab === 'lessons' ? '{{ route('lessons.create') }}' : '{{ route('activities.create') }}'"
                     class="bg-[#5FAD56] hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition ease-in-out duration-150 shadow-sm flex items-center gap-2 text-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -16,17 +18,20 @@
         </div>
     </x-slot>
 
-    <div class="py-12 bg-gray-50" x-data="{ activeTab: '{{ request('tab', 'lessons') }}' }">
+    <div class="py-12 bg-gray-50" 
+         x-data="{ activeTab: '{{ request('tab', 'lessons') }}' }" 
+         x-init="$watch('activeTab', value => { $dispatch('tab-changed', value); })"
+         @header-tab-updated.window="activeTab = $event.detail">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             <!-- Tab Navigation -->
             <div class="flex space-x-4 mb-6 border-b border-gray-200 px-4 sm:px-0">
-                <button @click="activeTab = 'lessons'" 
+                <button @click="activeTab = 'lessons'; $dispatch('tab-changed', 'lessons')" 
                     :class="{ 'border-b-2 border-blue-500 text-blue-600': activeTab === 'lessons', 'text-gray-500 hover:text-gray-700': activeTab !== 'lessons' }"
                     class="pb-2 px-4 text-sm font-medium transition-colors duration-200 focus:outline-none">
                     Inventori Pelajaran
                 </button>
-                <button @click="activeTab = 'activities'" 
+                <button @click="activeTab = 'activities'; $dispatch('tab-changed', 'activities')" 
                     :class="{ 'border-b-2 border-blue-500 text-blue-600': activeTab === 'activities', 'text-gray-500 hover:text-gray-700': activeTab !== 'activities' }"
                     class="pb-2 px-4 text-sm font-medium transition-colors duration-200 focus:outline-none">
                     Inventori Aktiviti
@@ -161,7 +166,7 @@
             </div>
 
             <!-- ACTIVITIES TAB -->
-            <div x-show="activeTab === 'activities'" style="display: none;">
+            <div x-show="activeTab === 'activities'">
                 @php
                     $allActivities = collect($games ?? [])->merge($quizzes ?? [])->sortByDesc('created_at');
                 @endphp

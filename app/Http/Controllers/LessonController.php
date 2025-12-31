@@ -42,6 +42,7 @@ class LessonController extends Controller
             'duration' => 'nullable|integer|min:5',
             'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
             'url' => 'nullable|url',
+            'is_public' => 'nullable|in:0,1',
         ]);
 
         $filePath = null;
@@ -69,6 +70,7 @@ class LessonController extends Controller
             'duration' => $request->duration,
             'teacher_id' => session('user_id'), // Use session user_id
             'is_published' => true,
+            'is_public' => $request->input('is_public', '1') == '1', // Default to public (1) if not specified
         ]);
 
         return redirect()->route('lessons.index')->with('success', __('Lesson saved successfully!'));
@@ -108,6 +110,7 @@ class LessonController extends Controller
             'duration' => 'nullable|integer|min:5',
             'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
             'url' => 'nullable|url',
+            'is_public' => 'nullable|in:0,1',
         ]);
 
         $filePath = $lesson->material_path;
@@ -139,6 +142,7 @@ class LessonController extends Controller
             'duration' => $validatedData['duration'],
             'material_path' => $filePath,
             'url' => $request->url ?? $lesson->url,
+            'is_public' => $request->has('is_public') ? ($request->input('is_public') == '1') : $lesson->is_public, // Preserve existing if not provided
         ]);
 
         return redirect()->route('lessons.index')->with('success', __('Lesson updated successfully!'));
@@ -187,14 +191,23 @@ class LessonController extends Controller
         }
 
         $lessons = Lesson::where('is_published', true)
-            ->where(function($query) use ($classroomIds) {
+            ->where(function($query) use ($classroomIds, $user) {
                 // Show if Public
-                $query->where('is_public', true)
-                // OR if assigned to one of the student's classrooms
-                      ->orWhereHas('classrooms', function($q) use ($classroomIds) {
-                          $q->whereIn('classroom_id', $classroomIds);
-                      });
+                $query->where('is_public', true);
+                
+                // OR if assigned to one of the student's classrooms via lesson_assignment table
+                if ($classroomIds->isNotEmpty()) {
+                    $query->orWhereHas('assignments', function($q) use ($classroomIds) {
+                        $q->whereIn('classroom_id', $classroomIds);
+                    });
+                }
+                
+                // OR if user is a teacher and this is their own lesson
+                if ($user && $user->role === 'teacher') {
+                    $query->orWhere('teacher_id', $user->id);
+                }
             })
+            ->latest()
             ->get()
             ->map(function ($lesson) use ($lessonEnrollments) {
             $lesson->setAttribute('item_type', 'lesson');
@@ -207,35 +220,71 @@ class LessonController extends Controller
 
         // 2. Fetch Activities (Class Assigned + Public)
         $classActivities = collect();
-        if ($user && $user->role === 'student') {
-            $classroomIds = $user->enrolledClassrooms()->pluck('class.id');
+        if ($user) {
+            $classroomIds = collect();
+            if ($user->role === 'student') {
+                $classroomIds = $user->enrolledClassrooms()->pluck('class.id');
+            } elseif ($user->role === 'teacher') {
+                // Teachers can see activities from their own classrooms
+                $classroomIds = \App\Models\Classroom::where('teacher_id', $user->id)->pluck('id');
+            }
 
-            $classActivities = \App\Models\ActivityAssignment::whereIn('classroom_id', $classroomIds)
-                ->with('activity')
-                ->get()
-                ->map(function ($assignment) use ($activitySubmissions) {
-                    $activity = $assignment->activity;
-                    // Attach assignment details to activity object for view
-                    $activity->setAttribute('item_type', 'activity');
-                    $activity->setAttribute('sort_date', $assignment->assigned_at ?? $assignment->created_at);
-                    $activity->setAttribute('due_date', $assignment->due_date);
-                    $activity->setAttribute('assignment_id', $assignment->id);
-                    // Check if completed
-                    $activity->setAttribute('is_completed', $activitySubmissions->has($assignment->id));
-                    return $activity;
-                });
+            if ($classroomIds->isNotEmpty()) {
+                $classActivities = \App\Models\ActivityAssignment::whereIn('classroom_id', $classroomIds)
+                    ->with('activity')
+                    ->get()
+                    ->filter(function ($assignment) {
+                        return $assignment->activity !== null; // Filter out null activities
+                    })
+                    ->map(function ($assignment) use ($activitySubmissions, $user) {
+                        $activity = $assignment->activity;
+                        if (!$activity) return null;
+                        
+                        // Attach assignment details to activity object for view
+                        $activity->setAttribute('item_type', 'activity');
+                        $activity->setAttribute('sort_date', $assignment->assigned_at ?? $assignment->created_at);
+                        $activity->setAttribute('due_date', $assignment->due_date);
+                        $activity->setAttribute('assignment_id', $assignment->id);
+                        
+                        // Check if completed
+                        if ($user && $user->role === 'student') {
+                            $isCompleted = $activitySubmissions->has($assignment->id) || 
+                                \App\Models\ActivitySubmission::where('activity_id', $activity->id)
+                                    ->where('user_id', $user->id)
+                                    ->whereNotNull('completed_at')
+                                    ->exists();
+                        } else {
+                            $isCompleted = false;
+                        }
+                        $activity->setAttribute('is_completed', $isCompleted);
+                        return $activity;
+                    })
+                    ->filter(); // Remove any null values
+            }
         }
 
-        // Fetch Public Activities
+        // Fetch Public Activities (exclude those already in classActivities to avoid duplicates)
+        $assignedActivityIds = $classActivities->pluck('id')->toArray();
         $publicActivities = \App\Models\Activity::where('is_public', true)
+             ->whereNotIn('id', $assignedActivityIds) // Exclude already assigned activities
              ->latest()
              ->get()
-             ->map(function ($activity) {
+             ->map(function ($activity) use ($user) {
                  $activity->setAttribute('item_type', 'activity');
                  $activity->setAttribute('sort_date', $activity->created_at);
                  $activity->setAttribute('due_date', null);
                  $activity->setAttribute('assignment_id', 'public_' . $activity->id);
-                 $activity->setAttribute('is_completed', false); 
+                 
+                 // Check if completed (for public activities, check by activity_id)
+                 $isCompleted = false;
+                 if ($user && $user->role === 'student') {
+                     $isCompleted = \App\Models\ActivitySubmission::where('activity_id', $activity->id)
+                         ->where('user_id', $user->id)
+                         ->whereNotNull('completed_at')
+                         ->exists();
+                 }
+                 $activity->setAttribute('is_completed', $isCompleted);
+                 
                  return $activity;
              });
 

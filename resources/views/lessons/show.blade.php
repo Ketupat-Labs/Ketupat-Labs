@@ -26,7 +26,7 @@
             <div class="lesson-content-card space-y-6">
                 
                 <div>
-                    <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Lesson Content</h3>
+                    <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Kandungan Pelajaran</h3>
                     
                     {{-- Dynamic Block Rendering --}}
                     <div class="mt-6 space-y-6">
@@ -53,7 +53,7 @@
                                         
                                         @if($videoId)
                                             <div class="video-container my-6">
-                                                <h4 class="text-lg font-semibold text-gray-800 mb-3">📹 Video Demonstration</h4>
+                                                <h4 class="text-lg font-semibold text-gray-800 mb-3">📹 Demonstrasi Video</h4>
                                                 <div class="relative" style="padding-bottom: 56.25%; height: 0;">
                                                     <iframe 
                                                         src="https://www.youtube.com/embed/{{ $videoId }}" 
@@ -71,13 +71,13 @@
                                                          alt="Video Placeholder" 
                                                          class="border-4 border-[#F26430] cursor-pointer rounded-lg hover:opacity-90 transition-opacity">
                                                 </a>
-                                                <p class="text-sm text-gray-600 mt-2">Click image to view on YouTube</p>
+                                                <p class="text-sm text-gray-600 mt-2">Klik imej untuk tonton di YouTube</p>
                                             </div>
                                         @endif
                                     
                                     @elseif($block['type'] === 'image')
                                         <div class="image-container my-6">
-                                            <h4 class="text-lg font-semibold text-gray-800 mb-3">🖼️ Visual Guide</h4>
+                                            <h4 class="text-lg font-semibold text-gray-800 mb-3">🖼️ Panduan Visual</h4>
                                             <div class="border-2 border-[#F26430] p-4 rounded-lg bg-red-50">
                                                 <img src="{{ $block['content'] }}" 
                                                      alt="Lesson Image" 
@@ -121,15 +121,15 @@
                 </div>
 
                 <div class="pt-4">
-                    <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Lesson Materials</h3>
+                    <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Bahan Pelajaran</h3>
                     @if ($lesson->material_path)
-                        <p class="mt-2 text-lg">Downloadable Material: 
+                        <p class="mt-2 text-lg">Bahan Boleh Muat Turun: 
                             <a href="{{ Storage::url($lesson->material_path) }}" target="_blank" class="text-[#5FAD56] hover:underline font-bold">
                                 {{ basename($lesson->material_path) }}
                             </a>
                         </p>
                     @else
-                        <p class="mt-2 text-gray-500">No physical material file available for this lesson.</p>
+                        <p class="mt-2 text-gray-500">Tiada fail bahan fizikal tersedia untuk pelajaran ini.</p>
                     @endif
                 </div>
 
@@ -158,7 +158,7 @@
             
             // Update UI
             progressFill.style.width = maxProgress + '%';
-            progressText.textContent = maxProgress + '% Complete';
+            progressText.textContent = maxProgress + '% Selesai';
         }
         
         // Initialize with saved progress

@@ -93,6 +93,56 @@ class ClassroomController extends Controller
         return redirect()->route('classrooms.index')->with('success', 'Classroom created successfully.');
     }
 
+    public function edit(Classroom $classroom)
+    {
+        $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
+        if (!$user || $user->role !== 'teacher' || $classroom->teacher_id !== $user->id)
+            abort(403);
+
+        // Get existing names excluding the current classroom
+        $existingNames = Classroom::where('teacher_id', $user->id)
+            ->where('id', '!=', $classroom->id)
+            ->pluck('name');
+
+        return view('classrooms.edit', compact('classroom', 'existingNames'));
+    }
+
+    public function update(Request $request, Classroom $classroom)
+    {
+        $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
+        if (!$user || $user->role !== 'teacher' || $classroom->teacher_id !== $user->id)
+            abort(403);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:200'],
+            'subject' => ['required', 'string', 'max:200'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        // Normalize input name: remove spaces, lowercase
+        $inputName = strtolower(str_replace(' ', '', $validated['name']));
+
+        // Check for existing classrooms with similar names for this teacher (excluding current)
+        $existingClassrooms = Classroom::where('teacher_id', $user->id)
+            ->where('id', '!=', $classroom->id)
+            ->get();
+
+        foreach ($existingClassrooms as $existing) {
+            $existingName = strtolower(str_replace(' ', '', $existing->name));
+            if ($existingName === $inputName) {
+                return back()->with('error', 'Kelas dengan nama yang sama (ejaan hampir serupa) sudah wujud. Sila gunakan nama lain.')->withInput();
+            }
+        }
+
+        $classroom->update([
+            'name' => $validated['name'],
+            'subject' => $validated['subject'],
+            'year' => $validated['year'] ?? null,
+        ]);
+
+        return redirect()->route('classrooms.index')->with('success', 'Kelas berjaya dikemaskini.');
+    }
+
     public function show(Request $request, Classroom $classroom)
     {
         $user = session('user_id') ? \App\Models\User::find(session('user_id')) : null;
@@ -166,6 +216,17 @@ class ClassroomController extends Controller
 
         $classroom->students()->attach($student->id, [
             'enrolled_at' => now(),
+        ]);
+
+        // Create notification for student enrollment
+        \App\Models\Notification::create([
+            'user_id' => $student->id,
+            'type' => 'class_enrollment',
+            'title' => 'Anda Telah Ditambah ke Kelas',
+            'message' => 'Anda telah ditambah ke kelas "' . $classroom->name . '" oleh ' . $user->full_name,
+            'related_type' => 'classroom',
+            'related_id' => $classroom->id,
+            'is_read' => false,
         ]);
 
         // Add student to forum if forum exists for this classroom

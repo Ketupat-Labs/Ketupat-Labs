@@ -134,8 +134,15 @@ function processVideoLinks(content) {
                 const urlIndex = content.indexOf(firstUrl);
                 const description = content.substring(urlIndex + firstUrl.length).trim();
                 
-                // Create compact link preview
-                return createLinkPreview(firstUrl, domain, description);
+                // Display description as separate paragraph, then link preview
+                const descriptionHtml = description
+                    ? '<div class="post-description" style="margin-bottom: 16px; color: #333; line-height: 1.6; white-space: pre-wrap;">' +
+                      escapeHtml(description) +
+                      '</div>'
+                    : '';
+
+                // Create compact link preview (without description inside)
+                return descriptionHtml + createLinkPreview(firstUrl, domain, '');
             } catch (e) {
                 // Invalid URL, just escape and return
                 return escapeHtml(content);
@@ -246,14 +253,71 @@ function processVideoLinks(content) {
     return escapedDescription + processedUrl;
 }
 
+// Cache for link previews to avoid multiple requests
+const linkPreviewCache = {};
+
+// Fetch link preview data
+async function fetchLinkPreview(url) {
+    // Check cache first
+    if (linkPreviewCache[url]) {
+        return linkPreviewCache[url];
+    }
+
+    const apiBaseUrl = window.location.origin;
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/link-preview?url=${encodeURIComponent(url)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.status === 200 && data.data) {
+                // Cache the result
+                linkPreviewCache[url] = data.data;
+                return data.data;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching link preview:', error);
+    }
+
+    // Return fallback
+    return {
+        title: new URL(url).hostname,
+        site_name: new URL(url).hostname,
+    };
+}
+
 // Helper function to create a compact link preview (for non-video links)
+// Note: description parameter is kept for backward compatibility but is no longer used
+// Description should be displayed separately as a paragraph before calling this function
 function createLinkPreview(url, domain, description) {
-    // Extract title from description or use domain
-    const title = description ? description.split('\n')[0].substring(0, 100) : domain;
-    const fullDescription = description ? description.substring(title.length).trim() : '';
+    // Use domain as initial title (will be updated async)
+    const containerId = 'link-preview-' + Math.random().toString(36).substr(2, 9);
     
+    // Fetch preview asynchronously and update
+    fetchLinkPreview(url).then(preview => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const titleLink = container.querySelector('.link-preview-title a');
+            if (titleLink && preview.title) {
+                titleLink.textContent = preview.title;
+            }
+            const siteElement = container.querySelector('.link-preview-site');
+            if (siteElement && preview.site_name) {
+                siteElement.textContent = preview.site_name;
+            }
+        }
+    });
+
     return `
-        <div class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
+        <div id="${containerId}" class="link-preview-container" style="margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; display: flex; cursor: pointer; transition: box-shadow 0.2s;" 
              onclick="event.stopPropagation(); window.open('${escapeHtml(url)}', '_blank')" 
              onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
              onmouseout="this.style.boxShadow='none'">
@@ -265,15 +329,12 @@ function createLinkPreview(url, domain, description) {
                 </svg>
             </div>
             <div style="flex: 1; padding: 12px; padding-left: 0; min-width: 0;">
-                <div style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                    ${escapeHtml(title)}
+                <div class="link-preview-title" style="font-weight: 500; color: #333; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
+                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #1877f2; text-decoration: none;" onclick="event.stopPropagation();">
+                        ${escapeHtml(domain)}
+                    </a>
                 </div>
-                ${fullDescription ? `
-                    <div style="font-size: 0.9em; color: #666; margin-bottom: 4px; word-wrap: break-word; line-height: 1.4;">
-                        ${escapeHtml(fullDescription.substring(0, 150))}${fullDescription.length > 150 ? '...' : ''}
-                    </div>
-                ` : ''}
-                <div style="font-size: 0.85em; color: #999; margin-top: 4px;">
+                <div class="link-preview-site" style="font-size: 0.85em; color: #999; margin-top: 4px;">
                     ${escapeHtml(domain)}
                 </div>
             </div>
@@ -698,7 +759,7 @@ function renderPosts(posts) {
                                     </button>
                                     ${post.is_forum_member && parseInt(getCurrentUserId()) !== parseInt(post.author_id) ? `
                                     <button class="post-options-item report-option" onclick="event.stopPropagation(); openReportModal(${post.id}, '${escapeHtml(post.title)}')">
-                                        <i class="fas fa-flag"></i> Report
+                                        <i class="fas fa-flag"></i> Lapor
                                     </button>
                                     ` : ''}
                                     ${(parseInt(getCurrentUserId()) === parseInt(post.author_id) || (post.user_forum_role && ['admin', 'moderator'].includes(post.user_forum_role))) ? `
@@ -1491,13 +1552,10 @@ async function shareToConversation(conversationId, conversationType) {
     const forumName = modal.querySelector('.share-post-forum')?.textContent || '';
     const postUrl = `${window.location.origin}/forum/post/${postId}`;
     
-    // Create a preview message with post details
-    const previewMessage = `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}\n\n${postUrl}`;
-    
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         
-        // Send the message with post preview
+        // Send the message with shared_post type - post_id stored in attachment_url
         const response = await fetch('/api/messaging/send', {
             method: 'POST',
             headers: {
@@ -1509,8 +1567,10 @@ async function shareToConversation(conversationId, conversationType) {
             credentials: 'include',
             body: JSON.stringify({
                 conversation_id: parseInt(conversationId),
-                content: previewMessage,
-                message_type: 'text'
+                content: `📌 Shared Post: ${postTitle}\n\nForum: ${forumName}`,
+                message_type: 'shared_post',
+                attachment_url: postId.toString(), // Store post_id in attachment_url
+                attachment_name: postUrl // Store post URL in attachment_name for fallback
             })
         });
         
@@ -1627,7 +1687,7 @@ async function openReportModal(postId, postTitle) {
             <div class="report-modal-overlay" onclick="closeReportModal()"></div>
             <div class="report-modal-content">
                 <div class="report-modal-header">
-                    <h3>Report Post</h3>
+                    <h3>Lapor Post</h3>
                     <button class="report-modal-close" onclick="closeReportModal()">
                         <i class="fas fa-times"></i>
                     </button>
@@ -1637,7 +1697,7 @@ async function openReportModal(postId, postTitle) {
                         <div class="report-post-title">${escapeHtml(postTitle)}</div>
                     </div>
                     <div class="report-reason-section">
-                        <label class="report-label">Why are you reporting this post?</label>
+                        <label class="report-label">Mengapa anda melaporkan post ini?</label>
                         <div class="report-reasons">
                             <label class="report-reason-option">
                                 <input type="radio" name="reportReason" value="spam" required>
@@ -1645,32 +1705,32 @@ async function openReportModal(postId, postTitle) {
                             </label>
                             <label class="report-reason-option">
                                 <input type="radio" name="reportReason" value="harassment" required>
-                                <span>Harassment or Bullying</span>
+                                <span>Gangguan atau Buli</span>
                             </label>
                             <label class="report-reason-option">
                                 <input type="radio" name="reportReason" value="inappropriate" required>
-                                <span>Inappropriate Content</span>
+                                <span>Kandungan Tidak Sesuai</span>
                             </label>
                             <label class="report-reason-option">
                                 <input type="radio" name="reportReason" value="misinformation" required>
-                                <span>Misinformation</span>
+                                <span>Maklumat Palsu</span>
                             </label>
                             <label class="report-reason-option">
                                 <input type="radio" name="reportReason" value="other" required>
-                                <span>Other</span>
+                                <span>Lain-lain</span>
                             </label>
                         </div>
                     </div>
                     <div class="report-details-section">
-                        <label class="report-label" for="reportDetails">Additional details (optional)</label>
-                        <textarea id="reportDetails" class="report-details-input" placeholder="Provide more information about why you're reporting this post..." maxlength="500"></textarea>
+                        <label class="report-label" for="reportDetails">Butiran tambahan (pilihan)</label>
+                        <textarea id="reportDetails" class="report-details-input" placeholder="Berikan maklumat lanjut tentang mengapa anda melaporkan post ini..." maxlength="500"></textarea>
                         <div class="report-char-count"><span id="reportCharCount">0</span>/500</div>
                     </div>
                     <div id="reportError" class="report-error" style="display: none;"></div>
                 </div>
                 <div class="report-modal-footer">
-                    <button class="report-cancel-btn" onclick="closeReportModal()">Cancel</button>
-                    <button class="report-submit-btn" onclick="submitReport()">Submit Report</button>
+                    <button class="report-cancel-btn" onclick="closeReportModal()">Batal</button>
+                    <button class="report-submit-btn" onclick="submitReport()">Hantar Laporan</button>
                 </div>
             </div>
         `;
@@ -1730,7 +1790,7 @@ async function submitReport() {
     
     if (!selectedReason) {
         if (errorDiv) {
-            errorDiv.textContent = 'Please select a reason for reporting';
+            errorDiv.textContent = 'Sila pilih sebab untuk melaporkan';
             errorDiv.style.display = 'block';
         }
         return;
@@ -1761,7 +1821,7 @@ async function submitReport() {
         
         if (data.status === 200) {
             closeReportModal();
-            alert('Post reported successfully. Thank you for helping keep our community safe.');
+            alert('Post berjaya dilaporkan. Terima kasih kerana membantu menjaga keselamatan komuniti kami.');
             
             // Reload posts to update report count display
             if (forumState.forumId) {
@@ -1769,14 +1829,14 @@ async function submitReport() {
             }
         } else {
             if (errorDiv) {
-                errorDiv.textContent = data.message || 'Failed to submit report';
+                errorDiv.textContent = data.message || 'Gagal menghantar laporan';
                 errorDiv.style.display = 'block';
             }
         }
     } catch (error) {
         console.error('Error submitting report:', error);
         if (errorDiv) {
-            errorDiv.textContent = 'Failed to submit report. Please try again.';
+            errorDiv.textContent = 'Gagal menghantar laporan. Sila cuba lagi.';
             errorDiv.style.display = 'block';
         }
     }

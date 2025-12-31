@@ -32,8 +32,8 @@
                         <a href="{{ route('forum.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
                             Forum
                         </a>
-                        <a href="#" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Bilik Darjah
+                        <a href="{{ route('classrooms.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            Kelas Saya
                         </a>
                     </div>
                 </div>
@@ -41,7 +41,13 @@
                 <!-- Settings Dropdown -->
                 <div class="hidden sm:flex sm:items-center sm:ms-6">
                     <div class="relative">
-                        <button id="userMenuBtn" class="inline-flex items-center px-4 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150">
+                        <button id="userMenuBtn" class="inline-flex items-center px-3 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150 gap-2">
+                            <div id="userAvatarContainer" class="flex-shrink-0">
+                                <img id="userAvatarImg" src="" alt="User" class="h-8 w-8 rounded-full object-cover border-2 border-gray-200 hidden">
+                                <div id="userAvatarPlaceholder" class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200">
+                                    <span id="userAvatarInitial">U</span>
+                                </div>
+                            </div>
                             <div id="userName">User</div>
                             <svg class="fill-current h-4 w-4 ms-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -75,8 +81,8 @@
                 <a href="{{ route('forum.index') }}" class="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-blue-700 bg-blue-50 focus:outline-none focus:text-blue-800 focus:bg-blue-100 focus:border-blue-700 transition duration-150 ease-in-out">
                     Forum
                 </a>
-                <a href="#" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Bilik Darjah
+                <a href="{{ route('classrooms.index') }}" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
+                    Kelas Saya
                 </a>
             </div>
 
@@ -203,10 +209,37 @@
     <script src="{{ asset('Forum/JS/create-forum.js') }}"></script>
     <script>
         // Navigation functionality
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             // Load user info from sessionStorage
             const userName = sessionStorage.getItem('userName') || sessionStorage.getItem('userEmail') || 'User';
             const userEmail = sessionStorage.getItem('userEmail') || '';
+            let userAvatar = sessionStorage.getItem('userAvatar') || '';
+
+            // If no avatar in sessionStorage, try to fetch from API
+            if (!userAvatar) {
+                try {
+                    const response = await fetch('/api/auth/me', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        credentials: 'include',
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status === 200 && data.data) {
+                            if (data.data.avatar_url) {
+                                userAvatar = data.data.avatar_url;
+                                sessionStorage.setItem('userAvatar', userAvatar);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading user avatar:', error);
+                }
+            }
             
             // Update user name in navigation
             const userNameElement = document.getElementById('userName');
@@ -222,6 +255,33 @@
             const mobileUserEmail = document.getElementById('mobileUserEmail');
             if (mobileUserEmail) {
                 mobileUserEmail.textContent = userEmail;
+            }
+
+            // Update user avatar
+            const userAvatarImg = document.getElementById('userAvatarImg');
+            const userAvatarPlaceholder = document.getElementById('userAvatarPlaceholder');
+            const userAvatarInitial = document.getElementById('userAvatarInitial');
+            
+            if (userAvatarImg && userAvatarPlaceholder && userAvatarInitial) {
+                if (userAvatar) {
+                    // Show avatar image
+                    if (userAvatar.startsWith('http://') || userAvatar.startsWith('https://')) {
+                        userAvatarImg.src = userAvatar;
+                    } else if (userAvatar.startsWith('/')) {
+                        userAvatarImg.src = userAvatar;
+                    } else {
+                        userAvatarImg.src = `{{ asset('') }}${userAvatar}`;
+                    }
+                    userAvatarImg.alt = userName || 'User';
+                    userAvatarImg.classList.remove('hidden');
+                    userAvatarPlaceholder.classList.add('hidden');
+                } else {
+                    // Show placeholder with initial
+                    userAvatarImg.classList.add('hidden');
+                    userAvatarPlaceholder.classList.remove('hidden');
+                    const initial = userName ? userName.charAt(0).toUpperCase() : 'U';
+                    userAvatarInitial.textContent = initial;
+                }
             }
             
             // User menu toggle

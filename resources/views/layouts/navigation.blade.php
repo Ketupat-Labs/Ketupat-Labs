@@ -148,15 +148,20 @@
                         class="inline-flex items-center justify-center p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out relative">
                         <i class="fas fa-bell text-lg"></i>
                         <span id="notificationBadge"
-                            class="hidden absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"></span>
+                            class="hidden absolute top-0 right-0 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full z-10"></span>
                     </button>
                     <div id="notificationMenu"
-                        class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 max-h-96 overflow-y-auto">
+                        class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg z-50 border border-gray-200">
                         <div class="px-4 py-2 border-b border-gray-200">
                             <h3 class="text-sm font-semibold text-gray-900">Pemberitahuan</h3>
                         </div>
-                        <div id="notificationList" class="py-1">
+                        <div id="notificationList" class="py-1 max-h-96 overflow-y-auto">
                             <div class="px-4 py-3 text-sm text-gray-500 text-center">Tiada pemberitahuan</div>
+                        </div>
+                        <div class="px-4 py-2 border-t border-gray-200 bg-gray-50">
+                            <a href="{{ route('notifications.index') }}" class="block text-center text-sm font-medium text-blue-600 hover:text-blue-800">
+                                Lihat Semua Pemberitahuan
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -168,14 +173,6 @@
                         <i class="fas fa-envelope text-lg"></i>
                         <span id="messageBadge"
                             class="hidden absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"></span>
-                    </a>
-                </div>
-
-                <!-- Friends Icon -->
-                <div class="relative">
-                    <a href="{{ route('friends.index') }}"
-                        class="inline-flex items-center justify-center p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out relative">
-                        <i class="fas fa-user-friends text-lg"></i>
                     </a>
                 </div>
 
@@ -367,11 +364,6 @@
                 <a href="{{ route('settings.index') }}"
                     class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
                     {{ __('Tetapan') }}
-                </a>
-
-                <a href="{{ route('friends.index') }}"
-                    class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition duration-150 ease-in-out">
-                    {{ __('Rakan') }}
                 </a>
 
                 <!-- Authentication -->

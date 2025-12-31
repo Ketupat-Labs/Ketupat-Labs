@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 use App\Services\EmailService;
 use Illuminate\Validation\ValidationException;
 
@@ -239,7 +240,7 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required|string',
             'role' => 'required|in:pelajar,cikgu',
-            'remember_me' => 'boolean',
+            'remember_me' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -288,8 +289,12 @@ class AuthController extends Controller
                 'last_seen' => now(),
             ]);
 
-            // Login user (session-based for SPA)
-            Auth::login($user, $request->remember_me ?? false);
+            // Convert remember_me to boolean (handle string "true"/"false" from JSON)
+            $rememberMe = filter_var($request->remember_me, FILTER_VALIDATE_BOOLEAN);
+            
+            // Login user with remember me functionality
+            // When remember_me is true, Laravel sets a remember cookie that persists for 2 weeks
+            Auth::login($user, $rememberMe);
             
             // Set session user_id for Ketupat-Labs controllers compatibility
             session(['user_id' => $user->id]);
@@ -376,6 +381,102 @@ class AuthController extends Controller
             'status' => 200,
             'message' => 'Log keluar berjaya',
         ], 200);
+    }
+
+    public function sendPasswordResetLink(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'message' => $validator->errors()->first(),
+            ], 400);
+        }
+
+        try {
+            // Check if user exists
+            $user = User::where('email', $request->email)->first();
+            
+            if (!$user) {
+                // Return success even if user doesn't exist (security best practice)
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'Jika emel anda didaftarkan, pautan set semula kata laluan telah dihantar ke emel anda.',
+                ], 200);
+            }
+
+            // Send password reset link
+            $status = Password::sendResetLink(
+                $request->only('email')
+            );
+
+            if ($status === Password::RESET_LINK_SENT) {
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'Pautan set semula kata laluan telah dihantar ke emel anda. Sila semak peti masuk anda.',
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Gagal menghantar pautan set semula. Sila cuba lagi kemudian.',
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Password reset link error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'message' => $validator->errors()->first(),
+            ], 400);
+        }
+
+        try {
+            $status = Password::reset(
+                $request->only('email', 'password', 'password_confirmation', 'token'),
+                function ($user, $password) {
+                    $user->password = Hash::make($password);
+                    $user->save();
+                }
+            );
+
+            if ($status === Password::PASSWORD_RESET) {
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'Kata laluan anda telah berjaya ditetapkan semula. Sila log masuk dengan kata laluan baharu.',
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Token tidak sah atau telah tamat tempoh. Sila minta pautan set semula baharu.',
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Password reset error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }
 

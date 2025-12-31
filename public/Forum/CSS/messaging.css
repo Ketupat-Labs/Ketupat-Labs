@@ -465,6 +465,72 @@ body > div > main {
     min-height: 96px;
 }
 
+.chat-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-info-avatar {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%) !important;
+    color: white !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 600 !important;
+    font-size: 1.2rem !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+}
+
+.chat-info-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    display: block !important;
+}
+
+.chat-info-avatar i {
+    font-size: 1.5rem !important;
+}
+
+.chat-info-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-info-details h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-info-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.chat-info-status .online-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--secondary);
+    flex-shrink: 0;
+}
+
 /* Selection Bar */
 .selection-bar {
     display: flex;
@@ -835,6 +901,32 @@ body > div > main {
     display: block !important;
     box-sizing: border-box !important;
     width: auto !important;
+}
+
+/* Message Image Container */
+.message-image-container {
+    max-width: 400px !important;
+    max-height: 400px !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #f5f5f5 !important;
+    display: block !important;
+}
+
+.message-image-container img {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 400px !important;
+    object-fit: contain !important;
+}
+
+.message.own .message-image-container {
+    background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .message.own .message-bubble {
@@ -1223,6 +1315,119 @@ body > div > main {
     color: rgba(255, 255, 255, 0.9);
 }
 
+/* Shared Post Preview */
+.shared-post-preview {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    background: white !important;
+    max-width: 500px !important;
+    width: 100% !important;
+    min-width: 300px !important;
+    transition: all 0.2s ease !important;
+    display: block !important;
+    box-sizing: border-box !important;
+}
+
+.message.own .shared-post-preview {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.shared-post-preview:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Ensure message bubble doesn't constrain shared post preview */
+.message-bubble .shared-post-preview {
+    max-width: 500px !important;
+    width: 100% !important;
+    min-width: 300px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+}
+
+/* When message bubble contains shared post, remove bubble styling */
+.message-bubble > .shared-post-preview {
+    border-radius: 8px !important;
+}
+
+.message.own .message-bubble .shared-post-preview {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Remove padding and styling from message bubble when it contains shared post */
+.message-bubble.has-shared-post {
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 520px !important;
+    border-radius: 0 !important;
+}
+
+.message.own .message-bubble.has-shared-post {
+    background: transparent !important;
+}
+
+/* Remove padding from message bubble when it contains shared post preview */
+.message-bubble.has-shared-post > .shared-post-container,
+.message-bubble.has-shared-post > .shared-post-preview {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 500px !important;
+}
+
+.shared-post-image {
+    width: 100%;
+    max-height: 200px;
+    overflow: hidden;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shared-post-image img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+}
+
+.shared-post-poll {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.shared-post-container {
+    padding: 20px !important;
+    text-align: center !important;
+    color: #999 !important;
+    font-size: 0.9em !important;
+    min-width: 200px !important;
+    display: block !important;
+}
+
+/* Ensure shared post preview text is readable */
+.shared-post-preview * {
+    color: inherit !important;
+}
+
+.shared-post-preview a {
+    color: #2454FF !important;
+    text-decoration: none !important;
+}
+
+.shared-post-preview a:hover {
+    text-decoration: underline !important;
+}
+
 /* Responsive link preview */
 @media (max-width: 768px) {
     .link-preview {
@@ -1231,6 +1436,10 @@ body > div > main {
     
     .link-preview-image {
         height: 150px;
+    }
+    
+    .shared-post-preview {
+        max-width: 100%;
     }
 }
 
@@ -1708,6 +1917,31 @@ body > div > main {
     .chat-main {
         width: 100%;
     }
+}
+
+/* Conversation Type Selector */
+.conversation-type-btn {
+    transition: all 0.2s ease;
+}
+
+.conversation-type-btn:hover {
+    border-color: var(--primary) !important;
+    background: #f0f7ff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(36, 84, 255, 0.15);
+}
+
+/* DM User Item */
+.dm-user-item {
+    transition: all 0.2s ease;
+}
+
+.dm-user-item:hover {
+    background: #f3f4f6 !important;
+}
+
+.dm-user-item:active {
+    background: #e5e7eb !important;
 }
 
 @media (max-width: 640px) {

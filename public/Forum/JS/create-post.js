@@ -24,27 +24,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // If no referrer in URL parameter, try to get it from document.referrer
-    // But EXCLUDE create-post.html to avoid going back to create-post page
+    // But EXCLUDE create-post to avoid going back to create-post page
     if (!originalReferrer) {
         const referrerUrl = document.referrer;
-        if (referrerUrl && !referrerUrl.includes('create-post.html')) {
+        if (referrerUrl && !referrerUrl.includes('/forum/post/create') && !referrerUrl.includes('create-post')) {
             try {
                 const referrerObj = new URL(referrerUrl);
                 const referrerPath = referrerObj.pathname;
 
-                // Extract just the filename and query params
-                const pathParts = referrerPath.split('/');
-                const filename = pathParts[pathParts.length - 1];
-
-                if (filename === 'forum.html' || referrerPath.includes('forum.html')) {
-                    originalReferrer = 'forum.html';
-                } else if (filename === 'forum-detail.html' || referrerPath.includes('forum-detail.html')) {
+                // Check for Laravel routes: /forums or /forum (main page)
+                if (referrerPath === '/forums' || referrerPath === '/forum') {
+                    originalReferrer = '/forums';
+                } 
+                // Check for forum detail page: /forum/{id}
+                else if (referrerPath.startsWith('/forum/') && !referrerPath.includes('/forum/post/') && !referrerPath.includes('/forum/create')) {
+                    // Extract forum ID from path
+                    const pathParts = referrerPath.split('/').filter(p => p);
+                    const forumIndex = pathParts.indexOf('forum');
+                    if (forumIndex !== -1 && pathParts[forumIndex + 1] && !isNaN(pathParts[forumIndex + 1])) {
+                        const forumId = pathParts[forumIndex + 1];
+                        originalReferrer = `/forum/${forumId}`;
+                    }
+                }
+                // Legacy HTML file support
+                else if (referrerPath.includes('forum.html')) {
+                    originalReferrer = '/forums';
+                } else if (referrerPath.includes('forum-detail.html')) {
                     const forumId = referrerObj.searchParams.get('id');
-                    originalReferrer = forumId ? `forum-detail.html?id=${forumId}` : 'forum-detail.html';
-                } else if (filename === 'post-detail.html' || referrerPath.includes('post-detail.html')) {
-                    // If coming from post-detail, preserve the full URL with query params
-                    const queryString = referrerObj.search;
-                    originalReferrer = queryString ? `post-detail.html${queryString}` : 'post-detail.html';
+                    originalReferrer = forumId ? `/forum/${forumId}` : '/forums';
                 }
             } catch (e) {
                 // Invalid URL, ignore
@@ -53,12 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Final safety check: Never store create-post.html as referrer
-    if (originalReferrer && !originalReferrer.includes('create-post.html')) {
+    // Final safety check: Never store create-post as referrer
+    if (originalReferrer && !originalReferrer.includes('create-post') && !originalReferrer.includes('/forum/post/create')) {
         sessionStorage.setItem('postCreateReferrer', originalReferrer);
         console.log('Stored original referrer:', originalReferrer);
     } else if (originalReferrer) {
-        console.warn('Ignored create-post.html as referrer');
+        console.warn('Ignored create-post as referrer');
     }
 
     initEventListeners();
@@ -659,14 +666,72 @@ async function handleFormSubmit(e) {
 
             showSuccess('Post created successfully!');
             setTimeout(() => {
-                // Redirect to the post detail page using Laravel route
-                const postId = data.data.post_id;
-                if (postId) {
-                    window.location.href = `/forum/post/${postId}`;
+                // Get the referrer from sessionStorage to determine where to redirect
+                const referrer = sessionStorage.getItem('postCreateReferrer');
+                const forumId = data.data.forum_id;
+                
+                // Determine redirect URL based on referrer
+                let redirectUrl = '/forums'; // Default to forum main page
+                
+                if (referrer) {
+                    console.log('Redirect: Checking referrer:', referrer);
+                    
+                    // Check if referrer is the forum main page (exact match first)
+                    if (referrer === '/forums' || referrer === '/forum') {
+                        redirectUrl = '/forums';
+                        console.log('Redirect: From forum main page, redirecting to /forums');
+                    }
+                    // Check if referrer is a forum detail page
+                    else if (referrer.startsWith('/forum/') && !referrer.includes('/forum/post/') && !referrer.includes('/forum/create')) {
+                        // Extract forum ID from path (e.g., /forum/5 -> 5)
+                        const pathParts = referrer.split('/').filter(p => p);
+                        const forumIndex = pathParts.indexOf('forum');
+                        if (forumIndex !== -1 && pathParts[forumIndex + 1] && !isNaN(pathParts[forumIndex + 1])) {
+                            const referrerForumId = pathParts[forumIndex + 1];
+                            redirectUrl = `/forum/${referrerForumId}`;
+                            console.log('Redirect: From forum detail page, redirecting to /forum/' + referrerForumId);
+                        }
+                    }
+                    // Legacy HTML file support
+                    else if (referrer.includes('forum-detail')) {
+                        try {
+                            const referrerUrl = new URL(referrer, window.location.origin);
+                            const referrerForumId = referrerUrl.searchParams.get('id') || referrer.match(/\/forum\/(\d+)/)?.[1] || forumId;
+                            if (referrerForumId) {
+                                redirectUrl = `/forum/${referrerForumId}`;
+                                console.log('Redirect: From legacy forum detail, redirecting to /forum/' + referrerForumId);
+                            }
+                        } catch (e) {
+                            // Extract ID from query string if present
+                            const idMatch = referrer.match(/[?&]id=(\d+)/);
+                            const referrerForumId = idMatch ? idMatch[1] : forumId;
+                            if (referrerForumId) {
+                                redirectUrl = `/forum/${referrerForumId}`;
+                                console.log('Redirect: From legacy forum detail (fallback), redirecting to /forum/' + referrerForumId);
+                            }
+                        }
+                    }
+                    // Legacy forum.html support
+                    else if (referrer.includes('forum.html') || referrer.includes('/forums')) {
+                        redirectUrl = '/forums';
+                        console.log('Redirect: From legacy forum main page, redirecting to /forums');
+                    }
+                    // If referrer doesn't match any pattern, default to forum main
+                    else {
+                        redirectUrl = '/forums';
+                        console.log('Redirect: Unknown referrer pattern, defaulting to /forums');
+                    }
                 } else {
-                    // Fallback to forum index if post ID is missing
-                    window.location.href = '/forum';
+                    // No referrer stored, default to forum main page
+                    // Don't redirect to forum detail just because forumId exists
+                    redirectUrl = '/forums';
+                    console.log('Redirect: No referrer stored, defaulting to /forums');
                 }
+                
+                // Clear the referrer after using it
+                sessionStorage.removeItem('postCreateReferrer');
+                
+                window.location.href = redirectUrl;
             }, 1500);
         } else {
             // Extract error message - check both 'message' field and status code
