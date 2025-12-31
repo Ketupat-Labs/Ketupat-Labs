@@ -44,6 +44,8 @@
                                 class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 transition duration-200 placeholder-gray-400"
                                 :class="{'border-red-500 ring-red-200': isDuplicate}"
                                 placeholder="Contoh: 5 Bestari"
+                                oninvalid="this.setCustomValidity('Sila isi ruangan ini')"
+                                oninput="this.setCustomValidity('')"
                                 required autofocus>
                             <p x-show="isDuplicate" class="text-red-600 text-sm mt-2 font-bold animate-pulse">
                                 Kelas dengan nama yang sama sudah wujud!
@@ -56,6 +58,8 @@
                             <input type="text" name="subject" id="subject"
                                 class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 transition duration-200 placeholder-gray-400"
                                 placeholder="Contoh: Matematik"
+                                oninvalid="this.setCustomValidity('Sila isi ruangan ini')"
+                                oninput="this.setCustomValidity('')"
                                 required>
                         </div>
 
