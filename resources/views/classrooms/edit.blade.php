@@ -40,7 +40,7 @@
 
                         <!-- Class Name -->
                         <div class="mb-6">
-                            <label for="name" class="block text-gray-700 text-sm font-bold mb-2">Nama Kelas</label>
+                            <label for="name" class="block text-gray-700 text-sm font-bold mb-2">Nama Kelas <span class="text-red-500">*</span></label>
                             <input type="text" name="name" id="name" x-model="name" @input="checkDuplicate()"
                                 value="{{ old('name', $classroom->name) }}"
                                 class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 transition duration-200 placeholder-gray-400"
@@ -54,7 +54,7 @@
 
                         <!-- Subject -->
                         <div class="mb-6">
-                            <label for="subject" class="block text-gray-700 text-sm font-bold mb-2">Subjek / Mata Pelajaran</label>
+                            <label for="subject" class="block text-gray-700 text-sm font-bold mb-2">Subjek / Mata Pelajaran <span class="text-red-500">*</span></label>
                             <input type="text" name="subject" id="subject"
                                 value="{{ old('subject', $classroom->subject) }}"
                                 class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 transition duration-200 placeholder-gray-400"
@@ -64,7 +64,7 @@
 
                         <!-- Year -->
                         <div class="mb-8">
-                            <label for="year" class="block text-gray-700 text-sm font-bold mb-2">Tahun (Pilihan)</label>
+                            <label for="year" class="block text-gray-700 text-sm font-bold mb-2">Tahun (Tidak Wajib)</label>
                             <input type="number" name="year" id="year"
                                 value="{{ old('year', $classroom->year) }}"
                                 class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 transition duration-200 placeholder-gray-400"
