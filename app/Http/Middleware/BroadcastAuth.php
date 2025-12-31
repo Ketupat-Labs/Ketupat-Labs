@@ -27,7 +27,7 @@ class BroadcastAuth
             if ($user) {
                 // Log the user in via Auth facade so broadcasting channels work
                 Auth::login($user);
-                return $next($request);
+        return $next($request);
             }
         }
         

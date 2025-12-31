@@ -228,19 +228,19 @@
                                 
                                 // Create new Echo instance (will use Pusher config from echo.js)
                                 if (typeof window.Echo === 'function') {
-                                    window.Echo = new window.Echo({
+                                window.Echo = new window.Echo({
                                         broadcaster: 'pusher',
                                         key: pusherAppKey,
                                         cluster: '{{ env('PUSHER_APP_CLUSTER', 'mt1') }}',
                                         forceTLS: true,
                                         encrypted: true,
-                                        authEndpoint: '/broadcasting/auth',
-                                        auth: {
-                                            headers: {
-                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                            },
+                                    authEndpoint: '/broadcasting/auth',
+                                    auth: {
+                                        headers: {
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                                         },
-                                    });
+                                    },
+                                });
                                 }
                                 
                                 // Listen for new notifications

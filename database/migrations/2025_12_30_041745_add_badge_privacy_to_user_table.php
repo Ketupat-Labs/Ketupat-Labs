@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('user')) {
-            Schema::table('user', function (Blueprint $table) {
+        Schema::table('user', function (Blueprint $table) {
                 if (!Schema::hasColumn('user', 'share_badges_on_profile')) {
                     $table->boolean('share_badges_on_profile')->default(true)->after('allow_friend_requests');
                 }
                 if (!Schema::hasColumn('user', 'visible_badge_codes')) {
                     $table->json('visible_badge_codes')->nullable()->after('share_badges_on_profile');
                 }
-            });
+        });
         }
     }
 
@@ -29,14 +29,14 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasTable('user')) {
-            Schema::table('user', function (Blueprint $table) {
+        Schema::table('user', function (Blueprint $table) {
                 if (Schema::hasColumn('user', 'share_badges_on_profile')) {
                     $table->dropColumn('share_badges_on_profile');
                 }
                 if (Schema::hasColumn('user', 'visible_badge_codes')) {
                     $table->dropColumn('visible_badge_codes');
                 }
-            });
+        });
         }
     }
 };

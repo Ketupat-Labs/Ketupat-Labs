@@ -8,7 +8,7 @@ const pusherCluster = import.meta.env.VITE_PUSHER_APP_CLUSTER ?? 'mt1';
 
 // Only initialize Echo if the app key is available
 if (pusherAppKey) {
-    window.Echo = new Echo({
+window.Echo = new Echo({
         broadcaster: 'pusher',
         key: pusherAppKey,
         cluster: pusherCluster,
