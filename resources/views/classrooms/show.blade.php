@@ -35,30 +35,29 @@
                 </div>
                 <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                     <div class="text-sm text-gray-500">
-                        Class Code: <span
-                            class="font-mono font-bold text-gray-700">{{ $classroom->id }}-{{ Str::upper(Str::random(4)) }}</span>
-                        (Simulated)
+                        Dicipta: <span
+                            class="font-bold text-gray-700">{{ $classroom->created_at->format('d M Y') }}</span>
                     </div>
                     <div class="flex gap-3">
                         @if($user->role === 'teacher')
                             <a href="{{ route('lessons.create') }}"
                                 class="inline-flex items-center px-4 py-2 bg-[#F26430] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-orange-700 focus:bg-orange-700 active:bg-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                Create New Lesson
+                                Cipta Pelajaran Baharu
                             </a>
                             <a href="{{ route('activities.create') }}"
                                 class="inline-flex items-center px-4 py-2 bg-[#5FAD56] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:bg-green-700 active:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                Create New Activity
+                                Cipta Aktiviti Baharu
                             </a>
                         @endif
                         @if($forum)
                             <a href="{{ route('forum.detail', $forum->id) }}"
                                 class="inline-flex items-center px-4 py-2 bg-[#2454FF] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                View Forum
+                                Lihat Forum
                             </a>
                         @elseif($user->role === 'teacher')
                             <button onclick="createClassroomForum({{ $classroom->id }})"
                                 class="inline-flex items-center px-4 py-2 bg-[#2454FF] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                Create Forum
+                                Cipta Forum
                             </button>
                         @endif
                     </div>
@@ -72,7 +71,7 @@
 
                     {{-- Teachers Card --}}
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <h3 class="text-lg font-bold text-[#2454FF] mb-4 border-b border-gray-100 pb-2">Instructors</h3>
+                        <h3 class="text-lg font-bold text-[#2454FF] mb-4 border-b border-gray-100 pb-2">Guru Kelas</h3>
                         <a href="{{ route('profile.show', $classroom->teacher->id) }}" class="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer">
                             <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-[#2454FF] font-bold overflow-hidden flex-shrink-0">
                                 @if($classroom->teacher->avatar_url)
@@ -89,7 +88,7 @@
                             </div>
                             <div>
                                 <p class="text-gray-900 font-medium hover:text-[#2454FF] transition-colors">{{ $classroom->teacher->full_name }}</p>
-                                <p class="text-gray-500 text-xs">Lead Teacher</p>
+                                <p class="text-gray-500 text-xs">Sejak: {{ $classroom->teacher->created_at->format('M Y') }}</p>
                             </div>
                         </a>
                     </div>
@@ -97,16 +96,16 @@
                     {{-- Students Card --}}
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                            <h3 class="text-lg font-bold text-[#5FAD56]">Class Roster</h3>
+                            <h3 class="text-lg font-bold text-[#5FAD56]">Senarai Pelajar</h3>
                             <span
                                 class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">{{ $classroom->students->count() }}
-                                Students</span>
+                                Pelajar</span>
                         </div>
 
                         {{-- Add Student Form (Teacher Only) --}}
                         @if($user->role === 'teacher')
                             <div class="mb-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <p class="text-xs font-bold text-gray-500 mb-2 uppercase">Add Student</p>
+                                <p class="text-xs font-bold text-gray-500 mb-2 uppercase">Tambah Pelajar</p>
                                 <form method="POST" action="{{ route('classrooms.students.add', $classroom) }}">
                                     @csrf
                                     <div class="flex space-x-2">
@@ -124,7 +123,7 @@
                                         <button type="button" 
                                             @click="open = !open; if(open) $nextTick(() => $refs.searchInput.focus())"
                                             class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                            <span class="block truncate" x-text="selectedName || 'Select Student...'"></span>
+                                            <span class="block truncate" x-text="selectedName || 'Pilih Pelajar...'"></span>
                                             <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                                                 <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                     <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -140,7 +139,7 @@
                                             style="display: none;">
                                             
                                             <div class="px-2 py-2 sticky top-0 bg-white border-b z-20">
-                                                <input x-ref="searchInput" x-model="search" type="text" placeholder="Search student name..." class="w-full border-gray-300 rounded-md text-xs p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                                <input x-ref="searchInput" x-model="search" type="text" placeholder="Cari nama pelajar..." class="w-full border-gray-300 rounded-md text-xs p-2 focus:ring-indigo-500 focus:border-indigo-500">
                                             </div>
 
                                             <ul class="pt-1">
@@ -159,7 +158,7 @@
                                                     </li>
                                                 @endforeach
                                                 <li x-show="search !== '' && $el.parentNode.querySelectorAll('li[x-show]:not([style*=\'display: none\'])').length === 0" class="cursor-default select-none relative py-2 pl-3 pr-9 text-gray-500 italic">
-                                                    No students found.
+                                                    Tiada pelajar dijumpai.
                                                 </li>
                                             </ul>
                                         </div>
@@ -200,7 +199,7 @@
                                     @if($user->role === 'teacher')
                                         <form method="POST"
                                             action="{{ route('classrooms.students.remove', [$classroom, $student->id]) }}"
-                                            onsubmit="return confirm('Remove {{ $student->full_name }} from this class?');"
+                                            onsubmit="return confirm('Keluarkan {{ $student->full_name }} daripada kelas ini?');"
                                             class="ml-2"
                                             onclick="event.stopPropagation();">
                                             @csrf
@@ -217,7 +216,7 @@
                                 </div>
                             @empty
                                 <div class="text-center py-4">
-                                    <p class="text-gray-400 text-sm italic">No students enrolled yet.</p>
+                                    <p class="text-gray-400 text-sm italic">Tiada pelajar yang berdaftar lagi.</p>
                                 </div>
                             @endforelse
                         </div>
@@ -282,9 +281,14 @@
                                                         'in_progress' => 'bg-yellow-100 text-yellow-800',
                                                         'not_started' => 'bg-gray-100 text-gray-600',
                                                     ];
+                                                    $statusLabels = [
+                                                        'completed' => 'Selesai',
+                                                        'in_progress' => 'Sedang Berjalan',
+                                                        'not_started' => 'Belum Bermula',
+                                                    ];
                                                 @endphp
                                                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $statusColors[$status] ?? 'bg-gray-100' }}">
-                                                    {{ str_replace('_', ' ', ucfirst($status)) }}
+                                                    {{ $statusLabels[$status] ?? str_replace('_', ' ', ucfirst($status)) }}
                                                 </span>
                                             @endif
                                         </div>
@@ -372,7 +376,7 @@
 
     <script>
         async function createClassroomForum(classroomId) {
-            if (!confirm('Create a forum for this classroom? The forum will be visible only to class members.')) {
+            if (!confirm('Cipta forum untuk kelas ini? Forum akan dapat dilihat oleh ahli kelas sahaja.')) {
                 return;
             }
 
@@ -399,11 +403,11 @@
                     // Redirect to forum detail page
                     window.location.href = '/forum/' + data.data.forum_id;
                 } else {
-                    alert(data.message || 'Failed to create forum');
+                    alert(data.message || 'Gagal mencipta forum');
                 }
             } catch (error) {
                 console.error('Error creating forum:', error);
-                alert('Failed to create forum. Please try again.');
+                alert('Gagal mencipta forum. Sila cuba lagi.');
             }
         }
     </script>
