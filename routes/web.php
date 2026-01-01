@@ -259,5 +259,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/ai-generator/quiz', function () {
         return view('ai-generator.quiz');
     })->name('ai-generator.quiz');
+    Route::get('/ai-generator/slaid-dijana', [\App\Http\Controllers\AIGeneratorController::class, 'showGeneratedSlides'])->name('ai-generator.slaid-dijana');
+    Route::get('/ai-generator/slaid-dijana/{id}', [\App\Http\Controllers\AIGeneratorController::class, 'showSlideSet'])->name('ai-generator.slaid-dijana.view');
+    Route::get('/ai-generator/check-status', [\App\Http\Controllers\AIGeneratorController::class, 'checkGenerationStatus'])->name('ai-generator.check-status');
 });
 

@@ -45,6 +45,33 @@
                                 </span>
                             </div>
                             <div id="file-list" class="mt-2 space-y-1"></div>
+                            
+                            <!-- Page Range Selection (only for PDF files) -->
+                            <div id="page-range-section" class="hidden mt-4 pt-4 border-t border-gray-200">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-file-pdf text-red-600 mr-1"></i>
+                                    {{ __('Page Range (Optional)') }}
+                                </label>
+                                <p class="text-xs text-gray-500 mb-2">{{ __('Specify which pages to extract. Leave empty to use all pages.') }}</p>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="page_from" class="block text-xs text-gray-600 mb-1">{{ __('From Page') }}</label>
+                                        <input type="number" id="page_from" name="page_from" min="1" 
+                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                               placeholder="{{ __('Start page') }}">
+                                    </div>
+                                    <div>
+                                        <label for="page_to" class="block text-xs text-gray-600 mb-1">{{ __('To Page') }}</label>
+                                        <input type="number" id="page_to" name="page_to" min="1" 
+                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                               placeholder="{{ __('End page') }}">
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-2">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    {{ __('For DOCX/TXT files, this represents section/paragraph ranges.') }}
+                                </p>
+                            </div>
                         </div>
 
                         <div class="mt-3 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
@@ -134,11 +161,13 @@
 
         documentUpload.addEventListener('change', function(e) {
             const files = Array.from(e.target.files);
+            const pageRangeSection = document.getElementById('page-range-section');
+            
             if (files.length > 0) {
-                // Check total file size
+                // Check total file size (allow up to 25MB to match backend limit of 20MB with some buffer)
                 const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-                if (totalSize > 50 * 1024 * 1024) {
-                    alert('{{ __('Total file size must be less than 50MB') }}');
+                if (totalSize > 25 * 1024 * 1024) {
+                    alert('{{ __('Total file size must be less than 25MB') }}');
                     e.target.value = '';
                     return;
                 }
@@ -171,9 +200,19 @@
                     fileListDiv.appendChild(fileItem);
                 });
 
+                // Show page range section if PDF is uploaded
+                const firstFile = files[0];
+                if (firstFile && (firstFile.type === 'application/pdf' || firstFile.name.toLowerCase().endsWith('.pdf'))) {
+                    pageRangeSection.classList.remove('hidden');
+                } else {
+                    pageRangeSection.classList.add('hidden');
+                }
+
                 // Make topic optional when document is uploaded
                 topicInput.required = false;
                 topicInput.placeholder = '{{ __('Optional - AI will extract from document') }}';
+            } else {
+                pageRangeSection.classList.add('hidden');
             }
         });
 
@@ -197,48 +236,57 @@
             const resultDiv = document.getElementById('slides-result');
             const container = document.getElementById('slides-container');
 
-            // Show loading state
+            // Prepare form data first
+            const formData = new FormData(form);
+
+            // Add document file if uploaded
+            const documentFile = documentUpload.files[0];
+            if (documentFile) {
+                formData.append('document', documentFile);
+                
+                // Add page range if specified
+                const pageFrom = document.getElementById('page_from').value;
+                const pageTo = document.getElementById('page_to').value;
+                if (pageFrom) {
+                    formData.append('page_from', pageFrom);
+                }
+                if (pageTo) {
+                    formData.append('page_to', pageTo);
+                }
+            }
+
+            // Show popup message
+            alert('Slaid sedang dijana. Anda akan diarahkan ke halaman Slaid Dijana. Slaid akan muncul selepas penjanaan selesai.');
+
+            // Show loading state briefly
             generateBtn.disabled = true;
             generateBtnText.classList.add('hidden');
             generateBtnLoading.classList.remove('hidden');
             resultDiv.classList.add('hidden');
 
-            try {
-                const formData = new FormData(form);
-
-                // Add document file if uploaded
-                const documentFile = documentUpload.files[0];
-                if (documentFile) {
-                    formData.append('document', documentFile);
-                }
-
-                const response = await fetch('/api/ai-generator/slides', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (data.status === 200 && data.data && data.data.slides) {
-                    window.lastGeneratedSlides = data.data.slides;
-                    displaySlides(data.data.slides);
-                    resultDiv.classList.remove('hidden');
-                } else {
-                    alert(data.message || '{{ __('Failed to generate slides') }}');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('{{ __('An error occurred while generating slides') }}');
-            } finally {
-                generateBtn.disabled = false;
-                generateBtnText.classList.remove('hidden');
-                generateBtnLoading.classList.add('hidden');
-            }
+            // Create a hidden iframe for truly non-blocking form submission
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.name = 'slide-generation-iframe-' + Date.now();
+            document.body.appendChild(iframe);
+            
+            // Clone the original form and submit it to the iframe
+            const originalForm = document.getElementById('slide-generator-form');
+            const clonedForm = originalForm.cloneNode(true);
+            clonedForm.id = 'temp-slide-form-' + Date.now();
+            clonedForm.target = iframe.name;
+            clonedForm.action = '/api/ai-generator/slides';
+            clonedForm.method = 'POST';
+            clonedForm.style.display = 'none';
+            document.body.appendChild(clonedForm);
+            
+            // Submit the cloned form to iframe (completely non-blocking)
+            clonedForm.submit();
+            
+            // Redirect immediately - iframe submission never blocks navigation
+            window.location.replace('{{ route("ai-generator.slaid-dijana") }}');
         });
 
         function displaySlides(slides) {

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use PhpOffice\PhpPresentation\PhpPresentation;
 use PhpOffice\PhpPresentation\IOFactory as PptIOFactory;
@@ -69,6 +71,7 @@ class AIGeneratorController extends Controller
                 'title' => $title,
                 'content' => $content,
                 'summary' => $summary,
+                'image_path' => $s['image_path'] ?? null, // Store image path for slides
             ];
         }, $slides), fn($v) => $v !== null));
 
@@ -89,32 +92,294 @@ class AIGeneratorController extends Controller
     }
 
     /**
+     * Show list of generated slides
+     */
+    public function showGeneratedSlides()
+    {
+        $userId = session('user_id');
+        if (!$userId) {
+            return redirect()->route('login');
+        }
+
+        // Get all generated slide sets from session
+        $slideSets = session('generated_slide_sets', []);
+        if (!is_array($slideSets)) {
+            $slideSets = [];
+        }
+        
+        // Check if there's a currently generating set
+        $sessionKey = 'slide_generation_' . $userId;
+        $status = session($sessionKey . '_status', 'none');
+        
+        // If generating, add to list temporarily
+        if ($status === 'generating') {
+            // Check if generating set already exists
+            $hasGenerating = false;
+            foreach ($slideSets as $set) {
+                if (isset($set['id']) && $set['id'] === 'generating') {
+                    $hasGenerating = true;
+                    break;
+                }
+            }
+            
+            if (!$hasGenerating) {
+                $currentTopic = session('generated_slides_topic', 'Slaid Sedang Dijana...');
+                $generatingSet = [
+                    'id' => 'generating',
+                    'topic' => $currentTopic,
+                    'status' => 'generating',
+                    'created_at' => now()->toDateTimeString(),
+                    'slide_count' => 0,
+                    'slides' => []
+                ];
+                array_unshift($slideSets, $generatingSet);
+            }
+        }
+
+        return view('ai-generator.slaid-dijana', [
+            'slideSets' => $slideSets,
+            'status' => $status,
+            'sessionKey' => $sessionKey
+        ]);
+    }
+
+    /**
+     * Show individual slide set detail
+     */
+    public function showSlideSet($id)
+    {
+        $userId = session('user_id');
+        if (!$userId) {
+            return redirect()->route('login');
+        }
+
+        $slideSets = session('generated_slide_sets', []);
+        $slideSet = collect($slideSets)->firstWhere('id', $id);
+
+        if (!$slideSet) {
+            return redirect()->route('ai-generator.slaid-dijana')
+                ->with('error', 'Slaid tidak ditemui.');
+        }
+
+        $slides = $slideSet['slides'] ?? [];
+        $topic = $slideSet['topic'] ?? 'Generated Slides';
+        
+        // Check if this is the generating one
+        $sessionKey = 'slide_generation_' . $userId;
+        $status = ($id === 'generating') ? session($sessionKey . '_status', 'generating') : 'completed';
+
+        return view('ai-generator.slaid-dijana-detail', compact('slides', 'topic', 'id', 'status', 'sessionKey'));
+    }
+
+    /**
+     * Check generation status
+     */
+    public function checkGenerationStatus(Request $request)
+    {
+        $userId = session('user_id');
+        if (!$userId) {
+            return response()->json(['status' => 'error', 'message' => 'Not authenticated'], 401);
+        }
+
+        $sessionKey = 'slide_generation_' . $userId;
+        $status = session($sessionKey . '_status', 'none');
+        
+        if ($status === 'completed') {
+            // Get the most recent slide set
+            $slideSets = session('generated_slide_sets', []);
+            $latestSet = !empty($slideSets) ? $slideSets[0] : null;
+            
+            if ($latestSet && ($latestSet['status'] ?? 'completed') === 'completed') {
+                return response()->json([
+                    'status' => 'completed',
+                    'slides' => $latestSet['slides'] ?? [],
+                    'topic' => $latestSet['topic'] ?? 'Generated Slides',
+                    'set_id' => $latestSet['id'] ?? null
+                ]);
+            }
+            
+            // Fallback to old session format
+            $slides = session('generated_slides', []);
+            $topic = session('generated_slides_topic', 'Generated Slides');
+            return response()->json([
+                'status' => 'completed',
+                'slides' => $slides,
+                'topic' => $topic
+            ]);
+        } elseif ($status === 'generating') {
+            return response()->json(['status' => 'generating']);
+        } elseif ($status === 'error') {
+            $error = session($sessionKey . '_error', 'Unknown error');
+            return response()->json(['status' => 'error', 'message' => $error]);
+        }
+
+        return response()->json(['status' => 'none']);
+    }
+
+    /**
      * Generate slides using AI
      */
     public function generateSlides(Request $request)
     {
+        // Increase execution time limit for slide generation (especially with images)
+        set_time_limit(300); // 5 minutes should be enough for even 50 slides with images
+        
+        // Mark generation as started IMMEDIATELY
+        $userId = session('user_id');
+        $sessionKey = null;
+        if ($userId) {
+            $sessionKey = 'slide_generation_' . $userId;
+            session([$sessionKey . '_status' => 'generating']);
+            session()->save(); // Force save session immediately
+        }
+        
         try {
             $request->validate([
                 'topic' => 'nullable|string|max:500',
                 'number_of_slides' => 'nullable|integer|min:1|max:50',
                 'detail_level' => 'nullable|string|in:basic,intermediate,advanced',
-                'document' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // Max 10MB
+                'document' => 'nullable|file|mimes:pdf,doc,docx,txt|max:20480', // Max 20MB
+                'page_from' => 'nullable|integer|min:1',
+                'page_to' => 'nullable|integer|min:1',
             ]);
 
+            // Validate page_to >= page_from if both are provided
+            $pageFrom = $request->input('page_from');
+            $pageTo = $request->input('page_to');
+            if ($pageFrom !== null && $pageTo !== null && $pageTo < $pageFrom) {
+                if ($sessionKey) {
+                    session([$sessionKey . '_status' => 'error', $sessionKey . '_error' => 'End page must be greater than or equal to start page.']);
+                }
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'End page must be greater than or equal to start page.',
+                ], 400);
+            }
+            
+            // Get parameters
             $topic = $request->input('topic');
             $numberOfSlides = $request->input('number_of_slides', 10);
             $detailLevel = $request->input('detail_level', 'intermediate');
 
-            // Check if document is uploaded
+            // Create a placeholder slide set with "generating" status
+            if ($userId) {
+                $slideSets = session('generated_slide_sets', []);
+                // Remove any existing "generating" entry
+                $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
+                $slideSets = array_values($slideSets);
+                
+                $placeholderTopic = $topic ?: 'Slaid Sedang Dijana...';
+                $placeholderSet = [
+                    'id' => 'generating',
+                    'topic' => $placeholderTopic,
+                    'slides' => [],
+                    'status' => 'generating',
+                    'created_at' => now()->toDateTimeString(),
+                    'slide_count' => 0
+                ];
+                array_unshift($slideSets, $placeholderSet);
+                session(['generated_slide_sets' => $slideSets]);
+                session()->save(); // Force save
+            }
+            
+            // Save file temporarily if uploaded (for background processing)
+            // We need to preserve original filename and extension for proper extraction
+            $tempDocumentPath = null;
+            $originalFilename = null;
+            $originalExtension = null;
             if ($request->hasFile('document')) {
-                try {
-                    $documentText = $this->extractTextFromDocument($request->file('document'));
+                $file = $request->file('document');
+                $originalFilename = $file->getClientOriginalName();
+                $originalExtension = $file->getClientOriginalExtension();
+                $tempDocumentPath = $file->store('temp_slide_generation', 'local');
+                // Store original filename in session for background processing
+                session([
+                    'temp_document_original_name_' . basename($tempDocumentPath) => $originalFilename,
+                    'temp_document_original_ext_' . basename($tempDocumentPath) => $originalExtension
+                ]);
+                session()->save();
+            }
+            
+            // Return immediate response (202 Accepted) and continue processing in background
+            // For XAMPP/development server, we need to ensure response is sent immediately
+            ignore_user_abort(true);
+            set_time_limit(300); // Allow long execution
+            
+            // Disable output buffering if enabled
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            
+            // Send response headers and content immediately
+            header('Content-Type: application/json', true);
+            header('HTTP/1.1 202 Accepted', true);
+            http_response_code(202);
+            
+            echo json_encode([
+                'status' => 202,
+                'message' => 'Generation started',
+                'redirect' => route('ai-generator.slaid-dijana'),
+            ]);
+            
+            // Force flush all output buffers
+            if (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+            flush();
+            
+            // For FastCGI, finish the request
+            if (function_exists('fastcgi_finish_request')) {
+                fastcgi_finish_request();
+            }
+            
+            // Continue processing in background after response is sent
+            try {
+                // Check if document is uploaded
+                if ($tempDocumentPath) {
+                    try {
+                        // Load file from temp storage
+                        $fullPath = storage_path('app/' . $tempDocumentPath);
+                        
+                        // Get original filename and extension from session
+                        $tempFileKey = basename($tempDocumentPath);
+                        $originalFilename = session('temp_document_original_name_' . $tempFileKey, $tempFileKey);
+                        $originalExtension = session('temp_document_original_ext_' . $tempFileKey, pathinfo($tempFileKey, PATHINFO_EXTENSION));
+                        
+                        Log::info('Starting document extraction (background)', [
+                            'temp_path' => $tempDocumentPath,
+                            'original_filename' => $originalFilename,
+                            'original_extension' => $originalExtension,
+                            'size' => file_exists($fullPath) ? filesize($fullPath) : 0,
+                            'page_from' => $pageFrom,
+                            'page_to' => $pageTo
+                        ]);
+                        
+                        if (!file_exists($fullPath)) {
+                            throw new \Exception('Temporary file not found. Please try uploading again.');
+                        }
+                        
+                        // Create a proper UploadedFile object with original filename
+                        // We need to use test mode but provide the original filename
+                        $uploadedFile = new \Illuminate\Http\UploadedFile(
+                            $fullPath,
+                            $originalFilename, // Use original filename, not temp path
+                            mime_content_type($fullPath),
+                            null,
+                            true // test mode
+                        );
+                        
+                        $documentText = $this->extractTextFromDocument($uploadedFile, $pageFrom, $pageTo);
+
+                    Log::info('Document extraction completed', [
+                        'extracted_length' => strlen($documentText)
+                    ]);
 
                     // Validate that we got actual text content
                     if (strlen($documentText) < 50) {
                         return response()->json([
                             'status' => 400,
-                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text.',
+                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text' . 
+                                        ($pageFrom || $pageTo ? ' in the specified page range.' : '.'),
                         ], 400);
                     }
 
@@ -123,41 +388,191 @@ class AIGeneratorController extends Controller
                         $topic = 'Document analysis';
                     }
 
+                    Log::info('Starting slide generation', [
+                        'topic' => $topic,
+                        'number_of_slides' => $numberOfSlides,
+                        'detail_level' => $detailLevel
+                    ]);
+
                     // Generate slides from document using Gemini AI
                     $slides = $this->generateSlidesFromDocument($documentText, $numberOfSlides, $detailLevel, $topic);
+                    
+                    Log::info('Slide generation completed', [
+                        'slides_count' => count($slides)
+                    ]);
+                    } catch (\Exception $e) {
+                        Log::error('Document slide generation failed (background)', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        
+                        // Mark as error in session instead of returning
+                        if ($userId && $sessionKey) {
+                            session([
+                                $sessionKey . '_status' => 'error',
+                                $sessionKey . '_error' => $e->getMessage()
+                            ]);
+                            $slideSets = session('generated_slide_sets', []);
+                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
+                            session(['generated_slide_sets' => array_values($slideSets)]);
+                            session()->save();
+                        }
+                        
+                        // Clean up temp file and session data
+                        if ($tempDocumentPath) {
+                            $tempFileKey = basename($tempDocumentPath);
+                            session()->forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
+                            $fullPath = storage_path('app/' . $tempDocumentPath);
+                            if (file_exists($fullPath)) {
+                                @unlink($fullPath);
+                            }
+                        }
+                        return; // Exit background processing
+                    } catch (\Throwable $e) {
+                        Log::error('Fatal error in document slide generation (background)', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        
+                        // Mark as error in session
+                        if ($userId && $sessionKey) {
+                            session([
+                                $sessionKey . '_status' => 'error',
+                                $sessionKey . '_error' => $e->getMessage()
+                            ]);
+                            $slideSets = session('generated_slide_sets', []);
+                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
+                            session(['generated_slide_sets' => array_values($slideSets)]);
+                            session()->save();
+                        }
+                        
+                        // Clean up temp file and session data
+                        if ($tempDocumentPath) {
+                            $tempFileKey = basename($tempDocumentPath);
+                            session()->forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
+                            $fullPath = storage_path('app/' . $tempDocumentPath);
+                            if (file_exists($fullPath)) {
+                                @unlink($fullPath);
+                            }
+                        }
+                        return; // Exit background processing
+                    }
+                } else {
+                    // Validate topic is required if no document
+                    if (empty($topic)) {
+                        // Mark as error in session
+                        if ($userId && $sessionKey) {
+                            session([
+                                $sessionKey . '_status' => 'error',
+                                $sessionKey . '_error' => 'Either topic or document is required'
+                            ]);
+                            $slideSets = session('generated_slide_sets', []);
+                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
+                            session(['generated_slide_sets' => array_values($slideSets)]);
+                            session()->save();
+                        }
+                        return; // Exit background processing
+                    }
+
+                    $slides = $this->generateSlidesWithAI($topic, $numberOfSlides, $detailLevel);
+                }
+
+                // Generate images for each slide
+                try {
+                    $slides = $this->generateImagesForSlides($slides, $topic);
                 } catch (\Exception $e) {
-                    // Return error to user instead of falling back to demo mode
-                    return response()->json([
-                        'status' => 400,
-                        'message' => $e->getMessage(),
-                    ], 400);
-                }
-            } else {
-                // Validate topic is required if no document
-                if (empty($topic)) {
-                    return response()->json([
-                        'status' => 400,
-                        'message' => 'Either topic or document is required',
-                    ], 400);
+                    Log::warning('Image generation failed, continuing without images: ' . $e->getMessage());
+                    // Continue without images if generation fails
                 }
 
-                $slides = $this->generateSlidesWithAI($topic, $numberOfSlides, $detailLevel);
+                // Store slides in session and mark as completed
+                if (!$userId) {
+                    $userId = session('user_id');
+                }
+                if (!$sessionKey && $userId) {
+                    $sessionKey = 'slide_generation_' . $userId;
+                }
+            
+            // Get existing slide sets
+            $slideSets = session('generated_slide_sets', []);
+            
+            // Remove any "generating" entry
+            $slideSets = array_filter($slideSets, fn($set) => $set['id'] !== 'generating');
+            $slideSets = array_values($slideSets); // Re-index
+            
+            // Create new slide set entry
+            $newSet = [
+                'id' => uniqid('slideset_', true),
+                'topic' => $topic,
+                'slides' => $slides,
+                'status' => 'completed',
+                'created_at' => now()->toDateTimeString(),
+                'slide_count' => count($slides)
+            ];
+            
+            // Add to beginning of array (newest first)
+            array_unshift($slideSets, $newSet);
+            
+            // Keep only last 50 slide sets to prevent session bloat
+            $slideSets = array_slice($slideSets, 0, 50);
+            
+            session([
+                'generated_slide_sets' => $slideSets,
+                'generated_slides' => $slides, // Keep for backward compatibility
+                'generated_slides_topic' => $topic, // Keep for backward compatibility
+                $sessionKey . '_status' => 'completed'
+            ]);
+                session()->save(); // Force save session
+                
+                // Clean up temp file
+                if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
+                    @unlink(storage_path('app/' . $tempDocumentPath));
+                }
+
+            } catch (\Exception $e) {
+                Log::error('AI Slide generation error (background): ' . $e->getMessage(), [
+                    'exception' => $e,
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                // Mark generation as error in session
+                if (isset($userId) && $userId && isset($sessionKey) && $sessionKey) {
+                    session([
+                        $sessionKey . '_status' => 'error',
+                        $sessionKey . '_error' => $e->getMessage()
+                    ]);
+                    // Remove generating placeholder
+                    $slideSets = session('generated_slide_sets', []);
+                    $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
+                    session(['generated_slide_sets' => array_values($slideSets)]);
+                    session()->save();
+                }
+                
+                // Clean up temp file on error
+                if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
+                    @unlink(storage_path('app/' . $tempDocumentPath));
+                }
             }
-
-            return response()->json([
-                'status' => 200,
-                'message' => 'Slides generated successfully',
-                'data' => [
-                    'slides' => $slides,
-                    'topic' => $topic,
-                ],
-            ], 200);
-
         } catch (\Exception $e) {
-            Log::error('AI Slide generation error: ' . $e->getMessage(), [
+            // Error before background processing starts
+            Log::error('AI Slide generation setup error: ' . $e->getMessage(), [
                 'exception' => $e,
                 'trace' => $e->getTraceAsString()
             ]);
+
+            // Mark generation as error in session
+            if (isset($userId) && $userId && isset($sessionKey) && $sessionKey) {
+                session([
+                    $sessionKey . '_status' => 'error',
+                    $sessionKey . '_error' => $e->getMessage()
+                ]);
+                session()->save();
+            }
+            
+            // Clean up temp file
+            if (isset($tempDocumentPath) && $tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
+                @unlink(storage_path('app/' . $tempDocumentPath));
+            }
 
             return response()->json([
                 'status' => 500,
@@ -178,7 +593,7 @@ class AIGeneratorController extends Controller
                 'number_of_questions' => 'nullable|integer|min:1|max:50',
                 'difficulty' => 'nullable|string|in:easy,medium,hard',
                 'question_type' => 'nullable|string|in:multiple_choice,true_false,mixed',
-                'document' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // Max 10MB
+                'document' => 'nullable|file|mimes:pdf,doc,docx,txt|max:20480', // Max 20MB
             ]);
 
             $topic = $request->input('topic');
@@ -547,9 +962,14 @@ class AIGeneratorController extends Controller
             $titleRun = $titleShape->createTextRun((string)($s['title'] ?? ('Slide ' . ($i + 1))));
             $titleRun->getFont()->setBold(true)->setSize(28)->setColor(new Color('FF111111'));
 
-            // Bullets
+            // Check if image exists to adjust layout
+            $imagePath = $s['image_path'] ?? null;
+            $hasImage = $imagePath && file_exists($imagePath);
+
+            // Bullets - adjust width if image is present
             $bodyShape = $slide->createRichTextShape();
-            $bodyShape->setHeight(420)->setWidth(900)->setOffsetX(50)->setOffsetY(110);
+            $bodyWidth = $hasImage ? 450 : 900; // Smaller width when image is present
+            $bodyShape->setHeight(420)->setWidth($bodyWidth)->setOffsetX(50)->setOffsetY(110);
             $bodyShape->getActiveParagraph()->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
             $contentLines = $this->normalizeSlideContent($s['content'] ?? []);
@@ -557,8 +977,24 @@ class AIGeneratorController extends Controller
                 $p = $idx === 0 ? $bodyShape->getActiveParagraph() : $bodyShape->createParagraph();
                 $p->getBulletStyle()->setBulletType(Bullet::TYPE_BULLET);
                 $p->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                $run = $bodyShape->createTextRun((string)$line);
+                // Create TextRun on the paragraph, not the shape, to ensure proper association
+                $run = $p->createTextRun((string)$line);
                 $run->getFont()->setSize(18)->setColor(new Color('FF111111'));
+            }
+
+            // Add image if available
+            if ($hasImage) {
+                try {
+                    // Create image shape on the right side of the slide
+                    $imageShape = $slide->createDrawingShape();
+                    $imageShape->setPath($imagePath);
+                    $imageShape->setWidth(450)->setHeight(340); // Maintain aspect ratio
+                    $imageShape->setOffsetX(520)->setOffsetY(110); // Position on right side
+                    $imageShape->setName('Slide Image');
+                } catch (\Exception $e) {
+                    Log::warning('Failed to add image to slide: ' . $e->getMessage());
+                    // Continue without image if there's an error
+                }
             }
 
             // Notes (from summary)
@@ -611,7 +1047,8 @@ class AIGeneratorController extends Controller
                 $label = chr(65 + $idx) . '. ';
                 $p = $idx === 0 ? $bodyShape->getActiveParagraph() : $bodyShape->createParagraph();
                 $p->getBulletStyle()->setBulletType(Bullet::TYPE_BULLET);
-                $run = $bodyShape->createTextRun($label . (string)$opt);
+                // Create TextRun on the paragraph, not the shape, to ensure proper association
+                $run = $p->createTextRun($label . (string)$opt);
                 $run->getFont()->setSize(18)->setColor(new Color('FF111111'));
             }
 
@@ -1106,7 +1543,12 @@ class AIGeneratorController extends Controller
             'messages' => $messages,
             'temperature' => 0.7,
             'max_tokens' => $maxTokens,
-        ]);
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if ($postData === false) {
+            $jsonError = json_last_error_msg();
+            throw new \Exception('Failed to encode JSON for OpenAI request: ' . $jsonError);
+        }
 
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -1202,8 +1644,12 @@ class AIGeneratorController extends Controller
 
     /**
      * Extract text from uploaded document
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param int|null $pageFrom Starting page number (1-based, null = from beginning)
+     * @param int|null $pageTo Ending page number (1-based, null = to end)
+     * @return string
      */
-    private function extractTextFromDocument($file): string
+    private function extractTextFromDocument($file, ?int $pageFrom = null, ?int $pageTo = null): string
     {
         $extension = $file->getClientOriginalExtension();
         $filePath = $file->getRealPath();
@@ -1211,46 +1657,17 @@ class AIGeneratorController extends Controller
         try {
             switch (strtolower($extension)) {
                 case 'txt':
-                    return file_get_contents($filePath);
+                    return $this->extractTextFromTxt($filePath, $pageFrom, $pageTo);
 
                 case 'pdf':
-                    // Preferred: use PDF parser library
-                    try {
-                        $parser = new PdfParser();
-                        $pdf = $parser->parseFile($filePath);
-                        $text = $pdf->getText();
-                        if ($text && strlen(trim($text)) > 20) {
-                            return $text;
-                        }
-                    } catch (\Throwable $e) {
-                        Log::warning('PDF parser library failed, trying pdftotext binary: ' . $e->getMessage());
-                    }
-
-                    // Fallback: pdftotext binary if installed
-                    if (function_exists('shell_exec')) {
-                        $output = @shell_exec("pdftotext " . escapeshellarg($filePath) . " -");
-                        if ($output && trim($output)) {
-                            return $output;
-                        }
-                    }
-
-                    throw new \Exception('Could not extract text from PDF. Please ensure the PDF is not scanned-only or install pdftotext.');
+                    return $this->extractTextFromPdf($filePath, $pageFrom, $pageTo);
 
                 case 'doc':
                 case 'docx':
-                    try {
-                        $text = $this->extractTextFromWord($filePath);
-                        if ($text && strlen(trim($text)) > 20) {
-                            return $text;
-                        }
-                    } catch (\Throwable $e) {
-                        Log::warning('DOCX/DOC parse failed: ' . $e->getMessage());
-                    }
-
-                    throw new \Exception('Could not extract text from DOC/DOCX. Please ensure the document is not password-protected or try saving as TXT.');
+                    return $this->extractTextFromWord($filePath, $pageFrom, $pageTo);
 
                 default:
-                    throw new \Exception('Unsupported file format. Please use TXT files.');
+                    throw new \Exception('Unsupported file format. Please use PDF, DOCX, DOC, or TXT files.');
             }
         } catch (\Exception $e) {
             Log::error('Document extraction error: ' . $e->getMessage());
@@ -1259,14 +1676,194 @@ class AIGeneratorController extends Controller
     }
 
     /**
-     * Extract text content from DOC/DOCX using PhpWord
+     * Get pdftotext executable path (tries multiple common locations)
      */
-    private function extractTextFromWord(string $filePath): string
+    private function getPdftotextPath(): ?string
+    {
+        // Try common Windows installation paths
+        $possiblePaths = [
+            'C:\\poppler\\poppler-25.12.0\\Library\\bin\\pdftotext.exe',
+            'C:\\poppler\\poppler-24.08.0\\Library\\bin\\pdftotext.exe',
+            'C:\\poppler\\poppler-23.11.0\\Library\\bin\\pdftotext.exe',
+            'pdftotext.exe', // Try PATH
+            'pdftotext', // Try PATH (without .exe)
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            // If it's a full path, check if file exists
+            if (strpos($path, '\\') !== false || strpos($path, '/') !== false) {
+                if (file_exists($path) && is_executable($path)) {
+                    return $path;
+                }
+            } else {
+                // For PATH-based commands, try executing --version to see if it works
+                $testCommand = escapeshellarg($path) . ' -v 2>&1';
+                $testOutput = @shell_exec($testCommand);
+                if ($testOutput && strpos($testOutput, 'not recognized') === false && strpos($testOutput, 'not found') === false) {
+                    return $path;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Extract text from PDF with optional page range
+     * Note: Page range extraction requires pdftotext binary. If not available, extracts all text.
+     */
+    private function extractTextFromPdf(string $filePath, ?int $pageFrom = null, ?int $pageTo = null): string
+    {
+        try {
+            // If page range is specified, try pdftotext binary first (only reliable way to extract specific pages)
+            if (($pageFrom !== null || $pageTo !== null) && function_exists('shell_exec')) {
+                $pdftotextPath = $this->getPdftotextPath();
+                
+                if ($pdftotextPath) {
+                    $start = ($pageFrom !== null) ? $pageFrom : 1;
+                    $end = ($pageTo !== null) ? $pageTo : 10000; // Large number for "to end"
+                    
+                    $command = escapeshellarg($pdftotextPath) . " -f {$start} -l {$end} " . escapeshellarg($filePath) . " - 2>&1";
+                    Log::info('Attempting pdftotext extraction', [
+                        'command' => $command,
+                        'page_from' => $start,
+                        'page_to' => $end,
+                    ]);
+                    
+                    $output = @shell_exec($command);
+                    
+                    if ($output && trim($output) && strpos($output, 'command not found') === false && strpos($output, 'not recognized') === false) {
+                        // Check if there are actual errors in the output
+                        if (strpos($output, 'Error') === false && strpos($output, 'error') === false) {
+                            $extractedText = trim($output);
+                            if (strlen($extractedText) > 20) {
+                                Log::info('Successfully extracted text using pdftotext', [
+                                    'text_length' => strlen($extractedText),
+                                ]);
+                                return $extractedText;
+                            }
+                        }
+                    }
+                    
+                    Log::warning("pdftotext command executed but output was invalid", [
+                        'output_length' => strlen($output ?? ''),
+                        'output_preview' => substr($output ?? '', 0, 200),
+                    ]);
+                } else {
+                    Log::warning("pdftotext binary not found in common locations or PATH");
+                }
+                
+                // If pdftotext failed but page range was specified, warn user
+                Log::warning("Page range extraction via pdftotext failed or pdftotext not available. Extracting all text instead.");
+                
+                // For very large PDFs, warn that extraction might be slow or fail
+                $fileSize = filesize($filePath);
+                if ($fileSize > 10 * 1024 * 1024) { // > 10MB
+                    Log::warning("Large PDF detected ({$fileSize} bytes). Full text extraction may take time or fail. Consider installing pdftotext for page range support.");
+                }
+            }
+
+            // Extract all text using PDF parser (fallback or when no page range specified)
+            try {
+                $parser = new PdfParser();
+                $pdf = $parser->parseFile($filePath);
+                $text = $pdf->getText();
+
+                if ($text && strlen(trim($text)) > 20) {
+                    // Limit extracted text to prevent memory issues with very large PDFs (max 500KB of text)
+                    if (strlen($text) > 500000) {
+                        Log::warning("PDF text extraction exceeded 500KB, truncating to prevent memory issues.");
+                        $text = mb_substr($text, 0, 500000, 'UTF-8');
+                    }
+                    
+                    Log::info('PDF text extraction completed', ['text_length' => strlen($text)]);
+                    
+                    if ($pageFrom !== null || $pageTo !== null) {
+                        Log::info("Extracted all PDF text. Page range filtering requires pdftotext binary to be installed.");
+                    }
+                    return $text;
+                }
+                
+                Log::warning('PDF text extraction returned empty or too short text');
+            } catch (\Throwable $e) {
+                Log::error('PDF parser failed: ' . $e->getMessage(), [
+                    'exception' => $e,
+                    'file_path' => $filePath,
+                    'file_size' => file_exists($filePath) ? filesize($filePath) : 'unknown'
+                ]);
+                
+                throw new \Exception('Failed to extract text from PDF. The PDF may be too large or corrupted: ' . $e->getMessage());
+            }
+
+            throw new \Exception('Could not extract text from PDF. Please ensure the PDF is not scanned-only or install pdftotext for page range support.');
+        } catch (\Exception $e) {
+            if (strpos($e->getMessage(), 'Could not extract') === 0) {
+                throw $e;
+            }
+            Log::error('PDF extraction error: ' . $e->getMessage(), ['exception' => $e]);
+            throw new \Exception('Could not extract text from PDF. Please ensure the PDF is not scanned-only or install pdftotext.');
+        }
+    }
+
+    /**
+     * Extract text from TXT file with optional line range (approximating pages)
+     */
+    private function extractTextFromTxt(string $filePath, ?int $pageFrom = null, ?int $pageTo = null): string
+    {
+        $content = file_get_contents($filePath);
+        
+        if ($pageFrom === null && $pageTo === null) {
+            return $content;
+        }
+
+        // For TXT files, approximate pages as ~50 lines per page
+        $lines = explode("\n", $content);
+        $totalLines = count($lines);
+        $linesPerPage = 50;
+        $totalPages = ceil($totalLines / $linesPerPage);
+
+        $startLine = ($pageFrom !== null) ? max(0, ($pageFrom - 1) * $linesPerPage) : 0;
+        $endLine = ($pageTo !== null) ? min($totalLines - 1, $pageTo * $linesPerPage - 1) : ($totalLines - 1);
+
+        if ($startLine > $endLine) {
+            throw new \Exception("Invalid page range for text file.");
+        }
+
+        $selectedLines = array_slice($lines, $startLine, $endLine - $startLine + 1);
+        return implode("\n", $selectedLines);
+    }
+
+    /**
+     * Extract text content from DOC/DOCX using PhpWord with optional section range
+     * @param string $filePath
+     * @param int|null $pageFrom Starting section number (1-based, null = from beginning)
+     * @param int|null $pageTo Ending section number (1-based, null = to end)
+     * @return string
+     */
+    private function extractTextFromWord(string $filePath, ?int $pageFrom = null, ?int $pageTo = null): string
     {
         $phpWord = WordIOFactory::load($filePath);
-        $parts = [];
+        $sections = $phpWord->getSections();
+        $totalSections = count($sections);
 
-        foreach ($phpWord->getSections() as $section) {
+        // Validate section range
+        if ($pageFrom !== null && ($pageFrom < 1 || $pageFrom > $totalSections)) {
+            throw new \Exception("Invalid start section. Document has {$totalSections} sections.");
+        }
+        if ($pageTo !== null && ($pageTo < 1 || $pageTo > $totalSections)) {
+            throw new \Exception("Invalid end section. Document has {$totalSections} sections.");
+        }
+        if ($pageFrom !== null && $pageTo !== null && $pageFrom > $pageTo) {
+            throw new \Exception("Start section cannot be greater than end section.");
+        }
+
+        // Determine section range (0-based indexing)
+        $startIndex = ($pageFrom !== null) ? max(0, $pageFrom - 1) : 0;
+        $endIndex = ($pageTo !== null) ? min($totalSections - 1, $pageTo - 1) : ($totalSections - 1);
+
+        $parts = [];
+        for ($i = $startIndex; $i <= $endIndex; $i++) {
+            $section = $sections[$i];
             foreach ($section->getElements() as $element) {
                 $text = $this->getWordElementText($element);
                 if ($text !== null && $text !== '') {
@@ -1275,7 +1872,13 @@ class AIGeneratorController extends Controller
             }
         }
 
-        return trim(implode("\n", array_filter($parts)));
+        $result = trim(implode("\n", array_filter($parts)));
+        
+        if (strlen($result) < 20) {
+            throw new \Exception('Could not extract text from DOC/DOCX. Please ensure the document is not password-protected or try saving as TXT.');
+        }
+
+        return $result;
     }
 
     /**
@@ -1338,8 +1941,17 @@ class AIGeneratorController extends Controller
         $openaiKey = env('OPENAI_API_KEY');
         $geminiKey = env('GEMINI_API_KEY');
 
-        // Limit document text to prevent token overflow
-        $limitedText = substr($documentText, 0, 3000);
+        // Clean and sanitize document text
+        $documentText = mb_convert_encoding($documentText, 'UTF-8', 'UTF-8');
+        // Remove control characters except newlines, tabs, and carriage returns
+        $documentText = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $documentText);
+        // Limit document text to prevent token overflow (using mb_substr for proper UTF-8 handling)
+        $limitedText = mb_substr($documentText, 0, 3000, 'UTF-8');
+        // Remove any remaining problematic characters that might break JSON (remove characters above U+007F that aren't valid UTF-8)
+        $limitedText = mb_convert_encoding($limitedText, 'UTF-8', 'UTF-8');
+        if (empty(trim($limitedText))) {
+            throw new \Exception('Document text is empty or contains no valid content after sanitization.');
+        }
 
         $response = null;
 
@@ -1350,10 +1962,11 @@ class AIGeneratorController extends Controller
                                 "Return ONLY valid JSON array with no markdown formatting or code blocks.";
 
                 $userMessage = "Based on this document content:\n\n{$limitedText}\n\n" .
-                              "Create {$numberOfSlides} educational slides. " .
+                              "Create EXACTLY {$numberOfSlides} educational slides. " .
                               "Detail level: {$detailLevel}. " .
                               "Topic context: {$topic}. " .
                               "Format: JSON array where each slide is an object with 'title', 'content' (array of bullet points), and 'summary' fields. " .
+                              "IMPORTANT: You MUST return EXACTLY {$numberOfSlides} slides in the JSON array. " .
                               "Make the content educational, clear, and well-structured based on the document.";
 
                 $response = $this->callOpenAI($systemMessage, $userMessage, 4000);
@@ -1365,7 +1978,7 @@ class AIGeneratorController extends Controller
         if (!$response && $geminiKey && strlen($geminiKey) > 30) {
             try {
                 $prompt = "You are an educational content creator. Based on this document content:\n\n{$limitedText}\n\n" .
-                         "Create {$numberOfSlides} educational presentation slides.\n" .
+                         "Create EXACTLY {$numberOfSlides} educational presentation slides.\n" .
                          "Detail level: {$detailLevel}\n" .
                          "Topic context: {$topic}\n\n" .
                          "Return ONLY a valid JSON array with no markdown formatting or code blocks. " .
@@ -1373,9 +1986,18 @@ class AIGeneratorController extends Controller
                          "- 'title': string (slide title)\n" .
                          "- 'content': array of strings (bullet points)\n" .
                          "- 'summary': string (brief summary)\n\n" .
+                         "IMPORTANT: You MUST return EXACTLY {$numberOfSlides} slides in the JSON array.\n\n" .
                          "Make the content educational, clear, and well-structured based on the document.";
 
                 $response = $this->callGemini($prompt, 4000);
+                
+                // Check if we got the right number of slides, retry once if not
+                $tempSlides = json_decode($response, true);
+                if (is_array($tempSlides) && count($this->normalizeSlides($tempSlides)) < $numberOfSlides) {
+                    Log::info('First attempt generated fewer slides, retrying with stronger prompt');
+                    $retryPrompt = $prompt . "\n\nCRITICAL: You must generate EXACTLY {$numberOfSlides} slides. Count them carefully. If the document doesn't have enough content for {$numberOfSlides} distinct slides, create more detailed breakdowns or split topics into multiple slides.";
+                    $response = $this->callGemini($retryPrompt, 4000);
+                }
             } catch (\Exception $e) {
                 Log::error('Gemini API also failed for document slides: ' . $e->getMessage());
             }
@@ -1384,7 +2006,9 @@ class AIGeneratorController extends Controller
         if (!$response) {
             // No demo mode - throw exception if both APIs fail
             throw new \Exception('Failed to generate slides from document. Please check your API configuration or try again later.');
-        }        // Parse the response
+        }
+
+        // Parse the response
         $slides = json_decode($response, true);
 
         if (!is_array($slides)) {
@@ -1397,7 +2021,8 @@ class AIGeneratorController extends Controller
             }
         }
 
-        return $slides;
+        // Validate and ensure exact slide count
+        return $this->ensureExactSlidesCountOrThrow($slides, $numberOfSlides, $topic, $detailLevel, $limitedText);
     }
 
     /**
@@ -1543,7 +2168,12 @@ class AIGeneratorController extends Controller
                 ]
             ],
             'generationConfig' => $generationConfig
-        ]);
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if ($postData === false) {
+            $jsonError = json_last_error_msg();
+            throw new \Exception('Failed to encode JSON for Gemini request: ' . $jsonError);
+        }
 
         $ch = curl_init($url);
 
@@ -1730,5 +2360,366 @@ class AIGeneratorController extends Controller
         }
 
         return $quiz;
+    }
+
+    /**
+     * Generate images for all slides based on their content
+     */
+    private function generateImagesForSlides(array $slides, string $topic): array
+    {
+        $apiKey = env('OPENAI_API_KEY');
+        
+        if (!$apiKey || strlen($apiKey) < 20) {
+            Log::info('OpenAI API key not configured, skipping image generation');
+            return $slides;
+        }
+
+        $tmpImageDir = storage_path('app/tmp/slide_images');
+        if (!is_dir($tmpImageDir)) {
+            @mkdir($tmpImageDir, 0775, true);
+        }
+
+        $startTime = time();
+        $maxImageGenerationTime = 240; // Max 4 minutes for images (leaving 1 minute buffer)
+        $slidesGenerated = 0;
+
+        foreach ($slides as $index => &$slide) {
+            // Check if we're running out of time
+            $elapsed = time() - $startTime;
+            if ($elapsed > $maxImageGenerationTime) {
+                Log::warning("Image generation timeout approaching, skipping remaining images. Generated {$slidesGenerated} out of " . count($slides) . " slides.");
+                break;
+            }
+
+            try {
+                // Check if flowchart should be used
+                $useFlowchart = $this->shouldUseFlowchart($slide);
+                
+                // Generate image description from slide content
+                $imagePrompt = $this->createImagePromptFromSlide($slide, $topic);
+                
+                Log::info('Generated image prompt for slide', [
+                    'slide_index' => $index,
+                    'slide_title' => $slide['title'] ?? 'N/A',
+                    'image_type' => $useFlowchart ? 'flowchart' : 'illustration',
+                    'prompt_preview' => mb_substr($imagePrompt, 0, 200) . '...'
+                ]);
+                
+                // Generate image using DALL-E
+                $imageUrl = $this->generateImageWithDallE($imagePrompt);
+                
+                if ($imageUrl) {
+                    // Download and save image
+                    $imagePath = $this->downloadImageFromUrl($imageUrl, $tmpImageDir, 'slide_' . $index . '_' . uniqid());
+                    if ($imagePath) {
+                        $slide['image_path'] = $imagePath;
+                        $slidesGenerated++;
+                        Log::info('Image generated for slide', [
+                            'slide_index' => $index,
+                            'image_path' => $imagePath,
+                            'elapsed_time' => time() - $startTime
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to generate image for slide ' . $index . ': ' . $e->getMessage());
+                // Continue without image for this slide
+            }
+        }
+
+        Log::info("Image generation completed. Generated {$slidesGenerated} images out of " . count($slides) . " slides in " . (time() - $startTime) . " seconds.");
+
+        return $slides;
+    }
+
+    /**
+     * Detect if a slide should have a flowchart based on its content
+     */
+    private function shouldUseFlowchart(array $slide): bool
+    {
+        $title = strtolower(trim($slide['title'] ?? ''));
+        $contentArray = is_array($slide['content']) ? $slide['content'] : [];
+        $summary = strtolower(trim($slide['summary'] ?? ''));
+        
+        // Keywords that indicate a flowchart would be appropriate
+        $flowchartKeywords = [
+            'process', 'workflow', 'algorithm', 'procedure', 'sequence', 'steps', 'step',
+            'flow', 'flowchart', 'diagram', 'decision', 'if', 'then', 'else', 'loop',
+            'iteration', 'cycle', 'pipeline', 'methodology', 'approach', 'method',
+            'system', 'architecture', 'framework', 'model', 'pattern', 'pathway',
+            'journey', 'timeline', 'phases', 'stages', 'levels', 'hierarchy',
+            'input', 'output', 'start', 'end', 'begin', 'finish', 'first', 'next',
+            'then', 'finally', 'after', 'before', 'during', 'order', 'sequence'
+        ];
+        
+        // Check title
+        foreach ($flowchartKeywords as $keyword) {
+            if (strpos($title, $keyword) !== false) {
+                return true;
+            }
+        }
+        
+        // Check content points
+        $contentText = strtolower(implode(' ', $contentArray));
+        foreach ($flowchartKeywords as $keyword) {
+            if (strpos($contentText, $keyword) !== false) {
+                return true;
+            }
+        }
+        
+        // Check summary
+        foreach ($flowchartKeywords as $keyword) {
+            if (strpos($summary, $keyword) !== false) {
+                return true;
+            }
+        }
+        
+        // Check if content has numbered steps or sequential structure
+        if (count($contentArray) >= 3) {
+            $hasNumberedSteps = false;
+            $hasSequentialWords = false;
+            
+            foreach ($contentArray as $point) {
+                $pointLower = strtolower(trim($point));
+                // Check for numbered steps (1., 2., Step 1, etc.)
+                if (preg_match('/^\d+[\.\)]|^step\s+\d+/i', $pointLower)) {
+                    $hasNumberedSteps = true;
+                }
+                // Check for sequential indicators
+                if (preg_match('/\b(first|second|third|fourth|fifth|next|then|finally|last|initial|final)\b/i', $pointLower)) {
+                    $hasSequentialWords = true;
+                }
+            }
+            
+            if ($hasNumberedSteps || $hasSequentialWords) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Create an image generation prompt from slide content
+     * This creates a detailed, specific prompt that closely matches the slide content
+     * Automatically detects if a flowchart would be more appropriate
+     */
+    private function createImagePromptFromSlide(array $slide, string $topic): string
+    {
+        $title = trim($slide['title'] ?? '');
+        $contentArray = is_array($slide['content']) ? $slide['content'] : [];
+        $summary = trim($slide['summary'] ?? '');
+        
+        // Check if this slide should use a flowchart
+        $useFlowchart = $this->shouldUseFlowchart($slide);
+        
+        if ($useFlowchart) {
+            // Generate flowchart-specific prompt
+            return $this->createFlowchartPrompt($slide, $topic);
+        }
+        
+        // Build a focused, detailed prompt based on the actual slide content
+        $prompt = "Create an educational illustration that visually represents the following slide content: ";
+        
+        // Primary focus: Slide title (most important)
+        if (!empty($title)) {
+            $prompt .= "\"$title\". ";
+        }
+        
+        // Secondary focus: Main content points
+        if (!empty($contentArray) && count($contentArray) > 0) {
+            $prompt .= "The slide covers these key points: ";
+            foreach ($contentArray as $index => $point) {
+                $point = trim($point);
+                if (!empty($point)) {
+                    $prompt .= $point;
+                    if ($index < count($contentArray) - 1) {
+                        $prompt .= ", ";
+                    }
+                }
+            }
+            $prompt .= ". ";
+        }
+        
+        // Additional context: Summary if available
+        if (!empty($summary)) {
+            $prompt .= "Context: $summary. ";
+        }
+        
+        // Overall topic context (if different from title)
+        if (!empty($topic) && strtolower($title) !== strtolower($topic)) {
+            $prompt .= "This is part of a presentation about: $topic. ";
+        }
+        
+        // Style and technical requirements
+        $prompt .= "Style: Professional educational illustration, clean and modern design, suitable for academic presentation. ";
+        $prompt .= "The image should directly visualize the concepts mentioned in the slide content. ";
+        $prompt .= "Use appropriate colors, diagrams, icons, or visual metaphors that represent the slide's subject matter. ";
+        $prompt .= "Do not include any text, words, or numbers in the image. ";
+        $prompt .= "Make it visually engaging and relevant to the specific slide content described above.";
+        
+        return $prompt;
+    }
+
+    /**
+     * Create a flowchart-specific prompt for slides that describe processes or workflows
+     */
+    private function createFlowchartPrompt(array $slide, string $topic): string
+    {
+        $title = trim($slide['title'] ?? '');
+        $contentArray = is_array($slide['content']) ? $slide['content'] : [];
+        $summary = trim($slide['summary'] ?? '');
+        
+        $prompt = "Create a professional flowchart diagram that visually represents the following process/workflow: ";
+        
+        // Primary focus: Slide title
+        if (!empty($title)) {
+            $prompt .= "\"$title\". ";
+        }
+        
+        // Detailed process steps
+        if (!empty($contentArray) && count($contentArray) > 0) {
+            $prompt .= "The process consists of these steps: ";
+            foreach ($contentArray as $index => $point) {
+                $point = trim($point);
+                if (!empty($point)) {
+                    // Remove step numbers if present for cleaner prompt
+                    $cleanPoint = preg_replace('/^\d+[\.\)]\s*/', '', $point);
+                    $cleanPoint = preg_replace('/^step\s+\d+[\.\):]\s*/i', '', $cleanPoint);
+                    $prompt .= ($index + 1) . ". $cleanPoint";
+                    if ($index < count($contentArray) - 1) {
+                        $prompt .= "; ";
+                    }
+                }
+            }
+            $prompt .= ". ";
+        }
+        
+        // Additional context
+        if (!empty($summary)) {
+            $prompt .= "Context: $summary. ";
+        }
+        
+        // Overall topic
+        if (!empty($topic) && strtolower($title) !== strtolower($topic)) {
+            $prompt .= "This is part of a presentation about: $topic. ";
+        }
+        
+        // Flowchart-specific instructions
+        $prompt .= "Create a flowchart with: ";
+        $prompt .= "rectangular boxes for process steps, ";
+        $prompt .= "diamond shapes for decision points (if any), ";
+        $prompt .= "rounded rectangles for start/end points, ";
+        $prompt .= "arrows showing the flow direction between steps, ";
+        $prompt .= "clear visual hierarchy and logical flow from top to bottom or left to right. ";
+        $prompt .= "Style: Clean, professional flowchart design, suitable for educational presentation. ";
+        $prompt .= "Use appropriate colors to distinguish different types of elements (processes, decisions, start/end). ";
+        $prompt .= "The flowchart should clearly show the sequence and relationships between the steps described. ";
+        $prompt .= "Do not include any text labels, words, or numbers in the flowchart boxes - use visual symbols, icons, or abstract representations instead.";
+        
+        return $prompt;
+    }
+
+    /**
+     * Generate an image using DALL-E API
+     */
+    private function generateImageWithDallE(string $prompt): ?string
+    {
+        $apiKey = env('OPENAI_API_KEY');
+        
+        if (!$apiKey || strlen($apiKey) < 20) {
+            return null;
+        }
+
+        try {
+            $ch = curl_init('https://api.openai.com/v1/images/generations');
+            
+            $postData = json_encode([
+                'model' => 'dall-e-3',
+                'prompt' => $prompt,
+                'n' => 1,
+                'size' => '1024x1024',
+                'quality' => 'standard',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $postData,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_TIMEOUT => 90, // Increased timeout for DALL-E (can take longer)
+                CURLOPT_CONNECTTIMEOUT => 15,
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlError) {
+                throw new \Exception('Connection error: ' . $curlError);
+            }
+
+            if ($httpCode !== 200) {
+                $errorData = json_decode($response, true);
+                $errorMessage = $errorData['error']['message'] ?? 'Unknown error';
+                throw new \Exception('DALL-E API error: ' . $errorMessage);
+            }
+
+            $data = json_decode($response, true);
+            
+            if (isset($data['data'][0]['url'])) {
+                return $data['data'][0]['url'];
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('DALL-E image generation failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Download image from URL and save to local storage
+     */
+    private function downloadImageFromUrl(string $imageUrl, string $saveDir, string $filename): ?string
+    {
+        try {
+            $imageData = @file_get_contents($imageUrl);
+            
+            if ($imageData === false) {
+                Log::warning('Failed to download image from URL: ' . $imageUrl);
+                return null;
+            }
+
+            // Determine file extension from content or default to png
+            $extension = 'png';
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_buffer($finfo, $imageData);
+            finfo_close($finfo);
+            
+            if ($mimeType === 'image/jpeg' || $mimeType === 'image/jpg') {
+                $extension = 'jpg';
+            } elseif ($mimeType === 'image/png') {
+                $extension = 'png';
+            } elseif ($mimeType === 'image/webp') {
+                $extension = 'webp';
+            }
+
+            $filePath = $saveDir . '/' . $filename . '.' . $extension;
+            
+            if (@file_put_contents($filePath, $imageData) === false) {
+                Log::warning('Failed to save image to: ' . $filePath);
+                return null;
+            }
+
+            return $filePath;
+        } catch (\Exception $e) {
+            Log::error('Image download failed: ' . $e->getMessage());
+            return null;
+        }
     }
 }

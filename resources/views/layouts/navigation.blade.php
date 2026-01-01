@@ -46,6 +46,9 @@
                                 <x-dropdown-link :href="route('ai-generator.slides')">
                                     Jana Slaid
                                 </x-dropdown-link>
+                                <x-dropdown-link :href="route('ai-generator.slaid-dijana')">
+                                    Slaid Dijana
+                                </x-dropdown-link>
                                 <x-dropdown-link :href="route('ai-generator.quiz')">
                                     Jana Kuiz
                                 </x-dropdown-link>
@@ -266,6 +269,10 @@
                 <a href="{{ route('ai-generator.slides') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.slides') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
                     {{ __('Jana Slaid') }}
+                </a>
+                <a href="{{ route('ai-generator.slaid-dijana') }}"
+                    class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.slaid-dijana') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
+                    {{ __('Slaid Dijana') }}
                 </a>
                 <a href="{{ route('ai-generator.quiz') }}"
                     class="block px-4 py-2 text-base font-medium {{ request()->routeIs('ai-generator.quiz') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
