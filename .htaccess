@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # If request is for a file that exists, serve it directly
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+    
+    # If request is for a directory that exists, serve it directly
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    
+    # Otherwise, route everything through public/index.php
+    # This handles /Material/api/* and routes to /Material/public/api/*
+    RewriteCond %{REQUEST_URI} !^/Material/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
