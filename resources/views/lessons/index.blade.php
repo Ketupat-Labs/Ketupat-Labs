@@ -119,7 +119,7 @@
 
                                         {{-- Delete Button (UC003) --}}
                                         <form action="{{ route('lessons.destroy', $lesson->id) }}" method="POST" class="inline"
-                                            onsubmit="return confirm('{{ __('Are you sure you want to delete this lesson?') }}');">
+                                            onsubmit="return confirm('{{ __('Adakah anda pasti mahu memadamkan pelajaran ini?') }}');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit"
