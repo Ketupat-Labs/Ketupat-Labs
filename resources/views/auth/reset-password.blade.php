@@ -46,7 +46,7 @@
                             <i class="fas fa-lock"></i> Kata Laluan Baharu
                         </label>
                         <div class="password-container">
-                            <input type="password" id="newPassword" placeholder="Masukkan kata laluan baharu (min. 8 aksara)" autocomplete="new-password" required minlength="8">
+                            <input type="password" id="newPassword" placeholder="Masukkan kata laluan baharu (min. 8 aksara)" autocomplete="new-password" required minlength="8" oninvalid="this.setCustomValidity('Sila masukkan sekurang-kurangnya 8 aksara.')" oninput="this.setCustomValidity('')">
                             <button type="button" class="password-toggle" onclick="togglePassword('newPassword', 'newPasswordIcon')">
                                 <i class="fas fa-eye" id="newPasswordIcon"></i>
                             </button>
@@ -58,7 +58,7 @@
                             <i class="fas fa-lock"></i> Sahkan Kata Laluan Baharu
                         </label>
                         <div class="password-container">
-                            <input type="password" id="confirmNewPassword" placeholder="Masukkan semula kata laluan baharu" autocomplete="new-password" required minlength="8">
+                            <input type="password" id="confirmNewPassword" placeholder="Masukkan semula kata laluan baharu" autocomplete="new-password" required minlength="8" oninvalid="this.setCustomValidity('Sila masukkan sekurang-kurangnya 8 aksara.')" oninput="this.setCustomValidity('')">
                             <button type="button" class="password-toggle" onclick="togglePassword('confirmNewPassword', 'confirmNewPasswordIcon')">
                                 <i class="fas fa-eye" id="confirmNewPasswordIcon"></i>
                             </button>

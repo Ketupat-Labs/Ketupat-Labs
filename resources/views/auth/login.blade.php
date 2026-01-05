@@ -113,7 +113,7 @@
                                 <i class="fas fa-lock"></i> Kata Laluan
                             </label>
                             <div class="password-container">
-                                <input type="password" id="registerPassword" placeholder="Masukkan kata laluan (min. 8 aksara)" autocomplete="new-password" required minlength="8">
+                                <input type="password" id="registerPassword" placeholder="Masukkan kata laluan (min. 8 aksara)" autocomplete="new-password" required minlength="8" oninvalid="this.setCustomValidity('Sila masukkan sekurang-kurangnya 8 aksara.')" oninput="this.setCustomValidity('')">
                                 <button type="button" class="password-toggle" onclick="togglePassword('registerPassword', 'registerPasswordIcon')">
                                     <i class="fas fa-eye" id="registerPasswordIcon"></i>
                                 </button>
