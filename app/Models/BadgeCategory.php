@@ -18,6 +18,7 @@ class BadgeCategory extends Model
         'description',
         'icon',
         'color',
+        'role_restriction',
     ];
 
     public function badges(): HasMany
