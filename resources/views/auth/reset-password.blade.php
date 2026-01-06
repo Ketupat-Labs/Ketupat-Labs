@@ -17,15 +17,15 @@
         <div class="auth-wrapper">
             <!-- Logo Section -->
             <div class="auth-logo">
-                <img src="{{ asset('assets/images/LogoCompuPlay.jpg') }}" alt="CompuPlay Logo" class="logo-img" onerror="this.onerror=null; this.src='{{ asset('assets/images/LogoCompuPlay.jpg') }}'">
+                <img src="{{ asset('assets/images/LogoCompuPlay.jpg') }}" alt="Logo CompuPlay" class="logo-img" onerror="this.onerror=null; this.src='{{ asset('assets/images/LogoCompuPlay.jpg') }}'">
             </div>
 
             <!-- Reset Password Form -->
             <div class="auth-form active">
                 <h2>Set Semula Kata Laluan</h2>
-                <p class="form-subtitle">Reset Password</p>
+
                 <p class="form-description">Masukkan kata laluan baharu anda</p>
-                <p class="form-description-english">Enter your new password</p>
+
 
                 <div class="error-message" id="resetPasswordError"></div>
                 <div class="success-message" id="resetPasswordSuccess"></div>

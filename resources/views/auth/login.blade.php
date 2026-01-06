@@ -17,7 +17,7 @@
         <div class="auth-wrapper">
             <!-- Logo Section -->
             <div class="auth-logo">
-                <img src="{{ asset('assets/images/LogoCompuPlay.jpg') }}" alt="CompuPlay Logo" class="logo-img" onerror="this.onerror=null; this.src='{{ asset('assets/images/LogoCompuPlay.jpg') }}'">
+                <img src="{{ asset('assets/images/LogoCompuPlay.jpg') }}" alt="Logo CompuPlay" class="logo-img" onerror="this.onerror=null; this.src='{{ asset('assets/images/LogoCompuPlay.jpg') }}'">
             </div>
 
             <!-- Role Selection Tabs -->
@@ -25,12 +25,12 @@
                 <button class="role-tab active" data-role="cikgu" onclick="switchRole('cikgu')">
                     <i class="fas fa-chalkboard-teacher"></i>
                     <span>Cikgu</span>
-                    <p class="role-subtitle">Teacher</p>
+
                 </button>
                 <button class="role-tab" data-role="pelajar" onclick="switchRole('pelajar')">
                     <i class="fas fa-user-graduate"></i>
                     <span>Pelajar</span>
-                    <p class="role-subtitle">Student</p>
+
                 </button>
             </div>
 
@@ -39,9 +39,9 @@
                 <!-- Login Form -->
                 <div class="auth-form active" id="loginForm">
                     <h2>Log Masuk</h2>
-                    <p class="form-subtitle">Login</p>
+
                     <p class="form-description">Selamat kembali! Sila log masuk untuk teruskan</p>
-                    <p class="form-description-english">Welcome back! Please login to continue</p>
+
 
                     <div class="error-message" id="loginError"></div>
 
@@ -86,9 +86,9 @@
                 <!-- Registration Form -->
                 <div class="auth-form" id="registerForm">
                     <h2>Daftar Akaun</h2>
-                    <p class="form-subtitle">Create Account</p>
+
                     <p class="form-description">Sertai CompuPlay hari ini dan mulakan perjalanan pembelajaran anda</p>
-                    <p class="form-description-english">Join CompuPlay today and start your learning journey</p>
+
 
                     <div class="error-message" id="registerError"></div>
                     <div class="success-message" id="registerSuccess"></div>
@@ -135,7 +135,7 @@
                         <!-- OTP Verification Section (hidden initially) -->
                         <div class="form-group" id="otpVerificationSection" style="display: none;">
                             <label for="registerOtp">
-                                <i class="fas fa-key"></i> Kod Pengesahan (OTP)
+                                <i class="fas fa-key"></i> Kod Pengesahan
                             </label>
                             <div class="otp-container">
                                 <input type="text" id="registerOtp" placeholder="" maxlength="6" pattern="[0-9]{6}">
