@@ -182,7 +182,7 @@
             @endif
 
                 <!-- Header Banner -->
-                <div class="bg-blue-600 rounded-t-lg px-6 py-4">
+                <div class="bg-blue-600 rounded-t-lg px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <h3 class="text-lg font-medium text-white flex items-center gap-2">
                         @if($mode === 'all')
                             📊 Melihat: {{ auth()->user()->role === 'student' ? auth()->user()->full_name : ($selectedClass ? $selectedClass->name : 'Tiada Kelas') }} | Semua Pelajaran
@@ -190,6 +190,26 @@
                             👉 Melihat: {{ auth()->user()->role === 'student' ? auth()->user()->full_name : ($selectedClass ? $selectedClass->name : 'Tiada Kelas') }} | {{ $filterItems->firstWhere('id', $selectedFilter)['name'] ?? 'Item Terpilih' }}
                         @endif
                     </h3>
+
+                    <!-- Badge Display (Same as Profile) -->
+                    @if((auth()->user()->share_badges_on_profile ?? true) && isset($badges))
+                        <div class="flex items-center -space-x-2 overflow-hidden py-1">
+                            @foreach($badges->where('is_visible', true)->take(3) as $badge)
+                                <div class="relative inline-block h-8 w-8 rounded-full ring-2 ring-blue-600 bg-white z-10" 
+                                     title="{{ $badge->name }}">
+                                    @if($badge->icon && str_starts_with($badge->icon, 'fa'))
+                                        <div class="w-full h-full flex items-center justify-center rounded-full bg-{{ $badge->color ?? 'blue' }}-100 text-{{ $badge->color ?? 'blue' }}-600">
+                                            <i class="{{ $badge->icon }} text-xs"></i>
+                                        </div>
+                                    @else
+                                        <img class="h-full w-full rounded-full object-cover" 
+                                             src="{{ asset($badge->icon_url ?? 'assets/badges/default.png') }}" 
+                                             alt="{{ $badge->name }}">
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
 

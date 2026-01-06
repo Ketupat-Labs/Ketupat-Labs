@@ -271,3 +271,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/ai-generator/check-status', [\App\Http\Controllers\AIGeneratorController::class, 'checkGenerationStatus'])->name('ai-generator.check-status');
 });
 
+
+// DEMO ROUTE for Dynamic Badge Visibility
+Route::get('/badge-demo', function () {
+    return view('badge_demo');
+});

@@ -344,6 +344,37 @@ class PerformanceController extends Controller
             }
         }
 
+
+        // Fetch Badges for Header Display (Identical Logic to ProfileController)
+        $badges = \Illuminate\Support\Facades\DB::table('badge')->get();
+        
+        $userBadges = \Illuminate\Support\Facades\DB::table('user_badge')
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['earned', 'redeemed'])
+            ->get()
+            ->keyBy('badge_code');
+            
+        // Map visibility
+        $visibleBadgeCodes = [];
+        if (!empty($user->visible_badge_codes)) {
+            $decoded = json_decode($user->visible_badge_codes, true);
+            if (is_array($decoded) && !empty($decoded)) {
+                $visibleBadgeCodes = $decoded;
+            }
+        }
+        // Fallback
+        if (empty($visibleBadgeCodes)) {
+            $visibleBadgeCodes = $userBadges->keys()->toArray();
+        }
+
+        $formattedBadges = $badges->map(function($badge) use ($userBadges, $visibleBadgeCodes) {
+            $userBadge = $userBadges->get($badge->code);
+            $badge->is_earned = $userBadge ? true : false;
+            $badge->is_visible = $badge->is_earned && in_array($badge->code, $visibleBadgeCodes);
+            return $badge;
+        });
+
+        // Pass $formattedBadges as $badges variable to view
         return view('performance.index', compact(
             'classrooms',
             'lessons',
@@ -353,8 +384,9 @@ class PerformanceController extends Controller
             'filterItems',
             'selectedFilter',
             'data',
-            'mode'
-        ));
+            'mode',
+            'formattedBadges' // Renamed to avoid confusion, but passed as 'badges' in compact if we used array, but here just passing variable
+        ))->with('badges', $formattedBadges);
     }
     
     // NEW: Update Lesson Grade

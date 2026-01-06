@@ -416,6 +416,7 @@ class BadgesSeeder extends Seeder
             if (isset($badge['category_code'])) {
                 $categoryId = DB::table('badge_category')->where('code', $badge['category_code'])->value('id');
                 if ($categoryId) $badge['category_id'] = $categoryId;
+                unset($badge['category_code']);
             }
 
             DB::table('badge')->updateOrInsert(

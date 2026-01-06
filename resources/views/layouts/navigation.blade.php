@@ -11,18 +11,18 @@
                 </div>
 
                 <!-- Navigation Links -->
-                <div class="hidden space-x-8 lg:-my-px lg:ms-10 lg:flex items-center">
+                <div class="space-x-8 -my-px ms-10 flex items-center">
                     <a href="{{ route('dashboard') }}"
-                        class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                        class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->is('dashboard') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                         Papan Pemuka
                     </a>
 
                     <a href="{{ url('/forums') }}"
-                        class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('forum.*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                        class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->is('forums*') || request()->is('forum*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                         Forum
                     </a>
 
-                    <div class="hidden lg:flex lg:items-center">
+                    <div class="flex items-center">
                         <x-dropdown align="left" width="48">
                             <x-slot name="trigger">
                                 <button
@@ -57,7 +57,7 @@
                     </div>
 
                     @if($currentUser && $currentUser->role === 'teacher')
-                        <div class="hidden lg:flex lg:items-center">
+                        <div class="flex items-center">
                             <x-dropdown align="left" width="48">
                                 <x-slot name="trigger">
                                     <button
@@ -93,7 +93,7 @@
 
 
 
-                        <div class="hidden lg:flex lg:items-center">
+                        <div class="flex items-center">
                             <x-dropdown align="left" width="48">
                                 <x-slot name="trigger">
                                     <button
@@ -123,20 +123,20 @@
 
 
                         <a href="{{ route('classrooms.index') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('classrooms.*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->is('classrooms*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             {{ __('Kelas Saya') }}
                         </a>
                     @else
                         <a href="{{ route('lesson.index') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('lesson.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->is('lesson') || request()->is('lesson/*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             Pelajaran Saya
                         </a>
                         <a href="{{ route('submission.show') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('submission.show') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->is('submission') || request()->is('submission/*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             Penyerahan Saya
                         </a>
                         <a href="{{ route('performance.index') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('performance.index') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
+                            class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->is('performance') || request()->is('performance/*') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }} text-sm font-medium leading-5 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
                             {{ __('Lihat Prestasi') }}
                         </a>
                     @endif
@@ -144,7 +144,7 @@
             </div>
 
             <!-- Right Side Icons and Dropdown -->
-            <div class="hidden lg:flex lg:items-center lg:ms-6 lg:gap-3">
+            <div class="flex items-center ms-6 gap-3">
                 <!-- Notification Icon -->
                 <div class="relative">
                     <button id="notificationBtn"
@@ -208,11 +208,11 @@
 
                         <x-slot name="content">
                             <x-dropdown-link :href="route('profile.show', $currentUser->id)">
-                                {{ __('Profile') }}
+                                {{ __('Profil') }}
                             </x-dropdown-link>
 
                             <x-dropdown-link :href="route('settings.index')">
-                                {{ __('Settings') }}
+                                {{ __('Tetapan') }}
                             </x-dropdown-link>
 
                             <!-- Authentication -->
@@ -221,7 +221,7 @@
 
                                 <x-dropdown-link :href="route('logout')" onclick="event.preventDefault();
                                                     this.closest('form').submit();">
-                                    {{ __('Log Out') }}
+                                    {{ __('Log Keluar') }}
                                 </x-dropdown-link>
                             </form>
                         </x-slot>
@@ -230,7 +230,7 @@
             </div>
 
             <!-- Hamburger -->
-            <div class="-me-2 flex items-center lg:hidden">
+            <div class="-me-2 hidden items-center">
                 <button @click="open = ! open"
                     class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -246,7 +246,7 @@
     </div>
 
     <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden lg:hidden">
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden">
         <div class="pt-2 pb-3 space-y-1">
             <a href="{{ route('dashboard') }}"
                 class="block px-4 py-2 text-base font-medium {{ request()->routeIs('dashboard') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
