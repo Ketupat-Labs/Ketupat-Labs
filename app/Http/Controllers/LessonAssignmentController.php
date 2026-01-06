@@ -37,7 +37,7 @@ class LessonAssignmentController extends Controller
                 ->with(['classroom', 'lesson'])
                 ->latest('assigned_at')
                 ->get();
-            
+
             // Fetch Public Activities
             $publicActivities = \App\Models\Activity::where('is_public', true)
                 ->with('teacher')
@@ -58,8 +58,8 @@ class LessonAssignmentController extends Controller
             abort(403);
         }
 
-        $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->get(); 
-        
+        $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->get();
+
         // Prepare data for Edit Modal (Grouping data by lesson)
         $lessons = \App\Models\Lesson::where('teacher_id', $user->id)->latest()->get();
         $lessonStates = [];
@@ -67,7 +67,7 @@ class LessonAssignmentController extends Controller
             $assignedClassIds = \App\Models\LessonAssignment::where('lesson_id', $lesson->id)
                 ->pluck('classroom_id')
                 ->toArray();
-            
+
             $lessonStates[$lesson->id] = [
                 'is_public' => $lesson->is_public,
                 'classroom_ids' => $assignedClassIds
@@ -80,7 +80,7 @@ class LessonAssignmentController extends Controller
             ->latest()
             ->take(50) // Limit for performance
             ->get();
-        
+
         // --- ACTIVITY / CALENDAR LOGIC ---
         $month = $request->get('month', date('n'));
         $year = $request->get('year', date('Y'));
@@ -91,7 +91,7 @@ class LessonAssignmentController extends Controller
         $games = \App\Models\Activity::where('teacher_id', $user->id)->where('type', 'Game')->get();
         $quizzes = \App\Models\Activity::where('teacher_id', $user->id)->where('type', 'Quiz')->get();
         if ($games->isEmpty() && $quizzes->isEmpty()) {
-             $games = \App\Models\Activity::where('teacher_id', $user->id)->get();
+            $games = \App\Models\Activity::where('teacher_id', $user->id)->get();
         }
 
         // Selected Class for Calendar
@@ -100,7 +100,7 @@ class LessonAssignmentController extends Controller
         if ($classrooms->isNotEmpty()) {
             $actAssignments = \App\Models\ActivityAssignment::with(['activity', 'classroom'])
                 ->whereIn('classroom_id', $classrooms->pluck('id'))
-                ->whereNotNull('due_date')
+                // ->whereNotNull('due_date') // Column missing in DB
                 ->get();
 
             foreach ($actAssignments as $aa) {
@@ -113,12 +113,13 @@ class LessonAssignmentController extends Controller
                 ];
             }
         }
-        
+
         $selectedClass = $classrooms->first(); // Default fallback
 
         // Check for specific tab request
         $activeTab = $request->has('month') || $request->has('classroom_id') ? 'activity' : 'lesson';
-        if ($request->has('tab')) $activeTab = $request->get('tab');
+        if ($request->has('tab'))
+            $activeTab = $request->get('tab');
 
         // Fetch Recent Activity Assignments
         $activity_id = $request->get('activity_id');
@@ -141,41 +142,42 @@ class LessonAssignmentController extends Controller
                 $pseudo->id = 'public_' . $activity->id;
                 $pseudo->activity = $activity;
                 $pseudo->classroom = (object) ['name' => 'Public (Semua Pelajar)'];
-                $pseudo->due_date = null; 
+                $pseudo->due_date = null;
                 $pseudo->notes = '';
-                $pseudo->is_pseudo = true; 
+                $pseudo->is_pseudo = true;
                 return $pseudo;
             });
-            
+
         $activityAssignments = $assignmentsCollection->toBase()->merge($publicActivities)->sortByDesc('created_at');
 
         // Build Activity States for JS Lookup
         $activityStates = [];
         foreach ($activityAssignments as $aa) {
             $act = $aa->activity;
-            if (!$act) continue;
+            if (!$act)
+                continue;
 
             // Determine classroom IDs
             $classroomIds = [];
             if ($act->relationLoaded('assignments')) {
-               $classroomIds = $act->assignments->pluck('classroom_id')->toArray();
+                $classroomIds = $act->assignments->pluck('classroom_id')->toArray();
             }
-            
+
             // Critical Fallback: Ensure the data contains at least the current classroom if empty
             if (empty($classroomIds) && isset($aa->classroom_id) && $aa->classroom_id) {
                 $classroomIds = [$aa->classroom_id];
             }
-            
+
             // Ensure ID is string for safe lookup
             $key = (string) $aa->id;
-            
+
             $activityStates[$key] = [
                 'id' => $aa->id,
                 'activity_id' => $act->id,
                 'title' => $act->title,
                 'date' => $aa->due_date ? \Carbon\Carbon::parse($aa->due_date)->format('Y-m-d\TH:i') : '',
-                'notes' => $aa->notes ?? '', 
-                'is_public' => (bool)$act->is_public,
+                'notes' => $aa->notes ?? '',
+                'is_public' => (bool) $act->is_public,
                 'classroom_ids' => $classroomIds
             ];
         }
@@ -194,11 +196,25 @@ class LessonAssignmentController extends Controller
         }
 
         return view('assignments.create', compact(
-            'classrooms', 'lessons', 'assignments', 'lessonStates', 
-            'activityAssignments', 'activityStates',
-            'month', 'year', 'daysInMonth', 'firstDayOfMonth', 
-            'games', 'quizzes', 'events', 'selectedClass', 'activeTab',
-            'preselectedActivityId', 'classroom_id', 'assignedClassroomIdsForActivity', 'isActivityPublic'
+            'classrooms',
+            'lessons',
+            'assignments',
+            'lessonStates',
+            'activityAssignments',
+            'activityStates',
+            'month',
+            'year',
+            'daysInMonth',
+            'firstDayOfMonth',
+            'games',
+            'quizzes',
+            'events',
+            'selectedClass',
+            'activeTab',
+            'preselectedActivityId',
+            'classroom_id',
+            'assignedClassroomIdsForActivity',
+            'isActivityPublic'
         ));
     }
 
@@ -220,7 +236,8 @@ class LessonAssignmentController extends Controller
 
         foreach ($request->lessons as $lessonId) {
             $lesson = \App\Models\Lesson::find($lessonId);
-            if (!$lesson) continue;
+            if (!$lesson)
+                continue;
 
             // 1. Update Public Visibility
             if ($isPublic) {
@@ -233,10 +250,10 @@ class LessonAssignmentController extends Controller
             // 2. Create Class Assignments
             if (count($classroomIds) > 0) {
                 $classrooms = \App\Models\Classroom::with('students')->whereIn('id', $classroomIds)->get();
-                
+
                 foreach ($classrooms as $classroom) {
                     // Create Assignment
-                   \App\Models\LessonAssignment::firstOrCreate([
+                    \App\Models\LessonAssignment::firstOrCreate([
                         'classroom_id' => $classroom->id,
                         'lesson_id' => $lessonId,
                     ], [
@@ -249,7 +266,7 @@ class LessonAssignmentController extends Controller
                         $wasEnrolled = \App\Models\Enrollment::where('user_id', $student->id)
                             ->where('lesson_id', $lessonId)
                             ->exists();
-                            
+
                         \App\Models\Enrollment::firstOrCreate([
                             'user_id' => $student->id,
                             'lesson_id' => $lessonId,
@@ -257,7 +274,7 @@ class LessonAssignmentController extends Controller
                             'status' => 'in_progress',
                             'progress' => 0,
                         ]);
-                        
+
                         // Notify student if newly enrolled
                         if (!$wasEnrolled) {
                             \App\Models\Notification::create([
@@ -308,7 +325,7 @@ class LessonAssignmentController extends Controller
     public function destroy(string $id)
     {
         $assignment = \App\Models\LessonAssignment::with('classroom.students')->findOrFail($id);
-        
+
         // Optional: Cleanup enrollments if needed. 
         // For now, simple delete of assignment record.
         // If we want to be strict:

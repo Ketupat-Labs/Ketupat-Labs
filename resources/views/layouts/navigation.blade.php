@@ -114,6 +114,9 @@
                                     <x-dropdown-link :href="route('progress.index')">
                                         {{ __('Lihat Perkembangan') }}
                                     </x-dropdown-link>
+                                    <x-dropdown-link :href="route('monitoring.index')">
+                                        {{ __('Pantau Pelajar') }}
+                                    </x-dropdown-link>
                                     <x-dropdown-link :href="route('performance.index')">
                                         {{ __('Lihat Prestasi') }}
                                     </x-dropdown-link>
@@ -162,7 +165,8 @@
                             <div class="px-4 py-3 text-sm text-gray-500 text-center">Tiada pemberitahuan</div>
                         </div>
                         <div class="px-4 py-2 border-t border-gray-200 bg-gray-50">
-                            <a href="{{ route('notifications.index') }}" class="block text-center text-sm font-medium text-blue-600 hover:text-blue-800">
+                            <a href="{{ route('notifications.index') }}"
+                                class="block text-center text-sm font-medium text-blue-600 hover:text-blue-800">
                                 Lihat Semua Pemberitahuan
                             </a>
                         </div>
@@ -186,11 +190,12 @@
                             <button
                                 class="inline-flex items-center px-3 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150 gap-2">
                                 @if($currentUser->avatar_url)
-                                    <img src="{{ asset($currentUser->avatar_url) }}" 
-                                         alt="{{ $currentUser->full_name ?? 'User' }}" 
-                                         class="h-8 w-8 rounded-full object-cover border-2 border-gray-200">
+                                    <img src="{{ asset($currentUser->avatar_url) }}"
+                                        alt="{{ $currentUser->full_name ?? 'User' }}"
+                                        class="h-8 w-8 rounded-full object-cover border-2 border-gray-200">
                                 @else
-                                    <div class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200">
+                                    <div
+                                        class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200">
                                         {{ strtoupper(substr($currentUser->full_name ?? $currentUser->username ?? 'U', 0, 1)) }}
                                     </div>
                                 @endif
@@ -313,7 +318,7 @@
                         class="block px-4 py-2 text-base font-medium {{ request()->routeIs('progress.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
                         {{ __('Lihat Perkembangan') }}
                     </a>
-                     <a href="{{ route('performance.index') }}"
+                    <a href="{{ route('performance.index') }}"
                         class="block px-4 py-2 text-base font-medium {{ request()->routeIs('performance.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
                         {{ __('Lihat Prestasi') }}
                     </a>
@@ -334,7 +339,7 @@
                     {{ __('Serahan Saya') }}
                 </a>
                 <div class="pt-2 pb-1 border-t border-gray-200">
-                     <a href="{{ route('performance.index') }}"
+                    <a href="{{ route('performance.index') }}"
                         class="block px-4 py-2 text-base font-medium {{ request()->routeIs('performance.index') ? 'text-gray-900 bg-gray-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100' }} transition duration-150 ease-in-out">
                         {{ __('Lihat Prestasi') }}
                     </a>
@@ -346,11 +351,11 @@
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="px-4 flex items-center gap-3">
                 @if($currentUser->avatar_url)
-                    <img src="{{ asset($currentUser->avatar_url) }}" 
-                         alt="{{ $currentUser->full_name ?? 'User' }}" 
-                         class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">
+                    <img src="{{ asset($currentUser->avatar_url) }}" alt="{{ $currentUser->full_name ?? 'User' }}"
+                        class="h-12 w-12 rounded-full object-cover border-2 border-gray-200">
                 @else
-                    <div class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg border-2 border-gray-200">
+                    <div
+                        class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg border-2 border-gray-200">
                         {{ strtoupper(substr($currentUser->full_name ?? $currentUser->username ?? 'U', 0, 1)) }}
                     </div>
                 @endif

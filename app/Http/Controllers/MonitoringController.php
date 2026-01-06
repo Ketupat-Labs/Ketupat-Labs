@@ -26,6 +26,7 @@ class MonitoringController extends Controller
             $classIdentified = $student->enrolledClassrooms->first()?->name ?? $student->class ?? 'General';
 
             foreach ($student->enrollments as $enrollment) {
+                $hoursInactive = $enrollment->updated_at->diffInHours(now());
                 $studentProgress[] = [
                     'student_name' => $student->full_name,
                     'class' => $classIdentified,
@@ -33,6 +34,8 @@ class MonitoringController extends Controller
                     'progress' => $enrollment->progress,
                     'status' => ucfirst($enrollment->status),
                     'last_accessed' => $enrollment->updated_at->diffForHumans(),
+                    'last_accessed_hours' => $hoursInactive,
+                    'is_inactive' => $hoursInactive > 72
                 ];
             }
         }
