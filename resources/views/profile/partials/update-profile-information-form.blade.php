@@ -1,11 +1,11 @@
 <section>
     <header>
         <h2 class="text-lg font-medium text-gray-900">
-            {{ __('Profile Information') }}
+            {{ __('Informasi Peribadi') }}
         </h2>
 
         <p class="mt-1 text-sm text-gray-600">
-            {{ __("Update your account's profile information.") }}
+            {{ __("Kemaskini maklumat profil akaun anda.") }}
         </p>
     </header>
 
@@ -15,7 +15,7 @@
 
         <!-- Profile Picture Upload -->
         <div>
-            <x-input-label for="avatar" :value="__('Profile Picture')" />
+            <x-input-label for="avatar" :value="__('Gambar Profil')" />
             <div class="mt-2 flex items-center gap-4">
                 <div class="flex-shrink-0">
                     <div class="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border-2 border-gray-300" id="avatarContainer">
@@ -32,30 +32,36 @@
                     </div>
                 </div>
                 <div class="flex-1">
-                    <input id="avatar" name="avatar" type="file" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onchange="previewAvatar(this)">
-                    <p class="mt-1 text-xs text-gray-500">{{ __('Upload a profile picture (JPG, PNG, GIF - Max 5MB)') }}</p>
+                    <div class="flex items-center">
+                        <label for="avatar" class="cursor-pointer bg-blue-50 text-blue-700 font-semibold py-2 px-4 rounded-md hover:bg-blue-100 transition ease-in-out duration-150 text-sm mr-4 border-0">
+                            {{ __('Pilih Fail') }}
+                        </label>
+                        <span id="fileName" class="text-sm text-gray-500">{{ __('Tiada fail dipilih') }}</span>
+                        <input id="avatar" name="avatar" type="file" accept="image/*" class="hidden" onchange="previewAvatar(this); updateFileName(this)">
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">{{ __('Muat naik gambar profil (JPG, PNG, GIF - Maks 5MB)') }}</p>
                     <x-input-error class="mt-2" :messages="$errors->get('avatar')" />
                     @if($user->avatar_url)
-                        <button type="button" onclick="removeAvatar()" class="mt-2 text-sm text-red-600 hover:text-red-800">{{ __('Remove Picture') }}</button>
+                        <button type="button" onclick="removeAvatar()" class="mt-2 text-sm text-red-600 hover:text-red-800">{{ __('Buang Gambar') }}</button>
                     @endif
                 </div>
             </div>
         </div>
 
         <div>
-            <x-input-label for="full_name" :value="__('Full Name')" />
+            <x-input-label for="full_name" :value="__('Nama Penuh')" />
             <x-text-input id="full_name" name="full_name" type="text" class="mt-1 block w-full" :value="old('full_name', $user->full_name)" required autofocus autocomplete="name" />
             <x-input-error class="mt-2" :messages="$errors->get('full_name')" />
         </div>
 
         <div>
-            <x-input-label for="school" :value="__('School')" />
+            <x-input-label for="school" :value="__('Sekolah')" />
             <x-text-input id="school" name="school" type="text" class="mt-1 block w-full" :value="old('school', $user->school)" autocomplete="organization" />
             <x-input-error class="mt-2" :messages="$errors->get('school')" />
         </div>
 
         <div>
-            <x-input-label for="class" :value="__('Class')" />
+            <x-input-label for="class" :value="__('Kelas')" />
             <x-text-input id="class" name="class" type="text" class="mt-1 block w-full" :value="old('class', $user->class)" autocomplete="off" />
             <x-input-error class="mt-2" :messages="$errors->get('class')" />
         </div>
@@ -67,13 +73,13 @@
         </div>
 
         <div>
-            <x-input-label for="email" :value="__('Email')" />
+            <x-input-label for="email" :value="__('Emel')" />
             <x-text-input id="email" name="email" type="email" class="mt-1 block w-full bg-gray-100 cursor-not-allowed" :value="$user->email" disabled readonly />
-            <p class="mt-1 text-sm text-gray-500">{{ __('Email cannot be changed.') }}</p>
+            <p class="mt-1 text-sm text-gray-500">{{ __('Emel tidak boleh ditukar.') }}</p>
         </div>
 
         <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            <x-primary-button>{{ __('Simpan') }}</x-primary-button>
 
             @if (session('status') === 'profile-updated')
                 <p
@@ -82,7 +88,7 @@
                     x-transition
                     x-init="setTimeout(() => show = false, 2000)"
                     class="text-sm text-gray-600"
-                >{{ __('Saved.') }}</p>
+                >{{ __('Disimpan.') }}</p>
             @endif
         </div>
     </form>
@@ -126,7 +132,7 @@
         }
 
         function removeAvatar() {
-            if (confirm('{{ __("Are you sure you want to remove your profile picture?") }}')) {
+            if (confirm('{{ __("Adakah anda pasti mahu membuang gambar profil anda?") }}')) {
                 // Add hidden input to indicate removal
                 const form = document.querySelector('form[action="{{ route('profile.update') }}"]');
                 let removeInput = document.getElementById('remove_avatar');
@@ -156,6 +162,16 @@
                 
                 // Clear file input
                 document.getElementById('avatar').value = '';
+                document.getElementById('fileName').textContent = '{{ __("Tiada fail dipilih") }}';
+            }
+        }
+
+        function updateFileName(input) {
+            const fileNameSpan = document.getElementById('fileName');
+            if (input.files && input.files.length > 0) {
+                fileNameSpan.textContent = input.files[0].name;
+            } else {
+                fileNameSpan.textContent = '{{ __("Tiada fail dipilih") }}';
             }
         }
     </script>

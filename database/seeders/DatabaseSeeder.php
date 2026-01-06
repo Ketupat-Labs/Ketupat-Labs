@@ -29,7 +29,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UsersSeeder::class,
             BadgeCategorySeeder::class,
-            BadgesSeeder::class,
+            StudentBadgeSeeder::class,
+            TeacherBadgeSeeder::class,
+            // BadgesSeeder::class, 
+            // AchievementSeeder::class, // Table does not exist
+            ActivitySeeder::class,
         ]);
     }
 

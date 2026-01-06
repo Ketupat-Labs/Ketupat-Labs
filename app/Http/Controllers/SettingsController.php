@@ -55,7 +55,7 @@ class SettingsController extends Controller
 
         return response()->json([
             'status' => 200,
-            'message' => 'Settings updated successfully',
+            'message' => 'Tetapan berjaya dikemaskini',
         ]);
     }
 

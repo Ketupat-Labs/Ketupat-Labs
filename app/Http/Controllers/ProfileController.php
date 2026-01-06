@@ -100,8 +100,15 @@ class ProfileController extends Controller
             }
         }
 
-        // Get all badges with category information
+        // Get all badges with category information - Filtered by Profile User's Role
+        $role = $profileUser->role ?? 'student';
+        
         $allBadges = \App\Models\Badge::with('category')
+            ->whereHas('category', function($q) use ($role) {
+                $q->where('role_restriction', 'all')
+                  ->orWhere('role_restriction', $role)
+                  ->orWhereNull('role_restriction');
+            })
             ->orderBy('name', 'asc')
             ->get();
         

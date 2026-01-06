@@ -1,0 +1,31 @@
+
+Warning: Module "openssl" is already loaded in Unknown on line 0
+Categories:
+- [1] keperluan (Keperluan) - Role: all
+- [2] reka (Reka) - Role: all
+- [3] prototaip (Prototaip) - Role: all
+- [4] penilaian (Penilaian) - Role: all
+- [5] projek (Projek) - Role: all
+- [6] inovasi (Inovasi) - Role: all
+- [7] solusi (Solusi) - Role: all
+- [8] etika (Etika) - Role: all
+- [9] aktiviti (Aktiviti Sistem) - Role: all
+- [14] student-achiever (Pencapaian Pelajar) - Role: all
+- [15] pencapaian (Pencapaian) - Role: student
+- [16] kecemerlangan-guru (Kecemerlangan Guru) - Role: teacher
+- [17] penilaian-akademik (Penilaian Akademik) - Role: student
+- [18] sosial (Sosial) - Role: student
+- [19] umum (Umum) - Role: all
+- [20] test-cat (Test Category) - Role: student
+
+Badges (Sample):
+- [1] konsistensi (Konsistensi) -> Cat: 
+- [2] pemerhatian (Kebolehan Membuat Pemerhatian) -> Cat: 
+- [3] konsistensi_xp (Konsistensi XP) -> Cat: 
+- [4] hierarki_visual (Hierarki Visual) -> Cat: 
+- [5] keterlihatan (Keterlihatan) -> Cat: 
+- [6] hci_asas (HCI Asas) -> Cat: 
+- [7] pemahaman_pengguna (Pemahaman Pengguna) -> Cat: 
+- [8] analisis_keperluan (Analisis Keperluan) -> Cat: 
+- [9] senario_pengguna (Senario Pengguna) -> Cat: 
+- [10] lakaran_wireframe (Lakaran Wireframe) -> Cat: 
