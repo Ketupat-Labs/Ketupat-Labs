@@ -40,7 +40,7 @@ class LessonController extends Controller
             'content' => 'nullable|string', // Old field for backward compatibility
             'content_blocks' => 'nullable|json', // New block-based content
             'duration' => 'nullable|integer|min:5',
-            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:25600',
             'url' => 'nullable|url',
             'is_public' => 'nullable|in:0,1',
         ]);
@@ -108,7 +108,7 @@ class LessonController extends Controller
             'content_blocks' => 'nullable|json', // Block editor data
             'content' => 'nullable|string', // Backward compatibility
             'duration' => 'nullable|integer|min:5',
-            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:25600',
             'url' => 'nullable|url',
             'is_public' => 'nullable|in:0,1',
         ]);
@@ -386,7 +386,7 @@ class LessonController extends Controller
     public function uploadImage(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:25600', // Max 25MB
         ]);
 
         if ($request->hasFile('image')) {
