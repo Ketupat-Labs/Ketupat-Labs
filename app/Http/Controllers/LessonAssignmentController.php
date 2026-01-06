@@ -228,7 +228,10 @@ class LessonAssignmentController extends Controller
             'classroom_ids.*' => 'exists:class,id',
             'lessons' => 'required|array',
             'lessons.*' => 'exists:lesson,id',
-            'is_public' => 'boolean'
+            'is_public' => 'boolean',
+            'assigned_at' => 'required|date',
+            'due_date' => 'nullable|date|after:assigned_at',
+            'notes' => 'nullable|string',
         ]);
 
         $isPublic = $request->has('is_public');
@@ -252,13 +255,15 @@ class LessonAssignmentController extends Controller
                 $classrooms = \App\Models\Classroom::with('students')->whereIn('id', $classroomIds)->get();
 
                 foreach ($classrooms as $classroom) {
-                    // Create Assignment
-                    \App\Models\LessonAssignment::firstOrCreate([
+                    // Create Assignment (Update if exists to allow date changes)
+                    \App\Models\LessonAssignment::updateOrCreate([
                         'classroom_id' => $classroom->id,
                         'lesson_id' => $lessonId,
                     ], [
                         'type' => 'Mandatory',
-                        'assigned_at' => now(),
+                        'assigned_at' => $request->assigned_at,
+                        'due_date' => $request->due_date,
+                        'notes' => $request->notes,
                     ]);
 
                     // Enroll Students

@@ -484,6 +484,25 @@
                                 </div>
                             </div>
 
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Tarikh Mula (Wajib)</label>
+                                    <input type="datetime-local" name="assigned_at" required
+                                        value="{{ now()->format('Y-m-d\TH:i') }}"
+                                        class="w-full border-gray-300 rounded-md shadow-sm text-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Tarikh Akhir (Pilihan)</label>
+                                    <input type="datetime-local" name="due_date"
+                                        class="w-full border-gray-300 rounded-md shadow-sm text-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                                <div class="col-span-1 md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nota Tugasan</label>
+                                    <input type="text" name="notes" placeholder="Tulis arahan tambahan di sini..."
+                                        class="w-full border-gray-300 rounded-md shadow-sm text-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+
                             <div class="flex items-center justify-end mt-4">
                                 <button type="submit"
                                     class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg font-bold text-sm text-white uppercase tracking-wider shadow-md transform transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-[#2454FF] hover:bg-blue-700">
@@ -808,7 +827,7 @@
                                         5 => 'Mei', 6 => 'Jun', 7 => 'Julai', 8 => 'Ogos',
                                         9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Disember'
                                     ];
-                                    $currentMonthName = $malayMonths[$month] . ' ' . $year;
+                                    $currentMonthName = $malayMonths[(int)$month] . ' ' . $year;
                                     $prevMonth = $month - 1; $prevYear = $year;
                                     if ($prevMonth < 1) { $prevMonth = 12; $prevYear--; }
                                     $nextMonth = $month + 1; $nextYear = $year;
