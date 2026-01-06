@@ -64,11 +64,23 @@
                                 @if($item->duration)
                                 <p class="text-gray-500 text-sm mb-4">Durasi: {{ $item->duration }} minit</p>
                                 @endif
-                                <a href="{{ route('lesson.show', $item->id) }}" 
-                                   class="inline-flex items-center {{ $item->is_completed ? 'bg-gray-400 hover:bg-gray-500' : 'bg-[#5FAD56] hover:bg-green-700' }} text-white font-bold py-2 px-4 rounded-lg transition ease-in-out duration-150 shadow-sm hover:shadow-md">
-                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                                    {{ $item->is_completed ? 'Lihat Semula' : 'Lihat Pelajaran' }}
-                                </a>
+                                @if(!$item->is_enrolled)
+                                    <form action="{{ route('enrollment.store') }}" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="lesson_id" value="{{ $item->id }}">
+                                        <button type="submit" 
+                                            class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition ease-in-out duration-150 shadow-sm hover:shadow-md">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            Daftar Pelajaran
+                                        </button>
+                                    </form>
+                                @else
+                                    <a href="{{ route('lesson.show', $item->id) }}" 
+                                       class="inline-flex items-center {{ $item->is_completed ? 'bg-gray-400 hover:bg-gray-500' : 'bg-[#5FAD56] hover:bg-green-700' }} text-white font-bold py-2 px-4 rounded-lg transition ease-in-out duration-150 shadow-sm hover:shadow-md">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                        {{ $item->is_completed ? 'Lihat Semula' : 'Lihat Pelajaran' }}
+                                    </a>
+                                @endif
                             </div>
                         @empty
                             <div class="col-span-full text-center py-6 bg-gray-50 rounded-lg">

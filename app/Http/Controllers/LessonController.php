@@ -213,8 +213,9 @@ class LessonController extends Controller
                 $lesson->setAttribute('item_type', 'lesson');
                 $lesson->setAttribute('sort_date', $lesson->created_at);
                 // Check completion
-                $isCompleted = $lessonEnrollments->get($lesson->id) === 'completed';
-                $lesson->setAttribute('is_completed', $isCompleted);
+                $status = $lessonEnrollments->get($lesson->id);
+                $lesson->setAttribute('is_completed', $status === 'completed');
+                $lesson->setAttribute('is_enrolled', !is_null($status)); // True if any status exists
                 return $lesson;
             });
 
@@ -359,16 +360,19 @@ class LessonController extends Controller
                 if (count($completedItems) !== $originalCount) {
                     // Update DB if changes found
                     $enrollment->completed_items = json_encode($completedItems);
+                }
 
-                    // Recalculate Progress
-                    $totalItems = count($validItemIds); // Blocks + 1
-                    $progress = ($totalItems > 0) ? min(100, round((count($completedItems) / $totalItems) * 100)) : 0;
+                // ALWAYS Recalculate Progress (in case teacher added blocks)
+                $totalItems = count($validItemIds); // Blocks + 1
+                $calculatedProgress = ($totalItems > 0) ? min(100, round((count($completedItems) / $totalItems) * 100)) : 0;
 
-                    $enrollment->progress = $progress;
+                // Only save if progress or items changed
+                if ($enrollment->progress != $calculatedProgress || count($completedItems) !== $originalCount) {
+                    $enrollment->progress = $calculatedProgress;
 
-                    if ($progress == 100) {
+                    if ($calculatedProgress == 100) {
                         $enrollment->status = 'completed';
-                    } elseif ($progress > 0) {
+                    } elseif ($calculatedProgress > 0) {
                         $enrollment->status = 'in_progress';
                     } else {
                         $enrollment->status = 'enrolled'; // Reset if 0

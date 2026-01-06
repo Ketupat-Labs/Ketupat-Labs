@@ -124,7 +124,11 @@ class SubmissionController extends Controller
             ->first();
 
         if ($enrollment) {
-            $completedItems = $enrollment->completed_items ? json_decode($enrollment->completed_items, true) : [];
+            $completedItems = $enrollment->completed_items;
+            if (is_string($completedItems)) {
+                $completedItems = json_decode($completedItems, true);
+            }
+            $completedItems = is_array($completedItems) ? $completedItems : [];
 
             // Add 'submission' to completed items if not present
             if (!in_array('submission', $completedItems)) {
@@ -132,25 +136,25 @@ class SubmissionController extends Controller
                 // Re-index array
                 $completedItems = array_values($completedItems);
                 $enrollment->completed_items = json_encode($completedItems);
-
-                // Calculate progress
-                // Total items = content blocks count + 1 (submission)
-                $blocksCount = isset($lesson->content_blocks['blocks']) ? count($lesson->content_blocks['blocks']) : 0;
-                $totalItems = $blocksCount + 1;
-
-                $progress = min(100, round((count($completedItems) / $totalItems) * 100));
-
-                $enrollment->progress = $progress;
-
-                // Update status if complete
-                if ($progress == 100) {
-                    $enrollment->status = 'completed';
-                } elseif ($progress > 0) {
-                    $enrollment->status = 'in_progress';
-                }
-
-                $enrollment->save();
             }
+
+            // Calculate progress (ALWAYS)
+            // Total items = content blocks count + 1 (submission)
+            $blocksCount = isset($lesson->content_blocks['blocks']) ? count($lesson->content_blocks['blocks']) : 0;
+            $totalItems = $blocksCount + 1;
+
+            $progress = min(100, round((count($completedItems) / $totalItems) * 100));
+
+            $enrollment->progress = $progress;
+
+            // Update status if complete
+            if ($progress == 100) {
+                $enrollment->status = 'completed';
+            } elseif ($progress > 0) {
+                $enrollment->status = 'in_progress';
+            }
+
+            $enrollment->save();
         }
 
         return redirect()->route('lesson.show', $request->lesson_id)

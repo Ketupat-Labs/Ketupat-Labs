@@ -280,7 +280,9 @@
                 const observerOptions = {
                     root: null,
                     rootMargin: '0px',
-                    threshold: 0.5 // Trigger when 50% visible
+                    root: null,
+                    rootMargin: '0px',
+                    threshold: 0.1 // Trigger when 10% visible (better for tall blocks)
                 };
 
                 const observer = new IntersectionObserver((entries, observer) => {
