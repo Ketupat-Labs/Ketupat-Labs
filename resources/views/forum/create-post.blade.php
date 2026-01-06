@@ -50,7 +50,10 @@
                         <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
                             <a href="#" onclick="event.preventDefault(); const userId = sessionStorage.getItem('userId'); if (userId) { window.location.href = '/profile/' + userId; } else { window.location.href = '/profile'; } return false;" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil</a>
                             <a href="{{ route('settings.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Tetapan</a>
-                            <a href="{{ route('logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Keluar</a>
+                            <form action="{{ route('logout') }}" method="POST" class="block w-full text-left">
+                                @csrf
+                                <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Keluar</button>
+                            </form>
                         </div>
                     </div>
                 </div>
