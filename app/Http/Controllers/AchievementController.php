@@ -172,8 +172,9 @@ class AchievementController extends Controller
                     [
                         'progress' => $friendCount,
                         'updated_at' => now(),
-                        'status' => ($currentStatus === 'earned' || $isEarned) ? 'earned' : 'locked',
-                        'earned_at' => ($isEarned && $currentStatus !== 'earned') ? now() : DB::raw('earned_at')
+                        'status' => ($currentStatus === 'redeemed' || $isEarned) ? 'redeemed' : 'locked',
+                        'earned_at' => ($isEarned) ? now() : DB::raw('earned_at'),
+                        'redeemed_at' => ($isEarned) ? now() : DB::raw('redeemed_at')
                     ]
                 );
             }
@@ -235,23 +236,27 @@ class AchievementController extends Controller
             $badge->completed_count = $badge->progress; 
             $badge->total_requirements = $required;
             
+            // Ensure level exists for view
+            $badge->level = $badge->level ?? 'Beginner';
+            
             return $badge;
         });
         
         // Categorize badges for tabs
-        $earnedBadges = $allBadges->where('is_earned', true)->where('is_redeemed', false);
-        $redeemedBadges = $allBadges->where('is_redeemed', true);
-        $inProgressBadges = $allBadges->where('progress_percentage', '>', 0)->where('is_earned', false);
+        // Treat 'earned' as 'redeemed' (auto-migrate if viewing)
+        $earnedBadges = $allBadges->whereIn('status', ['earned', 'redeemed']); // All completed badges
+        $redeemedBadges = $earnedBadges; // Consolidate
+        $inProgressBadges = $allBadges->where('progress_percentage', '>', 0)->where('status', 'locked');
         
-        $totalXP = $redeemedBadges->sum('xp_reward');
+        $totalXP = $earnedBadges->sum('xp_reward');
         
         $stats = [
-            'total_earned' => $earnedBadges->count(),
-            'total_redeemed' => $redeemedBadges->count(),
+            'total_earned' => $earnedBadges->count(), // Total Completed
+            'total_redeemed' => $earnedBadges->count(),
             'total_xp' => $totalXP,
             'total_badges' => $allBadges->count(),
             'in_progress' => $inProgressBadges->count(),
-            'locked' => $allBadges->count() - ($earnedBadges->count() + $redeemedBadges->count() + $inProgressBadges->count())
+            'locked' => $allBadges->count() - ($earnedBadges->count() + $inProgressBadges->count())
         ];
 
         // Filter functionality parameters
@@ -280,16 +285,20 @@ class AchievementController extends Controller
         // Note: Logic above (lines 217-230) was based on original list. 
         // We should move that logic down OR re-run it. 
         // For efficiency, let's just re-filter the collections:
-        $earnedBadges = $allBadges->where('is_earned', true)->where('is_redeemed', false);
-        $redeemedBadges = $allBadges->where('is_redeemed', true);
+        // Re-calculate stats based on filtered list
+        $earnedBadges = $allBadges->filter(function($badge) { // Use filter for collection
+            return isset($badge->is_earned) && $badge->is_earned; 
+        });
+        
         $inProgressBadges = $allBadges->where('progress_percentage', '>', 0)->where('is_earned', false);
+        
         $stats = [
             'total_earned' => $earnedBadges->count(),
-            'total_redeemed' => $redeemedBadges->count(),
-            'total_xp' => $redeemedBadges->sum('xp_reward'),
+            'total_redeemed' => $earnedBadges->count(),
+            'total_xp' => $earnedBadges->sum('xp_reward'),
             'total_badges' => $allBadges->count(),
             'in_progress' => $inProgressBadges->count(),
-            'locked' => $allBadges->count() - ($earnedBadges->count() + $redeemedBadges->count() + $inProgressBadges->count())
+            'locked' => $allBadges->count() - ($earnedBadges->count() + $inProgressBadges->count())
         ];
         
         return view('badges.my', compact(
@@ -466,8 +475,9 @@ class AchievementController extends Controller
                 DB::table('user_badge')
                     ->where('id', $userBadge->id)
                     ->update([
-                        'status' => 'earned', // Update status instead of boolean
-                        'earned_at' => now()
+                        'status' => 'redeemed', 
+                        'earned_at' => now(),
+                        'redeemed_at' => now()
                     ]);
                 
                 // Create notification for badge earned
@@ -488,8 +498,9 @@ class AchievementController extends Controller
                 'user_id' => $userId,
                 'badge_code' => $badge->code,
                 'progress' => $points,
-                'status' => $isEarned ? 'earned' : 'locked', // Use status
+                'status' => $isEarned ? 'redeemed' : 'locked', // Use status
                 'earned_at' => $isEarned ? now() : null,
+                'redeemed_at' => $isEarned ? now() : null,
                 'created_at' => now(),
                 'updated_at' => now()
             ]);

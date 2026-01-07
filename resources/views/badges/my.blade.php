@@ -1,21 +1,17 @@
-@extends('layouts.app')
-
-@section('title', 'My Badges Dashboard')
-
-@section('content')
-<div class="container-fluid px-4">
-    <!-- Dashboard Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h2 fw-bold mb-1">🎖️ My Achievements</h1>
-            <p class="text-muted mb-0">Track your learning progress and earned badges</p>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="{{ route('badges.index') }}" class="btn btn-outline-primary">
-                <i class="fas fa-award me-2"></i>Browse All Badges
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('My Achievements') }}
+            </h2>
+            <a href="{{ route('badges.index') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150" style="text-decoration: none;">
+                Browse All Badges
             </a>
         </div>
-    </div>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
     <!-- Dashboard Stats Cards -->
     <div class="row g-4 mb-4">
@@ -42,37 +38,20 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-white-50 mb-2">Badges Redeemed</h6>
-                            <h2 class="fw-bold mb-0">{{ $stats['total_redeemed'] }}</h2>
+                            <h6 class="text-white-50 mb-2">My Badges</h6>
+                            <h2 class="fw-bold mb-0">{{ $stats['total_earned'] }}</h2>
                         </div>
                         <div class="icon-shape bg-white bg-opacity-25 rounded-circle p-3">
                             <i class="fas fa-check-circle fa-2x"></i>
                         </div>
                     </div>
                     <div class="mt-3">
-                        <small><i class="fas fa-check me-1"></i> Successfully redeemed</small>
+                        <small><i class="fas fa-check me-1"></i> Badges collected</small>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 bg-gradient-warning text-white shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-white-50 mb-2">Ready to Redeem</h6>
-                            <h2 class="fw-bold mb-0">{{ $stats['total_earned'] }}</h2>
-                        </div>
-                        <div class="icon-shape bg-white bg-opacity-25 rounded-circle p-3">
-                            <i class="fas fa-star fa-2x"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <small><i class="fas fa-gift me-1"></i> Earned but not redeemed</small>
-                    </div>
-                </div>
-            </div>
-        </div>
+
         <div class="col-xl-3 col-md-6">
             <div class="card border-0 bg-gradient-info text-white shadow-sm">
                 <div class="card-body">
@@ -119,8 +98,7 @@
                             <label class="form-label fw-bold small">Status</label>
                             <select name="status" class="form-select" onchange="document.getElementById('filterForm').submit()">
                                 <option value="all" {{ $status == 'all' ? 'selected' : '' }}>All Status</option>
-                                <option value="redeemed" {{ $status == 'redeemed' ? 'selected' : '' }}>Redeemed</option>
-                                <option value="earned" {{ $status == 'earned' ? 'selected' : '' }}>Ready to Redeem</option>
+                                <option value="redeemed" {{ $status == 'redeemed' ? 'selected' : '' }}>Completed</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -170,12 +148,7 @@
                                 <div class="text-muted small">Redeemed</div>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <div class="text-center p-3 border rounded">
-                                <div class="text-warning fw-bold fs-4">{{ $stats['total_earned'] }}</div>
-                                <div class="text-muted small">Ready</div>
-                            </div>
-                        </div>
+
                         <div class="col-6">
                             <div class="text-center p-3 border rounded">
                                 <div class="text-info fw-bold fs-4">{{ $stats['in_progress'] }}</div>
@@ -203,12 +176,7 @@
                     <ul class="nav nav-tabs card-header-tabs" id="badgeTabs" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="redeemed-tab" data-bs-toggle="tab" data-bs-target="#redeemed" type="button" role="tab">
-                                <i class="fas fa-check-circle me-2"></i>Redeemed ({{ $redeemedBadges->count() }})
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="earned-tab" data-bs-toggle="tab" data-bs-target="#earned" type="button" role="tab">
-                                <i class="fas fa-star me-2"></i>Ready to Redeem ({{ $earnedBadges->count() }})
+                                <i class="fas fa-award me-2"></i>My Badges ({{ $earnedBadges->count() }})
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -223,9 +191,9 @@
                     <div class="tab-content" id="badgeTabsContent">
                         <!-- Redeemed Tab -->
                         <div class="tab-pane fade show active" id="redeemed" role="tabpanel">
-                            @if($redeemedBadges->count() > 0)
+                            @if($earnedBadges->count() > 0)
                             <div class="row row-cols-1 row-cols-md-2 g-4 p-4">
-                                @foreach($redeemedBadges as $badge)
+                                @foreach($earnedBadges as $badge)
                                 <div class="col">
                                     <div class="card border border-success border-2 h-100 shadow-sm">
                                         <div class="card-body">
@@ -256,8 +224,8 @@
                                             
                                             <div class="d-flex justify-content-between align-items-center mt-4">
                                                 <div>
-                                                    <small class="text-muted">Redeemed on</small>
-                                                    <div class="fw-bold">{{ date('M d, Y', strtotime($badge->redeemed_at)) }}</div>
+                                                    <small class="text-muted">Earned on</small>
+                                                    <div class="fw-bold">{{ date('M d, Y', strtotime($badge->redeemed_at ?? $badge->earned_at)) }}</div>
                                                 </div>
                                                 <div class="text-end">
                                                     <div class="fw-bold text-success">+{{ $badge->xp_reward }} XP</div>
@@ -274,8 +242,8 @@
                                 <div class="mb-4">
                                     <i class="fas fa-trophy fa-4x text-muted"></i>
                                 </div>
-                                <h5 class="fw-bold mb-2">No badges redeemed yet</h5>
-                                <p class="text-muted mb-4">Earn badges and redeem them to see them here</p>
+                                <h5 class="fw-bold mb-2">No badges yet</h5>
+                                <p class="text-muted mb-4">Complete activities to earn your first badge!</p>
                                 <a href="{{ route('badges.index') }}" class="btn btn-primary">
                                     <i class="fas fa-award me-2"></i>Browse Badges
                                 </a>
@@ -284,158 +252,12 @@
                         </div>
 
                         <!-- Add to tabs navigation -->
-<li class="nav-item" role="presentation">
-    <button class="nav-link" id="locked-tab" data-bs-toggle="tab" data-bs-target="#locked" type="button" role="tab">
-        <i class="fas fa-lock me-2"></i>Locked ({{ $stats['locked'] ?? 0 }})
-    </button>
-</li>
+
 
 <!-- Add tab content -->
-<div class="tab-pane fade" id="locked" role="tabpanel">
-    @php
-        $lockedBadges = $allBadges->where('progress_percentage', 0);
-    @endphp
-    
-    @if($lockedBadges->count() > 0)
-    <div class="p-4">
-        <div class="alert alert-secondary mb-4">
-            <i class="fas fa-lock me-2"></i>
-            <strong>Complete requirements to unlock these badges</strong>
-        </div>
-        
-        <div class="row row-cols-1 row-cols-md-2 g-4">
-            @foreach($lockedBadges as $badge)
-            <div class="col">
-                <div class="card border border-secondary h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white"
-                                style="width: 50px; height: 50px;">
-                                <i class="fas fa-lock"></i>
-                            </div>
-                            <div>
-                                <h6 class="fw-bold mb-1">{{ $badge->name }}</h6>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge" style="background-color: {{ $badge->color ?? '#6B7280' }}; color: white">
-                                        {{ $badge->category_name }}
-                                    </span>
-                                    <span class="badge bg-secondary">{{ $badge->level }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <p class="small text-muted mb-3">{{ $badge->description }}</p>
-                        
-                        <div class="text-center">
-                            <a href="{{ route('badges.index') }}?search={{ urlencode($badge->name) }}" 
-                            class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-play me-1"></i>Start Earning
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            @endforeach
-        </div>
-    </div>
-    @else
-    <div class="text-center py-8">
-        <div class="mb-4">
-            <i class="fas fa-check-circle fa-4x text-success"></i>
-        </div>
-        <h5 class="fw-bold mb-2">No locked badges!</h5>
-        <p class="text-muted mb-4">You've started earning all available badges</p>
-    </div>
-    @endif
-</div>
 
-                        <!-- Earned (Ready to Redeem) Tab -->
-                        <div class="tab-pane fade" id="earned" role="tabpanel">
-                            @if($earnedBadges->count() > 0)
-                            <div class="p-4">
-                                <div class="alert alert-warning mb-4">
-                                    <i class="fas fa-gift me-2"></i>
-                                    <strong>You have {{ $earnedBadges->count() }} badges ready to redeem!</strong> 
-                                    Redeem them to earn XP and add to your collection.
-                                </div>
 
-                                <!-- In the Earned tab, update the actions section -->
-<div class="d-flex gap-2 mt-2">
-    <form method="POST" action="{{ route('badges.redeem', $badge->code) }}" class="flex-grow-1">
-        @csrf
-        <button type="submit" class="btn btn-success w-100">
-            <i class="fas fa-gift me-1"></i>Redeem
-        </button>
-    </form>
-    
-    <a href="{{ route('badges.view', $badge->code) }}" class="btn btn-outline-primary">
-        <i class="fas fa-eye me-1"></i>View
-    </a>
-    
-    <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#shareModal{{ $badge->code }}">
-        <i class="fas fa-share-alt me-1"></i>Share
-    </button>
-</div>
 
-                                <div class="row row-cols-1 row-cols-md-2 g-4">
-                                    @foreach($earnedBadges as $badge)
-                                    <div class="col">
-                                        <div class="card border border-warning border-2 h-100 shadow-sm">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-start gap-3 mb-3">
-                                                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-warning text-dark"
-                                                         style="width: 50px; height: 50px;">
-                                                        <i class="fas fa-star"></i>
-                                                    </div>
-                                                    <div class="flex-grow-1">
-                                                        <h6 class="fw-bold mb-1">{{ $badge->name }}</h6>
-                                                        <div class="d-flex align-items-center gap-2">
-                                                            <span class="badge" style="background-color: {{ $badge->category_color ?? '#6B7280' }}; color: white">
-                                                                {{ $badge->category_name }}
-                                                            </span>
-                                                            <small class="text-muted">{{ $badge->code }}</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <p class="small text-muted mb-3">{{ $badge->description }}</p>
-                                                
-                                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <div>
-                                                        <small class="text-muted">Earned on</small>
-                                                        <div class="fw-bold">{{ date('M d, Y', strtotime($badge->earned_at)) }}</div>
-                                                    </div>
-                                                    <div class="text-end">
-                                                        <div class="fw-bold text-warning">+{{ $badge->xp_reward }} XP</div>
-                                                        <small class="text-muted">Ready to claim</small>
-                                                    </div>
-                                                </div>
-                                                
-                                                <form method="POST" action="{{ route('badges.redeem', $badge->code ) }}">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-success w-100">
-                                                        <i class="fas fa-gift me-2"></i>Redeem Now
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                            @else
-                            <div class="text-center py-8">
-                                <div class="mb-4">
-                                    <i class="fas fa-star fa-4x text-muted"></i>
-                                </div>
-                                <h5 class="fw-bold mb-2">No badges ready to redeem</h5>
-                                <p class="text-muted mb-4">Complete badge requirements to earn them</p>
-                                <a href="{{ route('badges.index') }}" class="btn btn-warning">
-                                    <i class="fas fa-tasks me-2"></i>Complete Requirements
-                                </a>
-                            </div>
-                            @endif
-                        </div>
 
                         <!-- In Progress Tab -->
                         <div class="tab-pane fade" id="progress" role="tabpanel">
@@ -630,4 +452,6 @@ function togglePrivacy(badgeCode) {
 }
 
 </script>
-@endsection
+    </div>
+</div>
+</x-app-layout>
