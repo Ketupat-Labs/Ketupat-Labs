@@ -77,27 +77,29 @@
                                             </div>
                                         </div>
                                     
-                                    @elseif($block['type'] === 'game')
+                                    @elseif($block['type'] === 'game' || $block['type'] === 'memory')
                                         <div class="game-container my-6">
                                             @php
-                                                $gameConfig = json_decode($block['content'], true) ?? ['theme' => 'animals', 'gridSize' => 4];
+                                                $gameConfig = (is_array($block['content'])) ? $block['content'] : (json_decode($block['content'], true) ?? ['theme' => 'animals', 'gridSize' => 4]);
                                             @endphp
                                             <div 
                                                 data-game-block 
                                                 data-game-type="memory"
-                                                data-game-config="{{ json_encode($gameConfig) }}">
+                                                data-id="{{ $block['id'] ?? $index }}"
+                                                data-game-config='@json($gameConfig)'>
                                             </div>
                                         </div>
                                     
                                     @elseif($block['type'] === 'quiz')
                                         <div class="quiz-container my-6">
                                             @php
-                                                $quizConfig = json_decode($block['content'], true) ?? ['questions' => []];
+                                                $quizConfig = (is_array($block['content'])) ? $block['content'] : (json_decode($block['content'], true) ?? ['questions' => []]);
                                             @endphp
                                             <div 
                                                 data-game-block 
                                                 data-game-type="quiz"
-                                                data-game-config="{{ json_encode($quizConfig) }}">
+                                                data-id="{{ $block['id'] ?? $index }}"
+                                                data-game-config='@json($quizConfig)'>
                                             </div>
                                         </div>
                                     @endif

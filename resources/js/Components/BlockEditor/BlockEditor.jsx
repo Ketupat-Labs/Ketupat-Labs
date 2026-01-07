@@ -43,77 +43,74 @@ export default function BlockEditor({ initialBlocks = [], onChange }) {
     };
 
     const addBlock = (type) => {
+        let content = '';
+        if (type === 'heading') content = '';
+        else if (type === 'youtube') content = '';
+        else if (type === 'image') content = '';
+        else if (type === 'memory') content = { title: '', gridSize: '4x4', theme: 'animals' };
+        else if (type === 'quiz') content = { title: '', questions: [] };
+
         const newBlock = {
             id: `block-${Date.now()}`,
             type,
-            let content = '';
-            if(type === 'heading') content = '';
-        else if (type === 'youtube') content = '';
-    else if (type === 'image') content = '';
-    else if (type === 'memory') content = { title: '', gridSize: '4x4', theme: 'animals' };
-    else if (type === 'quiz') content = { title: '', questions: [] };
+            content,
+        };
 
-    const newBlock = {
-        id: `block-${Date.now()}`,
-        type,
-        content,
+        const newBlocks = [...blocks, newBlock];
+        setBlocks(newBlocks);
+        onChange(newBlocks);
     };
 
-    const newBlocks = [...blocks, newBlock];
-    setBlocks(newBlocks);
-    onChange(newBlocks);
-};
+    const updateBlock = (id, updates) => {
+        const newBlocks = blocks.map(block =>
+            block.id === id ? { ...block, ...updates } : block
+        );
+        setBlocks(newBlocks);
+        onChange(newBlocks);
+    };
 
-const updateBlock = (id, updates) => {
-    const newBlocks = blocks.map(block =>
-        block.id === id ? { ...block, ...updates } : block
-    );
-    setBlocks(newBlocks);
-    onChange(newBlocks);
-};
+    const deleteBlock = (id) => {
+        const newBlocks = blocks.filter(block => block.id !== id);
+        setBlocks(newBlocks);
+        onChange(newBlocks);
+    };
 
-const deleteBlock = (id) => {
-    const newBlocks = blocks.filter(block => block.id !== id);
-    setBlocks(newBlocks);
-    onChange(newBlocks);
-};
-
-return (
-    <div className="flex gap-6">
-        {/* Main Editor Area */}
-        <div className="flex-1 bg-white rounded-lg border-2 border-gray-200 p-6 min-h-[600px]">
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-            >
-                <SortableContext
-                    items={blocks.map(b => b.id)}
-                    strategy={verticalListSortingStrategy}
+    return (
+        <div className="flex gap-6">
+            {/* Main Editor Area */}
+            <div className="flex-1 bg-white rounded-lg border-2 border-gray-200 p-6 min-h-[600px]">
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
                 >
-                    <div className="space-y-4">
-                        {blocks.map((block) => (
-                            <BlockRenderer
-                                key={block.id}
-                                block={block}
-                                onUpdate={updateBlock}
-                                onDelete={deleteBlock}
-                            />
-                        ))}
+                    <SortableContext
+                        items={blocks.map(b => b.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="space-y-4">
+                            {blocks.map((block) => (
+                                <BlockRenderer
+                                    key={block.id}
+                                    block={block}
+                                    onUpdate={updateBlock}
+                                    onDelete={deleteBlock}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
+                </DndContext>
+
+                {blocks.length === 0 && (
+                    <div className="text-center text-gray-400 py-12">
+                        <p className="text-lg">Start building your lesson</p>
+                        <p className="text-sm">Drag blocks from the sidebar to get started</p>
                     </div>
-                </SortableContext>
-            </DndContext>
+                )}
+            </div>
 
-            {blocks.length === 0 && (
-                <div className="text-center text-gray-400 py-12">
-                    <p className="text-lg">Start building your lesson</p>
-                    <p className="text-sm">Drag blocks from the sidebar to get started</p>
-                </div>
-            )}
+            {/* Sidebar with Block Types */}
+            <BlockSidebar onAddBlock={addBlock} />
         </div>
-
-        {/* Sidebar with Block Types */}
-        <BlockSidebar onAddBlock={addBlock} />
-    </div>
-);
+    );
 }
