@@ -37,6 +37,33 @@
                             <label for="description" class="block text-sm font-medium text-gray-700">Penerangan (Pilihan)</label>
                             <textarea name="description" id="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">{{ old('description', $activity->description) }}</textarea>
                         </div>
+                        
+                        <!-- Badge Selection -->
+                        <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <label for="badge_id" class="block text-sm font-bold text-gray-800">
+                                    🏆 Penganugerahan Lencana (Pilihan)
+                                </label>
+                                <a href="{{ route('badges.create') }}" target="_blank" class="text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                                    + Cipta Lencana Baru
+                                </a>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-2">Pelajar akan menerima lencana ini secara automatik apabila menyelesaikan aktiviti.</p>
+                            
+                            <select name="badge_id" id="badge_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                <option value="">-- Tiada Lencana --</option>
+                                @if(isset($availableBadges) && $availableBadges->count() > 0)
+                                    @foreach($availableBadges as $badge)
+                                        <option value="{{ $badge->id }}" {{ (isset($activity->badge) && $activity->badge->id == $badge->id) ? 'selected' : '' }}>
+                                            {{ $badge->icon }} {{ $badge->name }} ({{ $badge->xp_reward }} XP)
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="" disabled>Tiada lencana tersedia (Cipta lencana baru dahulu)</option>
+                                @endif
+                            </select>
+                        </div>
 
                         <!-- Hidden JSON Input -->
                         <textarea name="content" id="content" class="hidden">{{ old('content', $activity->content) }}</textarea>
