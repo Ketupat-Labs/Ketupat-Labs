@@ -717,7 +717,7 @@ class AIGeneratorController extends Controller
     {
         $out = [];
         foreach ($quiz as $i => $q) {
-            $out[] = 'Question ' . ($i + 1) . ':';
+            $out[] = 'Soalan ' . ($i + 1) . ':';
             $out[] = (string)($q['question'] ?? '');
             $out[] = '';
 
@@ -730,12 +730,12 @@ class AIGeneratorController extends Controller
             $correct = (int)($q['correct_answer'] ?? -1);
             if ($correct >= 0 && $correct < count($options)) {
                 $out[] = '';
-                $out[] = 'Correct Answer: ' . chr(65 + $correct);
+                $out[] = 'Jawapan Betul: ' . chr(65 + $correct);
             }
 
             $explanation = trim((string)($q['explanation'] ?? ''));
             if ($explanation !== '') {
-                $out[] = 'Explanation: ' . $explanation;
+                $out[] = 'Penjelasan: ' . $explanation;
             }
 
             $out[] = str_repeat('-', 40);
@@ -774,7 +774,7 @@ class AIGeneratorController extends Controller
         $section = $phpWord->addSection();
 
         foreach ($quiz as $i => $q) {
-            $section->addText('Question ' . ($i + 1), ['bold' => true, 'size' => 16]);
+            $section->addText('Soalan ' . ($i + 1), ['bold' => true, 'size' => 16]);
             $section->addText((string)($q['question'] ?? ''), ['bold' => true]);
             $section->addTextBreak(1);
 
@@ -787,12 +787,12 @@ class AIGeneratorController extends Controller
             $correct = (int)($q['correct_answer'] ?? -1);
             if ($correct >= 0 && $correct < count($options)) {
                 $section->addTextBreak(1);
-                $section->addText('Correct Answer: ' . chr(65 + $correct), ['bold' => true]);
+                $section->addText('Jawapan Betul: ' . chr(65 + $correct), ['bold' => true]);
             }
 
             $explanation = trim((string)($q['explanation'] ?? ''));
             if ($explanation !== '') {
-                $section->addText('Explanation: ' . $explanation, ['italic' => true]);
+                $section->addText('Penjelasan: ' . $explanation, ['italic' => true]);
             }
 
             if ($i < count($quiz) - 1) {
@@ -841,11 +841,11 @@ class AIGeneratorController extends Controller
         $parts[] = '.answer{margin-top:10px;font-weight:700;}';
         $parts[] = '.explain{margin-top:6px;font-style:italic;color:#333;}';
         $parts[] = '</style></head><body>';
-        $parts[] = '<h1>Generated Quiz</h1>';
+        $parts[] = '<h1>Kuiz Dijana</h1>';
 
         foreach ($quiz as $i => $q) {
             $parts[] = '<div class="q">';
-            $parts[] = '<div class="question">' . $escape('Question ' . ($i + 1) . ': ') . $escape($q['question'] ?? '') . '</div>';
+            $parts[] = '<div class="question">' . $escape('Soalan ' . ($i + 1) . ': ') . $escape($q['question'] ?? '') . '</div>';
 
             $options = is_array($q['options'] ?? null) ? (array)$q['options'] : [];
             $parts[] = '<ol type="A">';
@@ -856,12 +856,12 @@ class AIGeneratorController extends Controller
 
             $correct = (int)($q['correct_answer'] ?? -1);
             if ($correct >= 0 && $correct < count($options)) {
-                $parts[] = '<div class="answer">' . $escape('Correct Answer: ' . chr(65 + $correct)) . '</div>';
+                $parts[] = '<div class="answer">' . $escape('Jawapan Betul: ' . chr(65 + $correct)) . '</div>';
             }
 
             $explanation = trim((string)($q['explanation'] ?? ''));
             if ($explanation !== '') {
-                $parts[] = '<div class="explain">' . $escape('Explanation: ' . $explanation) . '</div>';
+                $parts[] = '<div class="explain">' . $escape('Penjelasan: ' . $explanation) . '</div>';
             }
 
             $parts[] = '</div>';
@@ -1095,14 +1095,14 @@ class AIGeneratorController extends Controller
     {
         $out = [];
         foreach ($slides as $i => $slide) {
-            $out[] = 'Slide ' . ($i + 1) . ': ' . (string)($slide['title'] ?? '');
+            $out[] = 'Slaid ' . ($i + 1) . ': ' . (string)($slide['title'] ?? '');
             $contentLines = $this->normalizeSlideContent($slide['content'] ?? []);
             foreach ($contentLines as $line) {
                 $out[] = '- ' . $line;
             }
             $summary = trim((string)($slide['summary'] ?? ''));
             if ($summary !== '') {
-                $out[] = 'Summary: ' . $summary;
+                $out[] = 'Ringkasan: ' . $summary;
             }
             $out[] = ''; // blank line between slides
         }
@@ -1125,7 +1125,7 @@ class AIGeneratorController extends Controller
 
         foreach ($slides as $i => $slide) {
             $title = (string)($slide['title'] ?? '');
-            $section->addText('Slide ' . ($i + 1) . ': ' . $title, ['bold' => true, 'size' => 16]);
+            $section->addText('Slaid ' . ($i + 1) . ': ' . $title, ['bold' => true, 'size' => 16]);
 
             $contentLines = $this->normalizeSlideContent($slide['content'] ?? []);
             foreach ($contentLines as $line) {
@@ -1134,7 +1134,7 @@ class AIGeneratorController extends Controller
 
             $summary = trim((string)($slide['summary'] ?? ''));
             if ($summary !== '') {
-                $section->addText('Summary: ' . $summary, ['italic' => true, 'size' => 11]);
+                $section->addText('Ringkasan: ' . $summary, ['italic' => true, 'size' => 11]);
             }
 
             // page break between slides except the last
@@ -1187,7 +1187,7 @@ class AIGeneratorController extends Controller
         $parts[] = '</style></head><body>';
 
         foreach ($slides as $i => $slide) {
-            $title = $escape('Slide ' . ($i + 1) . ': ' . ($slide['title'] ?? ''));
+            $title = $escape('Slaid ' . ($i + 1) . ': ' . ($slide['title'] ?? ''));
             $parts[] = '<div class="slide">';
             $parts[] = '<h1>' . $title . '</h1>';
 
@@ -1200,7 +1200,7 @@ class AIGeneratorController extends Controller
 
             $summary = trim((string)($slide['summary'] ?? ''));
             if ($summary !== '') {
-                $parts[] = '<div class="summary">' . $escape('Summary: ' . $summary) . '</div>';
+                $parts[] = '<div class="summary">' . $escape('Ringkasan: ' . $summary) . '</div>';
             }
             $parts[] = '</div>';
         }
@@ -1277,18 +1277,19 @@ class AIGeneratorController extends Controller
         // Keep it short to reduce risk of model adding extra prose.
         $schemaExample = '[{"title":"Slide 1 title","content":["Point 1","Point 2"],"summary":"Short summary"}]';
 
-        return "You are an educational content creator.\n" .
-            "Task: Create {$numberOfSlides} presentation slides about: {$topic}.\n" .
+        return "You are an educational content creator proficient in Malay.\n" .
+            "Task: Create {$numberOfSlides} presentation slides in Malay language about: {$topic}.\n" .
             "Detail level: {$detailLevel}.\n\n" .
             "OUTPUT FORMAT (STRICT):\n" .
             "Return ONLY a valid JSON array (no markdown, no code fences, no extra text).\n" .
             "Each array item must be an object with keys: title (string), content (array of strings), summary (string).\n" .
             "Example: {$schemaExample}\n\n" .
             "Rules:\n" .
+            "- Content and titles MUST be in Malay language\n" .
             "- content must contain 3-7 bullet points\n" .
             "- keep language clear and educational\n" .
-        "- do not include citations or URLs unless necessary\n" .
-        "- IMPORTANT: output MUST include EXACTLY {$numberOfSlides} items in the JSON array";
+            "- do not include citations or URLs unless necessary\n" .
+            "- IMPORTANT: output MUST include EXACTLY {$numberOfSlides} items in the JSON array";
     }
 
     /**
@@ -1452,11 +1453,11 @@ class AIGeneratorController extends Controller
                 ? "All questions should be true/false with 2 options: 'True' and 'False'."
                 : "Mix of multiple choice and true/false questions.");
 
-        $prompt = "You are an educational quiz creator. Create {$numberOfQuestions} quiz questions about: {$topic}\n\n" .
+        $prompt = "You are an educational quiz creator proficient in Malay. Create {$numberOfQuestions} quiz questions in Malay language about: {$topic}\n\n" .
                  "Difficulty: {$difficulty}\n" .
                  "Question type: {$typeInstruction}\n\n" .
                  "Return ONLY a valid JSON array with no markdown formatting or code blocks. " .
-                 "Each question must be an object with:\n" .
+                 "Each question must be an object with (content in Malay):\n" .
                  "- 'question': string (the question text)\n" .
                  "- 'options': array of strings (answer options)\n" .
                  "- 'correct_answer': number (0-based index of correct option)\n" .
@@ -1484,7 +1485,7 @@ class AIGeneratorController extends Controller
      */
     private function generateQuizWithOpenAI(string $topic, int $numberOfQuestions, string $difficulty, string $questionType): array
     {
-        $systemMessage = "You are an educational quiz creator. Generate quiz questions in JSON format. " .
+        $systemMessage = "You are an educational quiz creator proficient in Malay. Generate quiz questions in Malay language in JSON format. " .
                         "Each question should have: question text, options (array of 4 options), correct_answer (index 0-3), and explanation. " .
                         "Return ONLY valid JSON array with no markdown formatting or code blocks.";
 
@@ -1492,10 +1493,10 @@ class AIGeneratorController extends Controller
             ? "All questions should be multiple choice with 4 options each."
             : ($questionType === 'true_false'
                 ? "All questions should be true/false with 2 options: 'True' and 'False'."
-                : "Mix of multiple choice and true/false questions.");        $userMessage = "Create {$numberOfQuestions} quiz questions about: {$topic}. " .
+                : "Mix of multiple choice and true/false questions.");        $userMessage = "Create {$numberOfQuestions} quiz questions in Malay language about: {$topic}. " .
                       "Difficulty: {$difficulty}. " .
                       "Question type: {$typeInstruction} " .
-                      "Format: JSON array where each question is an object with 'question', 'options' (array), 'correct_answer' (0-based index), and 'explanation' fields.";
+                      "Format: JSON array where each question is an object with 'question', 'options' (array), 'correct_answer' (0-based index), and 'explanation' fields (all text in Malay).";
 
         $response = $this->callOpenAI($systemMessage, $userMessage, 3000);
 
