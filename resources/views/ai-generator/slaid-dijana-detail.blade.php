@@ -190,7 +190,8 @@
                 });
 
                 if (!response.ok) {
-                    let msg = 'Gagal mengeksport slaid';
+                    // Try to parse JSON error
+                    let msg = '{{ __('Gagal mengeksport slaid') }}';
                     try {
                         const err = await response.json();
                         msg = err.message || msg;
