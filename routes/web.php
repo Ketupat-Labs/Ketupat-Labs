@@ -269,6 +269,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/ai-generator/slaid-dijana', [\App\Http\Controllers\AIGeneratorController::class, 'showGeneratedSlides'])->name('ai-generator.slaid-dijana');
     Route::get('/ai-generator/slaid-dijana/{id}', [\App\Http\Controllers\AIGeneratorController::class, 'showSlideSet'])->name('ai-generator.slaid-dijana.view');
     Route::get('/ai-generator/check-status', [\App\Http\Controllers\AIGeneratorController::class, 'checkGenerationStatus'])->name('ai-generator.check-status');
+    
+    // Badge Management routes (Teacher only)
+    Route::get('/badges/manage', [\App\Http\Controllers\BadgeController::class, 'manage'])->name('badges.manage');
+    Route::get('/badges/create', [\App\Http\Controllers\BadgeController::class, 'createForm'])->name('badges.create');
+    Route::post('/badges', [\App\Http\Controllers\BadgeController::class, 'storeCustom'])->name('badges.store');
+    Route::get('/badges/{id}/edit', [\App\Http\Controllers\BadgeController::class, 'editForm'])->name('badges.edit');
+    Route::put('/badges/{id}', [\App\Http\Controllers\BadgeController::class, 'updateCustom'])->name('badges.update');
+    Route::delete('/badges/{id}', [\App\Http\Controllers\BadgeController::class, 'destroyCustom'])->name('badges.destroy');
 });
 
 

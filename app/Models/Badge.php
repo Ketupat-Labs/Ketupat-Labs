@@ -24,6 +24,9 @@ class Badge extends Model
         'color',
         'category_id',
         'xp_reward',
+        'creator_id',
+        'activity_id',
+        'is_custom',
     ];
 
     protected $casts = [
@@ -34,6 +37,16 @@ class Badge extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(BadgeCategory::class, 'category_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    public function activity(): BelongsTo
+    {
+        return $this->belongsTo(Activity::class);
     }
 
     public function users(): BelongsToMany
