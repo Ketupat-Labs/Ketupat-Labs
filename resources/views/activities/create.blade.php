@@ -205,35 +205,36 @@
                                 const contentInput = document.getElementById('content');
                                 let data = {};
 
-                                const theme = document.getElementById('memory_theme').value;
-                                const gridSizeVal = document.getElementById('memory_grid_size').value; // e.g., "4x4"
+                                if (type === 'Game') {
+                                    const theme = document.getElementById('memory_theme').value;
+                                    const gridSizeVal = document.getElementById('memory_grid_size').value; // e.g., "4x4"
 
-                                // Parse grid size to integer (e.g., "4x4" -> 4)
-                                const gridInt = parseInt(gridSizeVal.split('x')[0]);
+                                    // Parse grid size to integer (e.g., "4x4" -> 4)
+                                    const gridInt = parseInt(gridSizeVal.split('x')[0]);
 
-                                let pairs = [];
-                                if (theme === 'custom') {
-                                    // Serialize Memory Pairs only for custom theme
-                                    document.querySelectorAll('.pair-item').forEach(row => {
-                                        const c1 = row.querySelector('.card-1-input').value.trim();
-                                        const c2 = row.querySelector('.card-2-input').value.trim();
-                                        if (c1 && c2) pairs.push({ card1: c1, card2: c2 });
-                                    });
+                                    let pairs = [];
+                                    if (theme === 'custom') {
+                                        // Serialize Memory Pairs only for custom theme
+                                        document.querySelectorAll('.pair-item').forEach(row => {
+                                            const c1 = row.querySelector('.card-1-input').value.trim();
+                                            const c2 = row.querySelector('.card-2-input').value.trim();
+                                            if (c1 && c2) pairs.push({ card1: c1, card2: c2 });
+                                        });
 
-                                    if (pairs.length === 0) {
-                                        e.preventDefault();
-                                        alert('Sila tambah sekurang-kurangnya satu pasangan untuk Memory Game Tersuai.');
-                                        return false;
+                                        if (pairs.length === 0) {
+                                            e.preventDefault();
+                                            alert('Sila tambah sekurang-kurangnya satu pasangan untuk Memory Game Tersuai.');
+                                            return false;
+                                        }
                                     }
-                                }
 
-                                data = {
-                                    mode: theme === 'custom' ? "custom" : "preset",
-                                    theme: theme, // 'custom', 'animals', etc.
-                                    gridSize: gridInt, // 4 or 6
-                                    customPairs: theme === 'custom' ? pairs : []
-                                };
-                            } else if (type === 'Quiz') {
+                                    data = {
+                                        mode: theme === 'custom' ? "custom" : "preset",
+                                        theme: theme, // 'custom', 'animals', etc.
+                                        gridSize: gridInt, // 4 or 6
+                                        customPairs: theme === 'custom' ? pairs : []
+                                    };
+                                } else if (type === 'Quiz') {
                                 // Serialize Quiz Questions
                                 const questions = [];
                                 document.querySelectorAll('.question-item').forEach(block => {
@@ -271,6 +272,7 @@
 
                             // Initialize
                             toggleGameConfig();
+                            toggleMemoryTheme();
                         </script>
 
                         <div class="flex items-center justify-end mt-4">

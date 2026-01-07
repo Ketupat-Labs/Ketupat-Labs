@@ -39,8 +39,11 @@
                         
                         // Strict validation based on type
                         $isValid = false;
-                        if ($activity->type === 'Game' && !empty($config['customPairs'])) {
-                            $isValid = true;
+                        if ($activity->type === 'Game') {
+                            // Valid if it has custom pairs OR is in preset mode
+                            if (!empty($config['customPairs']) || ($config['mode'] ?? '') === 'preset') {
+                                $isValid = true;
+                            }
                         } elseif ($activity->type === 'Quiz' && !empty($config['questions'])) {
                             $isValid = true;
                         }
