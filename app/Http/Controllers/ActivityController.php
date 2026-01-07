@@ -315,7 +315,7 @@ class ActivityController extends Controller
                 'related_id' => $activity->id,
                 'is_read' => false,
             ]);
-            
+
             // Notify teacher if assignment exists
             if ($assignment && $activity->teacher_id) {
                 \App\Models\Notification::create([
@@ -327,6 +327,37 @@ class ActivityController extends Controller
                     'related_id' => $activity->id,
                     'is_read' => false,
                 ]);
+            }
+            
+            // Auto-award badge linked to this activity
+            if ($activity->badge) {
+                $badge = $activity->badge;
+                
+                // Check if user already has this badge (avoid duplicates)
+                $hasBadge = \App\Models\UserBadge::where('user_id', $user->id)
+                    ->where('badge_code', $badge->code)
+                    ->exists();
+                    
+                if (!$hasBadge) {
+                    \App\Models\UserBadge::create([
+                        'user_id' => $user->id,
+                        'badge_code' => $badge->code,
+                        'status' => 'redeemed',
+                        'earned_at' => now(),
+                        'redeemed_at' => now(),
+                    ]);
+                    
+                    // Notify user about badge
+                    \App\Models\Notification::create([
+                        'user_id' => $user->id,
+                        'type' => 'badge_earned',
+                        'title' => 'Lencana Baharu Diperolehi!',
+                        'message' => 'Tahniah! Anda telah memperolehi lencana "' . $badge->name . '"',
+                        'related_type' => 'badge',
+                        'related_id' => $badge->id,
+                        'is_read' => false,
+                    ]);
+                }
             }
         }
 
