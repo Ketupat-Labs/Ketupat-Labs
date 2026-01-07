@@ -106,11 +106,11 @@ class AIGeneratorController extends Controller
         if (!is_array($slideSets)) {
             $slideSets = [];
         }
-        
+
         // Check if there's a currently generating set
         $sessionKey = 'slide_generation_' . $userId;
         $status = session($sessionKey . '_status', 'none');
-        
+
         // If generating, add to list temporarily
         if ($status === 'generating') {
             // Check if generating set already exists
@@ -121,7 +121,7 @@ class AIGeneratorController extends Controller
                     break;
                 }
             }
-            
+
             if (!$hasGenerating) {
                 $currentTopic = session('generated_slides_topic', 'Slaid Sedang Dijana...');
                 $generatingSet = [
@@ -163,7 +163,7 @@ class AIGeneratorController extends Controller
 
         $slides = $slideSet['slides'] ?? [];
         $topic = $slideSet['topic'] ?? 'Generated Slides';
-        
+
         // Check if this is the generating one
         $sessionKey = 'slide_generation_' . $userId;
         $status = ($id === 'generating') ? session($sessionKey . '_status', 'generating') : 'completed';
@@ -183,12 +183,12 @@ class AIGeneratorController extends Controller
 
         $sessionKey = 'slide_generation_' . $userId;
         $status = session($sessionKey . '_status', 'none');
-        
+
         if ($status === 'completed') {
             // Get the most recent slide set
             $slideSets = session('generated_slide_sets', []);
             $latestSet = !empty($slideSets) ? $slideSets[0] : null;
-            
+
             if ($latestSet && ($latestSet['status'] ?? 'completed') === 'completed') {
                 return response()->json([
                     'status' => 'completed',
@@ -197,7 +197,7 @@ class AIGeneratorController extends Controller
                     'set_id' => $latestSet['id'] ?? null
                 ]);
             }
-            
+
             // Fallback to old session format
             $slides = session('generated_slides', []);
             $topic = session('generated_slides_topic', 'Generated Slides');
@@ -223,7 +223,7 @@ class AIGeneratorController extends Controller
     {
         // Increase execution time limit for slide generation (especially with images)
         set_time_limit(300); // 5 minutes should be enough for even 50 slides with images
-        
+
         // Mark generation as started IMMEDIATELY
         $userId = session('user_id');
         $sessionKey = null;
@@ -232,7 +232,7 @@ class AIGeneratorController extends Controller
             session([$sessionKey . '_status' => 'generating']);
             session()->save(); // Force save session immediately
         }
-        
+
         try {
             $request->validate([
                 'topic' => 'nullable|string|max:500',
@@ -255,7 +255,7 @@ class AIGeneratorController extends Controller
                     'message' => 'End page must be greater than or equal to start page.',
                 ], 400);
             }
-            
+
             // Get parameters
             $topic = $request->input('topic');
             $numberOfSlides = $request->input('number_of_slides', 10);
@@ -267,7 +267,7 @@ class AIGeneratorController extends Controller
                 // Remove any existing "generating" entry
                 $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
                 $slideSets = array_values($slideSets);
-                
+
                 $placeholderTopic = $topic ?: 'Slaid Sedang Dijana...';
                 $placeholderSet = [
                     'id' => 'generating',
@@ -281,7 +281,7 @@ class AIGeneratorController extends Controller
                 session(['generated_slide_sets' => $slideSets]);
                 session()->save(); // Force save
             }
-            
+
             // Save file temporarily if uploaded (for background processing)
             // We need to preserve original filename and extension for proper extraction
             $tempDocumentPath = null;
@@ -299,39 +299,39 @@ class AIGeneratorController extends Controller
                 ]);
                 session()->save();
             }
-            
+
             // Return immediate response (202 Accepted) and continue processing in background
             // For XAMPP/development server, we need to ensure response is sent immediately
             ignore_user_abort(true);
             set_time_limit(300); // Allow long execution
-            
+
             // Disable output buffering if enabled
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
-            
+
             // Send response headers and content immediately
             header('Content-Type: application/json', true);
             header('HTTP/1.1 202 Accepted', true);
             http_response_code(202);
-            
+
             echo json_encode([
                 'status' => 202,
                 'message' => 'Generation started',
                 'redirect' => route('ai-generator.slaid-dijana'),
             ]);
-            
+
             // Force flush all output buffers
             if (ob_get_level() > 0) {
                 ob_end_flush();
             }
             flush();
-            
+
             // For FastCGI, finish the request
             if (function_exists('fastcgi_finish_request')) {
                 fastcgi_finish_request();
             }
-            
+
             // Continue processing in background after response is sent
             try {
                 // Check if document is uploaded
@@ -339,12 +339,12 @@ class AIGeneratorController extends Controller
                     try {
                         // Load file from temp storage
                         $fullPath = storage_path('app/' . $tempDocumentPath);
-                        
+
                         // Get original filename and extension from session
                         $tempFileKey = basename($tempDocumentPath);
                         $originalFilename = session('temp_document_original_name_' . $tempFileKey, $tempFileKey);
                         $originalExtension = session('temp_document_original_ext_' . $tempFileKey, pathinfo($tempFileKey, PATHINFO_EXTENSION));
-                        
+
                         Log::info('Starting document extraction (background)', [
                             'temp_path' => $tempDocumentPath,
                             'original_filename' => $originalFilename,
@@ -353,11 +353,11 @@ class AIGeneratorController extends Controller
                             'page_from' => $pageFrom,
                             'page_to' => $pageTo
                         ]);
-                        
+
                         if (!file_exists($fullPath)) {
                             throw new \Exception('Temporary file not found. Please try uploading again.');
                         }
-                        
+
                         // Create a proper UploadedFile object with original filename
                         // We need to use test mode but provide the original filename
                         $uploadedFile = new \Illuminate\Http\UploadedFile(
@@ -367,7 +367,7 @@ class AIGeneratorController extends Controller
                             null,
                             true // test mode
                         );
-                        
+
                         $documentText = $this->extractTextFromDocument($uploadedFile, $pageFrom, $pageTo);
 
                     Log::info('Document extraction completed', [
@@ -378,7 +378,7 @@ class AIGeneratorController extends Controller
                     if (strlen($documentText) < 50) {
                         return response()->json([
                             'status' => 400,
-                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text' . 
+                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text' .
                                         ($pageFrom || $pageTo ? ' in the specified page range.' : '.'),
                         ], 400);
                     }
@@ -396,7 +396,7 @@ class AIGeneratorController extends Controller
 
                     // Generate slides from document using Gemini AI
                     $slides = $this->generateSlidesFromDocument($documentText, $numberOfSlides, $detailLevel, $topic);
-                    
+
                     Log::info('Slide generation completed', [
                         'slides_count' => count($slides)
                     ]);
@@ -405,7 +405,7 @@ class AIGeneratorController extends Controller
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString()
                         ]);
-                        
+
                         // Mark as error in session instead of returning
                         if ($userId && $sessionKey) {
                             session([
@@ -417,7 +417,7 @@ class AIGeneratorController extends Controller
                             session(['generated_slide_sets' => array_values($slideSets)]);
                             session()->save();
                         }
-                        
+
                         // Clean up temp file and session data
                         if ($tempDocumentPath) {
                             $tempFileKey = basename($tempDocumentPath);
@@ -433,7 +433,7 @@ class AIGeneratorController extends Controller
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString()
                         ]);
-                        
+
                         // Mark as error in session
                         if ($userId && $sessionKey) {
                             session([
@@ -445,7 +445,7 @@ class AIGeneratorController extends Controller
                             session(['generated_slide_sets' => array_values($slideSets)]);
                             session()->save();
                         }
-                        
+
                         // Clean up temp file and session data
                         if ($tempDocumentPath) {
                             $tempFileKey = basename($tempDocumentPath);
@@ -492,14 +492,14 @@ class AIGeneratorController extends Controller
                 if (!$sessionKey && $userId) {
                     $sessionKey = 'slide_generation_' . $userId;
                 }
-            
+
             // Get existing slide sets
             $slideSets = session('generated_slide_sets', []);
-            
+
             // Remove any "generating" entry
             $slideSets = array_filter($slideSets, fn($set) => $set['id'] !== 'generating');
             $slideSets = array_values($slideSets); // Re-index
-            
+
             // Create new slide set entry
             $newSet = [
                 'id' => uniqid('slideset_', true),
@@ -509,13 +509,13 @@ class AIGeneratorController extends Controller
                 'created_at' => now()->toDateTimeString(),
                 'slide_count' => count($slides)
             ];
-            
+
             // Add to beginning of array (newest first)
             array_unshift($slideSets, $newSet);
-            
+
             // Keep only last 50 slide sets to prevent session bloat
             $slideSets = array_slice($slideSets, 0, 50);
-            
+
             session([
                 'generated_slide_sets' => $slideSets,
                 'generated_slides' => $slides, // Keep for backward compatibility
@@ -523,7 +523,7 @@ class AIGeneratorController extends Controller
                 $sessionKey . '_status' => 'completed'
             ]);
                 session()->save(); // Force save session
-                
+
                 // Clean up temp file
                 if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
                     @unlink(storage_path('app/' . $tempDocumentPath));
@@ -547,7 +547,7 @@ class AIGeneratorController extends Controller
                     session(['generated_slide_sets' => array_values($slideSets)]);
                     session()->save();
                 }
-                
+
                 // Clean up temp file on error
                 if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
                     @unlink(storage_path('app/' . $tempDocumentPath));
@@ -568,7 +568,7 @@ class AIGeneratorController extends Controller
                 ]);
                 session()->save();
             }
-            
+
             // Clean up temp file
             if (isset($tempDocumentPath) && $tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
                 @unlink(storage_path('app/' . $tempDocumentPath));
@@ -1561,6 +1561,8 @@ class AIGeneratorController extends Controller
             ],
             CURLOPT_TIMEOUT => 60,
             CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification for development
+            CURLOPT_SSL_VERIFYHOST => false, // Disable host verification for development
         ]);
 
         $response = curl_exec($ch);
@@ -1569,19 +1571,34 @@ class AIGeneratorController extends Controller
         curl_close($ch);
 
         if ($curlError) {
-            throw new \Exception('Connection error: ' . $curlError);
+            Log::error('OpenAI cURL error: ' . $curlError);
+            throw new \Exception('Connection error: ' . $curlError . '. Please check your internet connection and firewall settings.');
         }
 
         if ($httpCode !== 200) {
             $errorData = json_decode($response, true);
             $errorMessage = $errorData['error']['message'] ?? 'Unknown error';
 
+            Log::error('OpenAI API error', [
+                'http_code' => $httpCode,
+                'response' => $response,
+                'error_message' => $errorMessage
+            ]);
+
             // Provide helpful error messages
-            if (strpos($errorMessage, 'Incorrect API key') !== false) {
-                throw new \Exception('Invalid OpenAI API key. Please update your OPENAI_API_KEY in the .env file with a valid key from https://platform.openai.com/account/api-keys');
+            if (strpos($errorMessage, 'Incorrect API key') !== false || $httpCode === 401) {
+                throw new \Exception('Invalid OpenAI API key (401). Please update your OPENAI_API_KEY in the .env file with a valid key from https://platform.openai.com/account/api-keys');
             }
 
-            throw new \Exception('API error: ' . $errorMessage);
+            if ($httpCode === 429) {
+                throw new \Exception('Rate limit exceeded (429). Please wait a moment and try again.');
+            }
+
+            if (strpos($errorMessage, 'model') !== false && strpos($errorMessage, 'does not exist') !== false) {
+                throw new \Exception('The model "' . env('OPENAI_MODEL', 'gpt-3.5-turbo') . '" is not available. Please update OPENAI_MODEL in .env to a valid model like "gpt-4o-mini" or "gpt-3.5-turbo".');
+            }
+
+            throw new \Exception('API error (HTTP ' . $httpCode . '): ' . $errorMessage);
         }
 
         $data = json_decode($response, true);
@@ -1689,7 +1706,7 @@ class AIGeneratorController extends Controller
             'pdftotext.exe', // Try PATH
             'pdftotext', // Try PATH (without .exe)
         ];
-        
+
         foreach ($possiblePaths as $path) {
             // If it's a full path, check if file exists
             if (strpos($path, '\\') !== false || strpos($path, '/') !== false) {
@@ -1705,7 +1722,7 @@ class AIGeneratorController extends Controller
                 }
             }
         }
-        
+
         return null;
     }
 
@@ -1719,20 +1736,20 @@ class AIGeneratorController extends Controller
             // If page range is specified, try pdftotext binary first (only reliable way to extract specific pages)
             if (($pageFrom !== null || $pageTo !== null) && function_exists('shell_exec')) {
                 $pdftotextPath = $this->getPdftotextPath();
-                
+
                 if ($pdftotextPath) {
                     $start = ($pageFrom !== null) ? $pageFrom : 1;
                     $end = ($pageTo !== null) ? $pageTo : 10000; // Large number for "to end"
-                    
+
                     $command = escapeshellarg($pdftotextPath) . " -f {$start} -l {$end} " . escapeshellarg($filePath) . " - 2>&1";
                     Log::info('Attempting pdftotext extraction', [
                         'command' => $command,
                         'page_from' => $start,
                         'page_to' => $end,
                     ]);
-                    
+
                     $output = @shell_exec($command);
-                    
+
                     if ($output && trim($output) && strpos($output, 'command not found') === false && strpos($output, 'not recognized') === false) {
                         // Check if there are actual errors in the output
                         if (strpos($output, 'Error') === false && strpos($output, 'error') === false) {
@@ -1745,7 +1762,7 @@ class AIGeneratorController extends Controller
                             }
                         }
                     }
-                    
+
                     Log::warning("pdftotext command executed but output was invalid", [
                         'output_length' => strlen($output ?? ''),
                         'output_preview' => substr($output ?? '', 0, 200),
@@ -1753,10 +1770,10 @@ class AIGeneratorController extends Controller
                 } else {
                     Log::warning("pdftotext binary not found in common locations or PATH");
                 }
-                
+
                 // If pdftotext failed but page range was specified, warn user
                 Log::warning("Page range extraction via pdftotext failed or pdftotext not available. Extracting all text instead.");
-                
+
                 // For very large PDFs, warn that extraction might be slow or fail
                 $fileSize = filesize($filePath);
                 if ($fileSize > 10 * 1024 * 1024) { // > 10MB
@@ -1776,15 +1793,15 @@ class AIGeneratorController extends Controller
                         Log::warning("PDF text extraction exceeded 500KB, truncating to prevent memory issues.");
                         $text = mb_substr($text, 0, 500000, 'UTF-8');
                     }
-                    
+
                     Log::info('PDF text extraction completed', ['text_length' => strlen($text)]);
-                    
+
                     if ($pageFrom !== null || $pageTo !== null) {
                         Log::info("Extracted all PDF text. Page range filtering requires pdftotext binary to be installed.");
                     }
                     return $text;
                 }
-                
+
                 Log::warning('PDF text extraction returned empty or too short text');
             } catch (\Throwable $e) {
                 Log::error('PDF parser failed: ' . $e->getMessage(), [
@@ -1792,7 +1809,7 @@ class AIGeneratorController extends Controller
                     'file_path' => $filePath,
                     'file_size' => file_exists($filePath) ? filesize($filePath) : 'unknown'
                 ]);
-                
+
                 throw new \Exception('Failed to extract text from PDF. The PDF may be too large or corrupted: ' . $e->getMessage());
             }
 
@@ -1812,7 +1829,7 @@ class AIGeneratorController extends Controller
     private function extractTextFromTxt(string $filePath, ?int $pageFrom = null, ?int $pageTo = null): string
     {
         $content = file_get_contents($filePath);
-        
+
         if ($pageFrom === null && $pageTo === null) {
             return $content;
         }
@@ -1874,7 +1891,7 @@ class AIGeneratorController extends Controller
         }
 
         $result = trim(implode("\n", array_filter($parts)));
-        
+
         if (strlen($result) < 20) {
             throw new \Exception('Could not extract text from DOC/DOCX. Please ensure the document is not password-protected or try saving as TXT.');
         }
@@ -1991,7 +2008,7 @@ class AIGeneratorController extends Controller
                          "Make the content educational, clear, and well-structured based on the document.";
 
                 $response = $this->callGemini($prompt, 4000);
-                
+
                 // Check if we got the right number of slides, retry once if not
                 $tempSlides = json_decode($response, true);
                 if (is_array($tempSlides) && count($this->normalizeSlides($tempSlides)) < $numberOfSlides) {
@@ -2369,7 +2386,7 @@ class AIGeneratorController extends Controller
     private function generateImagesForSlides(array $slides, string $topic): array
     {
         $apiKey = env('OPENAI_API_KEY');
-        
+
         if (!$apiKey || strlen($apiKey) < 20) {
             Log::info('OpenAI API key not configured, skipping image generation');
             return $slides;
@@ -2395,20 +2412,20 @@ class AIGeneratorController extends Controller
             try {
                 // Check if flowchart should be used
                 $useFlowchart = $this->shouldUseFlowchart($slide);
-                
+
                 // Generate image description from slide content
                 $imagePrompt = $this->createImagePromptFromSlide($slide, $topic);
-                
+
                 Log::info('Generated image prompt for slide', [
                     'slide_index' => $index,
                     'slide_title' => $slide['title'] ?? 'N/A',
                     'image_type' => $useFlowchart ? 'flowchart' : 'illustration',
                     'prompt_preview' => mb_substr($imagePrompt, 0, 200) . '...'
                 ]);
-                
+
                 // Generate image using DALL-E
                 $imageUrl = $this->generateImageWithDallE($imagePrompt);
-                
+
                 if ($imageUrl) {
                     // Download and save image
                     $imagePath = $this->downloadImageFromUrl($imageUrl, $tmpImageDir, 'slide_' . $index . '_' . uniqid());
@@ -2441,7 +2458,7 @@ class AIGeneratorController extends Controller
         $title = strtolower(trim($slide['title'] ?? ''));
         $contentArray = is_array($slide['content']) ? $slide['content'] : [];
         $summary = strtolower(trim($slide['summary'] ?? ''));
-        
+
         // Keywords that indicate a flowchart would be appropriate
         $flowchartKeywords = [
             'process', 'workflow', 'algorithm', 'procedure', 'sequence', 'steps', 'step',
@@ -2452,14 +2469,14 @@ class AIGeneratorController extends Controller
             'input', 'output', 'start', 'end', 'begin', 'finish', 'first', 'next',
             'then', 'finally', 'after', 'before', 'during', 'order', 'sequence'
         ];
-        
+
         // Check title
         foreach ($flowchartKeywords as $keyword) {
             if (strpos($title, $keyword) !== false) {
                 return true;
             }
         }
-        
+
         // Check content points
         $contentText = strtolower(implode(' ', $contentArray));
         foreach ($flowchartKeywords as $keyword) {
@@ -2467,19 +2484,19 @@ class AIGeneratorController extends Controller
                 return true;
             }
         }
-        
+
         // Check summary
         foreach ($flowchartKeywords as $keyword) {
             if (strpos($summary, $keyword) !== false) {
                 return true;
             }
         }
-        
+
         // Check if content has numbered steps or sequential structure
         if (count($contentArray) >= 3) {
             $hasNumberedSteps = false;
             $hasSequentialWords = false;
-            
+
             foreach ($contentArray as $point) {
                 $pointLower = strtolower(trim($point));
                 // Check for numbered steps (1., 2., Step 1, etc.)
@@ -2491,12 +2508,12 @@ class AIGeneratorController extends Controller
                     $hasSequentialWords = true;
                 }
             }
-            
+
             if ($hasNumberedSteps || $hasSequentialWords) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -2510,23 +2527,23 @@ class AIGeneratorController extends Controller
         $title = trim($slide['title'] ?? '');
         $contentArray = is_array($slide['content']) ? $slide['content'] : [];
         $summary = trim($slide['summary'] ?? '');
-        
+
         // Check if this slide should use a flowchart
         $useFlowchart = $this->shouldUseFlowchart($slide);
-        
+
         if ($useFlowchart) {
             // Generate flowchart-specific prompt
             return $this->createFlowchartPrompt($slide, $topic);
         }
-        
+
         // Build a focused, detailed prompt based on the actual slide content
         $prompt = "Create an educational illustration that visually represents the following slide content: ";
-        
+
         // Primary focus: Slide title (most important)
         if (!empty($title)) {
             $prompt .= "\"$title\". ";
         }
-        
+
         // Secondary focus: Main content points
         if (!empty($contentArray) && count($contentArray) > 0) {
             $prompt .= "The slide covers these key points: ";
@@ -2541,24 +2558,24 @@ class AIGeneratorController extends Controller
             }
             $prompt .= ". ";
         }
-        
+
         // Additional context: Summary if available
         if (!empty($summary)) {
             $prompt .= "Context: $summary. ";
         }
-        
+
         // Overall topic context (if different from title)
         if (!empty($topic) && strtolower($title) !== strtolower($topic)) {
             $prompt .= "This is part of a presentation about: $topic. ";
         }
-        
+
         // Style and technical requirements
         $prompt .= "Style: Professional educational illustration, clean and modern design, suitable for academic presentation. ";
         $prompt .= "The image should directly visualize the concepts mentioned in the slide content. ";
         $prompt .= "Use appropriate colors, diagrams, icons, or visual metaphors that represent the slide's subject matter. ";
         $prompt .= "Do not include any text, words, or numbers in the image. ";
         $prompt .= "Make it visually engaging and relevant to the specific slide content described above.";
-        
+
         return $prompt;
     }
 
@@ -2570,14 +2587,14 @@ class AIGeneratorController extends Controller
         $title = trim($slide['title'] ?? '');
         $contentArray = is_array($slide['content']) ? $slide['content'] : [];
         $summary = trim($slide['summary'] ?? '');
-        
+
         $prompt = "Create a professional flowchart diagram that visually represents the following process/workflow: ";
-        
+
         // Primary focus: Slide title
         if (!empty($title)) {
             $prompt .= "\"$title\". ";
         }
-        
+
         // Detailed process steps
         if (!empty($contentArray) && count($contentArray) > 0) {
             $prompt .= "The process consists of these steps: ";
@@ -2595,17 +2612,17 @@ class AIGeneratorController extends Controller
             }
             $prompt .= ". ";
         }
-        
+
         // Additional context
         if (!empty($summary)) {
             $prompt .= "Context: $summary. ";
         }
-        
+
         // Overall topic
         if (!empty($topic) && strtolower($title) !== strtolower($topic)) {
             $prompt .= "This is part of a presentation about: $topic. ";
         }
-        
+
         // Flowchart-specific instructions
         $prompt .= "Create a flowchart with: ";
         $prompt .= "rectangular boxes for process steps, ";
@@ -2617,7 +2634,7 @@ class AIGeneratorController extends Controller
         $prompt .= "Use appropriate colors to distinguish different types of elements (processes, decisions, start/end). ";
         $prompt .= "The flowchart should clearly show the sequence and relationships between the steps described. ";
         $prompt .= "Do not include any text labels, words, or numbers in the flowchart boxes - use visual symbols, icons, or abstract representations instead.";
-        
+
         return $prompt;
     }
 
@@ -2627,14 +2644,14 @@ class AIGeneratorController extends Controller
     private function generateImageWithDallE(string $prompt): ?string
     {
         $apiKey = env('OPENAI_API_KEY');
-        
+
         if (!$apiKey || strlen($apiKey) < 20) {
             return null;
         }
 
         try {
             $ch = curl_init('https://api.openai.com/v1/images/generations');
-            
+
             $postData = json_encode([
                 'model' => 'dall-e-3',
                 'prompt' => $prompt,
@@ -2671,7 +2688,7 @@ class AIGeneratorController extends Controller
             }
 
             $data = json_decode($response, true);
-            
+
             if (isset($data['data'][0]['url'])) {
                 return $data['data'][0]['url'];
             }
@@ -2690,7 +2707,7 @@ class AIGeneratorController extends Controller
     {
         try {
             $imageData = @file_get_contents($imageUrl);
-            
+
             if ($imageData === false) {
                 Log::warning('Failed to download image from URL: ' . $imageUrl);
                 return null;
@@ -2701,7 +2718,7 @@ class AIGeneratorController extends Controller
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mimeType = finfo_buffer($finfo, $imageData);
             finfo_close($finfo);
-            
+
             if ($mimeType === 'image/jpeg' || $mimeType === 'image/jpg') {
                 $extension = 'jpg';
             } elseif ($mimeType === 'image/png') {
@@ -2711,7 +2728,7 @@ class AIGeneratorController extends Controller
             }
 
             $filePath = $saveDir . '/' . $filename . '.' . $extension;
-            
+
             if (@file_put_contents($filePath, $imageData) === false) {
                 Log::warning('Failed to save image to: ' . $filePath);
                 return null;
