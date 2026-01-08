@@ -73,7 +73,7 @@ Route::get('/reset-password/{token}', function ($token) {
 })->name('password.reset');
 
 // Broadcasting authentication routes for WebSocket
-// Note: Broadcast routes need 'web' middleware for session and CSRF, 
+// Note: Broadcast routes need 'web' middleware for session and CSRF,
 // and 'broadcast.auth' middleware to get the authenticated user (supports both Auth and session-based auth)
 Broadcast::routes(['middleware' => ['web', 'broadcast.auth']]);
 
@@ -258,18 +258,21 @@ Route::middleware('auth')->group(function () {
     Route::post('/classrooms/{classroom}/students', [\App\Http\Controllers\ClassroomController::class, 'addStudent'])->name('classrooms.students.add');
     Route::delete('/classrooms/{classroom}/students/{student}', [\App\Http\Controllers\ClassroomController::class, 'removeStudent'])->name('classrooms.students.remove');
 
-    // AI Generator routes
-    Route::get('/ai-generator', [\App\Http\Controllers\AIGeneratorController::class, 'index'])->name('ai-generator.index');
-    Route::get('/ai-generator/slides', function () {
-        return view('ai-generator.slides');
-    })->name('ai-generator.slides');
-    Route::get('/ai-generator/quiz', function () {
-        return view('ai-generator.quiz');
-    })->name('ai-generator.quiz');
-    Route::get('/ai-generator/slaid-dijana', [\App\Http\Controllers\AIGeneratorController::class, 'showGeneratedSlides'])->name('ai-generator.slaid-dijana');
-    Route::get('/ai-generator/slaid-dijana/{id}', [\App\Http\Controllers\AIGeneratorController::class, 'showSlideSet'])->name('ai-generator.slaid-dijana.view');
-    Route::get('/ai-generator/check-status', [\App\Http\Controllers\AIGeneratorController::class, 'checkGenerationStatus'])->name('ai-generator.check-status');
-    
+    // AI Generator routes - Teacher only
+    Route::middleware('teacher')->group(function () {
+        Route::get('/ai-generator', [\App\Http\Controllers\AIGeneratorController::class, 'index'])->name('ai-generator.index');
+        Route::get('/ai-generator/slides', function () {
+            return view('ai-generator.slides');
+        })->name('ai-generator.slides');
+        Route::get('/ai-generator/quiz', function () {
+            return view('ai-generator.quiz');
+        })->name('ai-generator.quiz');
+        Route::get('/ai-generator/slaid-dijana', [\App\Http\Controllers\AIGeneratorController::class, 'showGeneratedSlides'])->name('ai-generator.slaid-dijana');
+        Route::get('/ai-generator/slaid-dijana/{id}', [\App\Http\Controllers\AIGeneratorController::class, 'showSlideSet'])->name('ai-generator.slaid-dijana.view');
+        Route::get('/ai-generator/check-status', [\App\Http\Controllers\AIGeneratorController::class, 'checkGenerationStatus'])->name('ai-generator.check-status');
+        Route::delete('/ai-generator/slides/{id}', [\App\Http\Controllers\AIGeneratorController::class, 'deleteSlideSet'])->name('ai-generator.slides.delete');
+    });
+
     // Badge Management routes (Teacher only)
     Route::get('/badges/manage', [\App\Http\Controllers\BadgeController::class, 'manage'])->name('badges.manage');
     Route::get('/badges/create', [\App\Http\Controllers\BadgeController::class, 'createForm'])->name('badges.create');

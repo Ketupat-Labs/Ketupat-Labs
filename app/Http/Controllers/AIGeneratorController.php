@@ -29,6 +29,32 @@ class AIGeneratorController extends Controller
     private ?array $geminiModelsCache = null;
 
     /**
+     * Save error state to both cache and session (for background processing)
+     */
+    private function saveErrorState($userId, $sessionKey, $errorMessage): void
+    {
+        if (!$userId || !$sessionKey) return;
+
+        // Save to cache (survives background processing)
+        Cache::put($sessionKey . '_status', 'error', 3600);
+        Cache::put($sessionKey . '_error', $errorMessage, 3600);
+
+        $cacheKey = 'user_' . $userId . '_slide_sets';
+        $slideSets = Cache::get($cacheKey, []);
+        $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
+        Cache::put($cacheKey, array_values($slideSets), 86400);
+
+        // Try to update session too (may not work in background)
+        try {
+            session([$sessionKey . '_status' => 'error', $sessionKey . '_error' => $errorMessage]);
+            session(['generated_slide_sets' => array_values($slideSets)]);
+            session()->save();
+        } catch (\Exception $e) {
+            // Session not available in background, ignore
+        }
+    }
+
+    /**
      * Ensure the slides array size is exactly the requested count.
      *
      * Policy: no demo/placeholder. If AI returns fewer slides, we retry once with a strict instruction.
@@ -101,15 +127,26 @@ class AIGeneratorController extends Controller
             return redirect()->route('login');
         }
 
-        // Get all generated slide sets from session
-        $slideSets = session('generated_slide_sets', []);
+        // Get all generated slide sets from BOTH session and cache
+        $slideSetsFromSession = session('generated_slide_sets', []);
+        $cacheKey = 'user_' . $userId . '_slide_sets';
+        $slideSetsFromCache = Cache::get($cacheKey, []);
+
+        // Merge cache and session (cache takes priority for background-generated slides)
+        $slideSets = !empty($slideSetsFromCache) ? $slideSetsFromCache : $slideSetsFromSession;
+
         if (!is_array($slideSets)) {
             $slideSets = [];
         }
 
+        // Sync cache back to session for display
+        if (!empty($slideSetsFromCache) && empty($slideSetsFromSession)) {
+            session(['generated_slide_sets' => $slideSetsFromCache]);
+        }
+
         // Check if there's a currently generating set
         $sessionKey = 'slide_generation_' . $userId;
-        $status = session($sessionKey . '_status', 'none');
+        $status = Cache::get($sessionKey . '_status', session($sessionKey . '_status', 'none'));
 
         // If generating, add to list temporarily
         if ($status === 'generating') {
@@ -123,7 +160,7 @@ class AIGeneratorController extends Controller
             }
 
             if (!$hasGenerating) {
-                $currentTopic = session('generated_slides_topic', 'Slaid Sedang Dijana...');
+                $currentTopic = Cache::get('slide_gen_' . $userId . '_topic', session('generated_slides_topic', 'Slaid Sedang Dijana...'));
                 $generatingSet = [
                     'id' => 'generating',
                     'topic' => $currentTopic,
@@ -153,67 +190,100 @@ class AIGeneratorController extends Controller
             return redirect()->route('login');
         }
 
-        $slideSets = session('generated_slide_sets', []);
-        $slideSet = collect($slideSets)->firstWhere('id', $id);
+        // Get slides from cache
+        $cacheKey = 'user_' . $userId . '_slide_sets';
+        $slideSets = Cache::get($cacheKey, []);
 
-        if (!$slideSet) {
-            return redirect()->route('ai-generator.slaid-dijana')
-                ->with('error', 'Slaid tidak ditemui.');
+        // Find the specific slide set
+        $slideSet = null;
+        foreach ($slideSets as $set) {
+            if (isset($set['id']) && $set['id'] === $id) {
+                $slideSet = $set;
+                break;
+            }
         }
 
-        $slides = $slideSet['slides'] ?? [];
-        $topic = $slideSet['topic'] ?? 'Generated Slides';
+        if (!$slideSet) {
+            return redirect()->route('ai-generator.slaid-dijana')->with('error', 'Slaid tidak dijumpai.');
+        }
 
-        // Check if this is the generating one
-        $sessionKey = 'slide_generation_' . $userId;
-        $status = ($id === 'generating') ? session($sessionKey . '_status', 'generating') : 'completed';
-
-        return view('ai-generator.slaid-dijana-detail', compact('slides', 'topic', 'id', 'status', 'sessionKey'));
+        // Extract data for the view
+        return view('ai-generator.slaid-dijana-detail', [
+            'slideSet' => $slideSet,
+            'topic' => $slideSet['topic'] ?? 'Untitled',
+            'slides' => $slideSet['slides'] ?? [],
+            'status' => $slideSet['status'] ?? 'completed',
+            'slideSetId' => $id
+        ]);
     }
 
     /**
-     * Check generation status
+     * Delete a slide set
+     */
+    public function deleteSlideSet($id)
+    {
+        $userId = session('user_id');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        try {
+            // Get slides from cache
+            $cacheKey = 'user_' . $userId . '_slide_sets';
+            $slideSets = Cache::get($cacheKey, []);
+
+            // Filter out the slide set to delete
+            $filteredSets = array_filter($slideSets, function($set) use ($id) {
+                return !isset($set['id']) || $set['id'] !== $id;
+            });
+
+            // Re-index array
+            $filteredSets = array_values($filteredSets);
+
+            // Update cache
+            Cache::put($cacheKey, $filteredSets, 86400); // 24 hours
+
+            // Also update session
+            session(['generated_slide_sets' => $filteredSets]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Slaid berjaya dipadam',
+                'remaining' => count($filteredSets)
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error deleting slide set: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Ralat semasa memadam slaid'
+            ], 500);
+        }
+    }
+
+    /**
+     * Check generation status (for polling)
      */
     public function checkGenerationStatus(Request $request)
     {
         $userId = session('user_id');
         if (!$userId) {
-            return response()->json(['status' => 'error', 'message' => 'Not authenticated'], 401);
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
         $sessionKey = 'slide_generation_' . $userId;
-        $status = session($sessionKey . '_status', 'none');
+        $status = Cache::get($sessionKey . '_status', 'none');
 
-        if ($status === 'completed') {
-            // Get the most recent slide set
-            $slideSets = session('generated_slide_sets', []);
-            $latestSet = !empty($slideSets) ? $slideSets[0] : null;
-
-            if ($latestSet && ($latestSet['status'] ?? 'completed') === 'completed') {
-                return response()->json([
-                    'status' => 'completed',
-                    'slides' => $latestSet['slides'] ?? [],
-                    'topic' => $latestSet['topic'] ?? 'Generated Slides',
-                    'set_id' => $latestSet['id'] ?? null
-                ]);
-            }
-
-            // Fallback to old session format
-            $slides = session('generated_slides', []);
-            $topic = session('generated_slides_topic', 'Generated Slides');
+        if ($status === 'error') {
+            $errorMessage = Cache::get($sessionKey . '_error', 'Unknown error');
             return response()->json([
-                'status' => 'completed',
-                'slides' => $slides,
-                'topic' => $topic
+                'status' => 'error',
+                'message' => $errorMessage
             ]);
-        } elseif ($status === 'generating') {
-            return response()->json(['status' => 'generating']);
-        } elseif ($status === 'error') {
-            $error = session($sessionKey . '_error', 'Unknown error');
-            return response()->json(['status' => 'error', 'message' => $error]);
         }
 
-        return response()->json(['status' => 'none']);
+        return response()->json([
+            'status' => $status
+        ]);
     }
 
     /**
@@ -221,6 +291,14 @@ class AIGeneratorController extends Controller
      */
     public function generateSlides(Request $request)
     {
+        // Double-check authorization (middleware should have already checked)
+        if (!auth()->check() || auth()->user()->role !== 'teacher') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Hanya cikgu dibenarkan menggunakan ciri ini. Pelajar tidak boleh menjana slaid.',
+            ], 403);
+        }
+
         // Increase execution time limit for slide generation (especially with images)
         set_time_limit(300); // 5 minutes should be enough for even 50 slides with images
 
@@ -234,6 +312,17 @@ class AIGeneratorController extends Controller
         }
 
         try {
+            // Validate that at least topic or document is provided
+            if (!$request->filled('topic') && !$request->hasFile('document')) {
+                if ($sessionKey) {
+                    session([$sessionKey . '_status' => 'error', $sessionKey . '_error' => 'Sila masukkan topik atau muat naik dokumen.']);
+                }
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Sila masukkan topik atau muat naik dokumen.',
+                ], 400);
+            }
+
             $request->validate([
                 'topic' => 'nullable|string|max:500',
                 'number_of_slides' => 'nullable|integer|min:1|max:50',
@@ -292,12 +381,9 @@ class AIGeneratorController extends Controller
                 $originalFilename = $file->getClientOriginalName();
                 $originalExtension = $file->getClientOriginalExtension();
                 $tempDocumentPath = $file->store('temp_slide_generation', 'local');
-                // Store original filename in session for background processing
-                session([
-                    'temp_document_original_name_' . basename($tempDocumentPath) => $originalFilename,
-                    'temp_document_original_ext_' . basename($tempDocumentPath) => $originalExtension
-                ]);
-                session()->save();
+                // Store original filename in Cache for background processing (not session!)
+                Cache::put('temp_document_original_name_' . basename($tempDocumentPath), $originalFilename, 3600);
+                Cache::put('temp_document_original_ext_' . basename($tempDocumentPath), $originalExtension, 3600);
             }
 
             // Return immediate response (202 Accepted) and continue processing in background
@@ -333,17 +419,26 @@ class AIGeneratorController extends Controller
             }
 
             // Continue processing in background after response is sent
+            // IMPORTANT: Use Cache instead of Session because session is not available after fastcgi_finish_request()
             try {
+                // Store temp data in cache for background access
+                $cacheKey = 'slide_gen_' . $userId;
+                Cache::put($cacheKey . '_topic', $topic, 3600);
+                Cache::put($cacheKey . '_slides_count', $numberOfSlides, 3600);
+                Cache::put($cacheKey . '_detail_level', $detailLevel, 3600);
+                Cache::put($cacheKey . '_page_from', $pageFrom, 3600);
+                Cache::put($cacheKey . '_page_to', $pageTo, 3600);
+
                 // Check if document is uploaded
                 if ($tempDocumentPath) {
                     try {
                         // Load file from temp storage
                         $fullPath = storage_path('app/' . $tempDocumentPath);
 
-                        // Get original filename and extension from session
+                        // Get original filename and extension from cache
                         $tempFileKey = basename($tempDocumentPath);
-                        $originalFilename = session('temp_document_original_name_' . $tempFileKey, $tempFileKey);
-                        $originalExtension = session('temp_document_original_ext_' . $tempFileKey, pathinfo($tempFileKey, PATHINFO_EXTENSION));
+                        $originalFilename = Cache::get('temp_document_original_name_' . $tempFileKey, $tempFileKey);
+                        $originalExtension = Cache::get('temp_document_original_ext_' . $tempFileKey, pathinfo($tempFileKey, PATHINFO_EXTENSION));
 
                         Log::info('Starting document extraction (background)', [
                             'temp_path' => $tempDocumentPath,
@@ -406,22 +501,13 @@ class AIGeneratorController extends Controller
                             'trace' => $e->getTraceAsString()
                         ]);
 
-                        // Mark as error in session instead of returning
-                        if ($userId && $sessionKey) {
-                            session([
-                                $sessionKey . '_status' => 'error',
-                                $sessionKey . '_error' => $e->getMessage()
-                            ]);
-                            $slideSets = session('generated_slide_sets', []);
-                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                            session(['generated_slide_sets' => array_values($slideSets)]);
-                            session()->save();
-                        }
+                        // Mark as error in cache and session
+                        $this->saveErrorState($userId, $sessionKey, $e->getMessage());
 
-                        // Clean up temp file and session data
+                        // Clean up temp file and cache data
                         if ($tempDocumentPath) {
                             $tempFileKey = basename($tempDocumentPath);
-                            session()->forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
+                            Cache::forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
                             $fullPath = storage_path('app/' . $tempDocumentPath);
                             if (file_exists($fullPath)) {
                                 @unlink($fullPath);
@@ -434,22 +520,13 @@ class AIGeneratorController extends Controller
                             'trace' => $e->getTraceAsString()
                         ]);
 
-                        // Mark as error in session
-                        if ($userId && $sessionKey) {
-                            session([
-                                $sessionKey . '_status' => 'error',
-                                $sessionKey . '_error' => $e->getMessage()
-                            ]);
-                            $slideSets = session('generated_slide_sets', []);
-                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                            session(['generated_slide_sets' => array_values($slideSets)]);
-                            session()->save();
-                        }
+                        // Mark as error
+                        $this->saveErrorState($userId, $sessionKey, $e->getMessage());
 
-                        // Clean up temp file and session data
+                        // Clean up temp file
                         if ($tempDocumentPath) {
                             $tempFileKey = basename($tempDocumentPath);
-                            session()->forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
+                            Cache::forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
                             $fullPath = storage_path('app/' . $tempDocumentPath);
                             if (file_exists($fullPath)) {
                                 @unlink($fullPath);
@@ -460,17 +537,8 @@ class AIGeneratorController extends Controller
                 } else {
                     // Validate topic is required if no document
                     if (empty($topic)) {
-                        // Mark as error in session
-                        if ($userId && $sessionKey) {
-                            session([
-                                $sessionKey . '_status' => 'error',
-                                $sessionKey . '_error' => 'Either topic or document is required'
-                            ]);
-                            $slideSets = session('generated_slide_sets', []);
-                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                            session(['generated_slide_sets' => array_values($slideSets)]);
-                            session()->save();
-                        }
+                        // Mark as error
+                        $this->saveErrorState($userId, $sessionKey, 'Either topic or document is required');
                         return; // Exit background processing
                     }
 
@@ -493,11 +561,12 @@ class AIGeneratorController extends Controller
                     $sessionKey = 'slide_generation_' . $userId;
                 }
 
-            // Get existing slide sets
-            $slideSets = session('generated_slide_sets', []);
+            // Get existing slide sets from cache (background-safe)
+            $cacheKey = 'user_' . $userId . '_slide_sets';
+            $slideSets = Cache::get($cacheKey, []);
 
             // Remove any "generating" entry
-            $slideSets = array_filter($slideSets, fn($set) => $set['id'] !== 'generating');
+            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
             $slideSets = array_values($slideSets); // Re-index
 
             // Create new slide set entry
@@ -513,16 +582,26 @@ class AIGeneratorController extends Controller
             // Add to beginning of array (newest first)
             array_unshift($slideSets, $newSet);
 
-            // Keep only last 50 slide sets to prevent session bloat
+            // Keep only last 50 slide sets to prevent bloat
             $slideSets = array_slice($slideSets, 0, 50);
 
-            session([
-                'generated_slide_sets' => $slideSets,
-                'generated_slides' => $slides, // Keep for backward compatibility
-                'generated_slides_topic' => $topic, // Keep for backward compatibility
-                $sessionKey . '_status' => 'completed'
-            ]);
-                session()->save(); // Force save session
+            // Save to both cache (for background) and session (for immediate display)
+            Cache::put($cacheKey, $slideSets, 86400); // 24 hours
+            Cache::put($sessionKey . '_status', 'completed', 3600);
+
+            // Also update session if still available
+            try {
+                session([
+                    'generated_slide_sets' => $slideSets,
+                    'generated_slides' => $slides,
+                    'generated_slides_topic' => $topic,
+                    $sessionKey . '_status' => 'completed'
+                ]);
+                session()->save();
+            } catch (\Exception $e) {
+                // Session may not be available after fastcgi_finish_request, ignore
+                Log::info('Session not available in background, using cache only');
+            }
 
                 // Clean up temp file
                 if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
@@ -535,18 +614,8 @@ class AIGeneratorController extends Controller
                     'trace' => $e->getTraceAsString()
                 ]);
 
-                // Mark generation as error in session
-                if (isset($userId) && $userId && isset($sessionKey) && $sessionKey) {
-                    session([
-                        $sessionKey . '_status' => 'error',
-                        $sessionKey . '_error' => $e->getMessage()
-                    ]);
-                    // Remove generating placeholder
-                    $slideSets = session('generated_slide_sets', []);
-                    $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                    session(['generated_slide_sets' => array_values($slideSets)]);
-                    session()->save();
-                }
+                // Mark generation as error
+                $this->saveErrorState($userId ?? null, $sessionKey ?? null, $e->getMessage());
 
                 // Clean up temp file on error
                 if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
@@ -560,7 +629,7 @@ class AIGeneratorController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Mark generation as error in session
+            // Mark generation as error
             if (isset($userId) && $userId && isset($sessionKey) && $sessionKey) {
                 session([
                     $sessionKey . '_status' => 'error',
@@ -587,6 +656,14 @@ class AIGeneratorController extends Controller
      */
     public function generateQuiz(Request $request)
     {
+        // Double-check authorization (middleware should have already checked)
+        if (!auth()->check() || auth()->user()->role !== 'teacher') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Hanya cikgu dibenarkan menggunakan ciri ini. Pelajar tidak boleh menjana kuiz.',
+            ], 403);
+        }
+
         try {
             $request->validate([
                 'topic' => 'nullable|string|max:500',
@@ -606,11 +683,14 @@ class AIGeneratorController extends Controller
                 try {
                     $documentText = $this->extractTextFromDocument($request->file('document'));
 
+                    // Log the extracted text length for debugging
+                    Log::info('Document text extracted, length: ' . strlen($documentText));
+
                     // Validate that we got actual text content
                     if (strlen($documentText) < 50) {
                         return response()->json([
                             'status' => 400,
-                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text.',
+                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text (not scanned images).',
                         ], 400);
                     }
 
@@ -619,10 +699,13 @@ class AIGeneratorController extends Controller
                         $topic = 'Document analysis';
                     }
 
-                    // Generate quiz from document using Gemini AI
+                    // Generate quiz from document using AI
                     $quiz = $this->generateQuizFromDocument($documentText, $numberOfQuestions, $difficulty, $questionType, $topic);
                 } catch (\Exception $e) {
-                    // Return error to user instead of falling back to demo mode
+                    // Log the full error for debugging
+                    Log::error('Quiz generation from document failed: ' . $e->getMessage());
+
+                    // Return user-friendly error message
                     return response()->json([
                         'status' => 400,
                         'message' => $e->getMessage(),
@@ -1273,23 +1356,45 @@ class AIGeneratorController extends Controller
 
     private function buildSlidesJsonPrompt(string $topic, int $numberOfSlides, string $detailLevel): string
     {
-        // Give the model an explicit contract + example shape.
-        // Keep it short to reduce risk of model adding extra prose.
-        $schemaExample = '[{"title":"Slide 1 title","content":["Point 1","Point 2"],"summary":"Short summary"}]';
+        // Enhanced schema with more structure
+        $schemaExample = '[{"title":"Pengenalan Topik","content":["Definisi dan konsep asas","Kepentingan dalam bidang","Sejarah atau latar belakang","Objektif pembelajaran"],"summary":"Ringkasan lengkap tentang asas topik"}]';
 
-        return "You are an educational content creator proficient in Malay.\n" .
-            "Task: Create {$numberOfSlides} presentation slides in Malay language about: {$topic}.\n" .
-            "Detail level: {$detailLevel}.\n\n" .
-            "OUTPUT FORMAT (STRICT):\n" .
-            "Return ONLY a valid JSON array (no markdown, no code fences, no extra text).\n" .
-            "Each array item must be an object with keys: title (string), content (array of strings), summary (string).\n" .
-            "Example: {$schemaExample}\n\n" .
-            "Rules:\n" .
-            "- Content and titles MUST be in Malay language\n" .
-            "- content must contain 3-7 bullet points\n" .
-            "- keep language clear and educational\n" .
-            "- do not include citations or URLs unless necessary\n" .
-            "- IMPORTANT: output MUST include EXACTLY {$numberOfSlides} items in the JSON array";
+        // Map detail level to specific instructions
+        $detailInstructions = match($detailLevel) {
+            'basic' => "- Fokus kepada konsep asas dan mudah difahami\n- Gunakan ayat pendek dan jelas\n- Berikan contoh mudah yang relatable\n- 4-5 poin utama setiap slaid",
+            'intermediate' => "- Terangkan konsep dengan lebih terperinci\n- Sertakan contoh praktikal dan aplikasi\n- Hubungkan idea antara slaid\n- 5-6 poin setiap slaid dengan sub-poin jika perlu",
+            'advanced' => "- Analisis mendalam dengan teori dan kajian\n- Sertakan implikasi dan perspektif kritikal\n- Gunakan terminologi teknikal yang sesuai\n- 6-7 poin terperinci setiap slaid",
+            default => "- Terangkan dengan jelas dan terperinci\n- Sertakan contoh yang sesuai\n- 5-6 poin setiap slaid"
+        };
+
+        return "Anda adalah seorang pendidik profesional yang berpengalaman dalam mencipta kandungan pembelajaran berkualiti tinggi dalam Bahasa Melayu.\n\n" .
+            "TUGAS: Cipta {$numberOfSlides} slaid pembentangan pendidikan yang komprehensif tentang: {$topic}\n" .
+            "Tahap Perincian: {$detailLevel}\n\n" .
+            "STRUKTUR SLAID YANG DIPERLUKAN:\n" .
+            "Slaid 1: Pengenalan & Objektif\n" .
+            "Slaid 2-" . ($numberOfSlides-1) . ": Isi kandungan utama (logik dan berturutan)\n" .
+            "Slaid {$numberOfSlides}: Kesimpulan & Rumusan\n\n" .
+            "GARIS PANDUAN KANDUNGAN:\n" .
+            $detailInstructions . "\n" .
+            "- Setiap slaid mesti ada topik yang jelas dan spesifik\n" .
+            "- Gunakan bahasa formal tetapi mudah difahami\n" .
+            "- Susun poin dari umum ke khusus\n" .
+            "- Sertakan fakta, contoh, atau statistik jika relevan\n" .
+            "- Pastikan aliran logik antara slaid\n" .
+            "- Ringkasan mesti merumuskan intipati slaid\n\n" .
+            "FORMAT OUTPUT (WAJIB):\n" .
+            "Hanya kembalikan JSON array yang sah (TIADA markdown, TIADA code fence, TIADA teks tambahan).\n" .
+            "Setiap item array mestilah objek dengan kunci: title (string), content (array of strings), summary (string).\n" .
+            "Contoh format: {$schemaExample}\n\n" .
+            "PERATURAN KRITIKAL:\n" .
+            "✓ Semua kandungan dan tajuk MESTI dalam Bahasa Melayu\n" .
+            "✓ Array content mesti mengandungi 4-7 poin bullet\n" .
+            "✓ Bahasa yang jelas, formal, dan mendidik\n" .
+            "✓ Elakkan penyalinan langsung - gunakan ayat sendiri\n" .
+            "✓ PENTING: Output MESTI mengandungi TEPAT {$numberOfSlides} item dalam array JSON\n" .
+            "✓ Jangan sertakan emoji, simbol aneh, atau format khas\n" .
+            "✓ Pastikan setiap poin adalah ayat lengkap yang bermakna\n\n" .
+            "Mulakan output dengan '[' dan akhiri dengan ']'. Tidak ada teks lain.";
     }
 
     /**
@@ -1369,17 +1474,43 @@ class AIGeneratorController extends Controller
      */
     private function generateSlidesWithOpenAI(string $topic, int $numberOfSlides, string $detailLevel): array
     {
-        $systemMessage = "You are an educational content creator. " .
-            "Return ONLY valid JSON (no markdown, no code fences, no extra text).";
+        $systemMessage = "Anda adalah seorang pendidik profesional yang berpengalaman dalam mencipta kandungan pembelajaran berkualiti tinggi dalam Bahasa Melayu. " .
+            "Anda mahir dalam menyusun maklumat secara logik, menggunakan bahasa yang jelas, dan mencipta kandungan yang menarik untuk pelajar. " .
+            "Kembalikan HANYA JSON yang sah (tiada markdown, tiada code fence, tiada teks tambahan).";
 
-        $userMessage = "Create {$numberOfSlides} educational slides about: {$topic}.\n" .
-            "Detail level: {$detailLevel}.\n\n" .
-            "Strict output format: a JSON array of slide objects.\n" .
-            "Each slide object keys:\n" .
-            "- title: string\n" .
-            "- content: array of strings (3-7 bullet points)\n" .
-            "- summary: string\n\n" .
-            "Start your response with '[' and end with ']'.";
+        // Map detail level to specific instructions
+        $detailInstructions = match($detailLevel) {
+            'basic' => "Fokus kepada konsep asas yang mudah difahami. Gunakan ayat pendek dan jelas. Berikan contoh mudah yang relatable. Setiap slaid perlu 4-5 poin utama.",
+            'intermediate' => "Terangkan konsep dengan lebih terperinci. Sertakan contoh praktikal dan aplikasi. Hubungkan idea antara slaid. Setiap slaid perlu 5-6 poin dengan sub-poin jika perlu.",
+            'advanced' => "Analisis mendalam dengan teori dan kajian. Sertakan implikasi dan perspektif kritikal. Gunakan terminologi teknikal yang sesuai. Setiap slaid perlu 6-7 poin terperinci.",
+            default => "Terangkan dengan jelas dan terperinci. Sertakan contoh yang sesuai. Setiap slaid perlu 5-6 poin."
+        };
+
+        $userMessage = "Cipta {$numberOfSlides} slaid pembentangan pendidikan yang komprehensif tentang: {$topic}\n" .
+            "Tahap perincian: {$detailLevel}\n\n" .
+            "STRUKTUR YANG DIPERLUKAN:\n" .
+            "- Slaid 1: Pengenalan & Objektif pembelajaran\n" .
+            "- Slaid 2-" . ($numberOfSlides-1) . ": Isi kandungan utama (susun secara logik)\n" .
+            "- Slaid {$numberOfSlides}: Kesimpulan & Rumusan\n\n" .
+            "GARIS PANDUAN:\n" .
+            "{$detailInstructions}\n" .
+            "- Gunakan Bahasa Melayu formal tetapi mudah difahami\n" .
+            "- Susun poin dari umum ke khusus\n" .
+            "- Sertakan fakta, contoh, atau data jika relevan\n" .
+            "- Pastikan aliran logik antara slaid\n" .
+            "- Setiap poin mesti ayat lengkap yang bermakna\n" .
+            "- Ringkasan mesti merumuskan intipati slaid\n\n" .
+            "FORMAT OUTPUT KETAT:\n" .
+            "JSON array sahaja. Setiap objek slaid mesti ada:\n" .
+            "- title: string (tajuk slaid yang jelas)\n" .
+            "- content: array of strings (4-7 poin bullet yang lengkap)\n" .
+            "- summary: string (rumusan 1-2 ayat)\n\n" .
+            "PENTING:\n" .
+            "✓ Tepat {$numberOfSlides} slaid\n" .
+            "✓ Semua dalam Bahasa Melayu\n" .
+            "✓ Tiada emoji atau simbol aneh\n" .
+            "✓ Mulakan dengan '[' dan akhiri dengan ']'\n" .
+            "✓ Tiada teks atau penjelasan lain";
 
         $response = $this->callOpenAI($systemMessage, $userMessage, 3000);
         // Parse the response
@@ -2077,8 +2208,10 @@ class AIGeneratorController extends Controller
                               "Base the questions on the document content provided.";
 
                 $response = $this->callOpenAI($systemMessage, $userMessage, 4000);
+                Log::info('OpenAI API successfully generated quiz from document');
             } catch (\Exception $e) {
-                Log::warning('OpenAI API failed for document quiz, trying Gemini: ' . $e->getMessage());
+                $openaiError = $e->getMessage();
+                Log::warning('OpenAI API failed for document quiz, trying Gemini: ' . $openaiError);
             }
         }
 
@@ -2101,13 +2234,24 @@ class AIGeneratorController extends Controller
 
                 Log::info('Gemini API successfully generated quiz from document');
             } catch (\Exception $e) {
-                Log::error('Gemini API also failed for document quiz: ' . $e->getMessage());
+                $geminiError = $e->getMessage();
+                Log::error('Gemini API also failed for document quiz: ' . $geminiError);
             }
         }
 
         if (!$response) {
-            // No demo mode - throw exception if both APIs fail
-            throw new \Exception('Failed to generate quiz from document. Please check your API configuration or try again later.');
+            // Provide more helpful error message
+            $errorMsg = 'Failed to generate quiz from document. ';
+            if (isset($openaiError)) {
+                $errorMsg .= 'OpenAI: ' . $openaiError . '. ';
+            }
+            if (isset($geminiError)) {
+                $errorMsg .= 'Gemini: ' . $geminiError . '. ';
+            }
+            if (!isset($openaiError) && !isset($geminiError)) {
+                $errorMsg .= 'No AI API keys configured. Please check your .env file.';
+            }
+            throw new \Exception($errorMsg);
         }
 
         // Parse the response

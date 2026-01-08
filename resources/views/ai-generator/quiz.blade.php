@@ -258,7 +258,15 @@
                 questionDiv.innerHTML = `
                     <div class="flex items-start justify-between mb-3">
                         <h4 class="text-lg font-semibold text-gray-900">{{ __('Soalan') }} ${index + 1}</h4>
-                        <span class="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">#${index + 1}</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="askKetupatAboutQuestion(${index}, '${escapeHtml(question.question || '').replace(/'/g, "\\'")}', '${escapeHtml(question.explanation || '').replace(/'/g, "\\'")}', event)"
+                                    class="text-xs bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1.5 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105"
+                                    title="Tanya Ketupat untuk penjelasan lanjut">
+                                <i class="fas fa-robot text-sm"></i>
+                                <span>Tanya Ketupat</span>
+                            </button>
+                            <span class="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">#${index + 1}</span>
+                        </div>
                     </div>
                     <p class="text-gray-800 mb-4 font-medium">${escapeHtml(question.question || '{{ __('Tiada teks soalan') }}')}</p>
                     <div class="space-y-2 mb-4">
@@ -331,6 +339,47 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Ask Ketupat about a quiz question
+        function askKetupatAboutQuestion(questionIndex, questionText, explanation, event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Build a contextual message for Ketupat
+            let contextMessage = `Saya ada soalan tentang kuiz ini:\n\n`;
+            contextMessage += `Soalan ${questionIndex + 1}: ${questionText}\n\n`;
+
+            if (explanation) {
+                contextMessage += `Penjelasan yang diberikan: ${explanation}\n\n`;
+            }
+
+            contextMessage += `Boleh terangkan dengan lebih lanjut?`;
+
+            // Check if chatbot toggle function exists
+            if (typeof toggleChatbot === 'function') {
+                // Open the chatbot
+                const chatbotWindow = document.getElementById('chatbot-window');
+                if (chatbotWindow && chatbotWindow.classList.contains('hidden')) {
+                    toggleChatbot();
+                }
+
+                // Wait a bit for chatbot to open, then set the message
+                setTimeout(() => {
+                    const chatInput = document.getElementById('chatbot-input');
+
+                    if (chatInput) {
+                        chatInput.value = contextMessage;
+                        chatInput.focus();
+
+                        // Trigger input event to update any character counts
+                        chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }, 300);
+            } else {
+                // Fallback: Alert user to use the chatbot button
+                alert('Sila buka chatbot Ketupat (butang di sudut kanan bawah) untuk bertanya soalan tentang kuiz ini.\n\n' + contextMessage);
+            }
         }
     </script>
 </x-app-layout>

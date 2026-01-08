@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b4ffedd4d8a89e48565b4637eb88a9fa",
+    "content-hash": "19b6c5627aa1569d28b5ff8d6b96a573",
     "packages": [
         {
             "name": "brick/math",
@@ -3494,16 +3494,16 @@
         },
         {
             "name": "phpoffice/phppresentation",
-            "version": "1.0.0",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/PHPPresentation.git",
-                "reference": "732d029640b78b5010750949629f635ed984ee10"
+                "reference": "b9cdcd413e2d463ba3198f912f32716adc88f340"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/732d029640b78b5010750949629f635ed984ee10",
-                "reference": "732d029640b78b5010750949629f635ed984ee10",
+                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/b9cdcd413e2d463ba3198f912f32716adc88f340",
+                "reference": "b9cdcd413e2d463ba3198f912f32716adc88f340",
                 "shasum": ""
             },
             "require": {
@@ -3511,11 +3511,12 @@
                 "ext-zip": "*",
                 "php": "^7.1|^8.0",
                 "phpoffice/common": "^1",
-                "phpoffice/phpspreadsheet": "^1.9.0"
+                "phpoffice/phpspreadsheet": "^1.9 || ^2.0 || ^3.0 || ^4.0"
             },
             "require-dev": {
+                "dompdf/dompdf": "^3.1",
                 "phpmd/phpmd": "2.*",
-                "phpstan/phpstan": "^0.12.88",
+                "phpstan/phpstan": "^0.12.88 || ^1.0.0",
                 "phpunit/phpunit": ">=7.0"
             },
             "suggest": {
@@ -3557,9 +3558,9 @@
             ],
             "support": {
                 "issues": "https://github.com/PHPOffice/PHPPresentation/issues",
-                "source": "https://github.com/PHPOffice/PHPPresentation/tree/1.0.0"
+                "source": "https://github.com/PHPOffice/PHPPresentation/tree/1.2.0"
             },
-            "time": "2021-11-25T08:43:20+00:00"
+            "time": "2025-06-06T10:27:25+00:00"
         },
         {
             "name": "phpoffice/phpspreadsheet",
@@ -10170,7 +10171,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.1"
+        "php": "^8.2"
     },
     "platform-dev": {},
     "plugin-api-version": "2.6.0"

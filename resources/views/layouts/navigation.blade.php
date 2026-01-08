@@ -113,6 +113,7 @@
                         Forum
                     </a>
 
+                    @if($currentUser && $currentUser->role === 'teacher')
                     <div class="flex items-center">
                         <x-dropdown align="left" width="48">
                             <x-slot name="trigger">
@@ -146,6 +147,7 @@
                             </x-slot>
                         </x-dropdown>
                     </div>
+                    @endif
                 </div>
             </div>
 
@@ -332,6 +334,7 @@
                 {{ __('Forum') }}
             </a>
 
+            @if($currentUser && $currentUser->role === 'teacher')
             <div class="pt-2 pb-1 border-t border-gray-200">
                 <div class="px-4 text-xs text-gray-500 uppercase font-semibold">
                     {{ __('AI') }}
@@ -353,6 +356,7 @@
                     {{ __('Jana Kuiz') }}
                 </a>
             </div>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->
