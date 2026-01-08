@@ -138,8 +138,8 @@ Route::middleware('auth:web')->group(function () {
         Route::post('/chat', [ChatbotController::class, 'chat']);
     });
 
-    // AI Generator routes (Legacy)
-    Route::prefix('ai-generator')->group(function () {
+    // AI Generator routes (Legacy) - Teacher only
+    Route::prefix('ai-generator')->middleware('teacher')->group(function () {
         Route::post('/slides', [\App\Http\Controllers\AIGeneratorController::class, 'generateSlides']);
         Route::post('/quiz', [\App\Http\Controllers\AIGeneratorController::class, 'generateQuiz']);
             Route::post('/slides/export', [\App\Http\Controllers\AIGeneratorController::class, 'exportSlides']);

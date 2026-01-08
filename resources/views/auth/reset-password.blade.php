@@ -17,15 +17,15 @@
         <div class="auth-wrapper">
             <!-- Logo Section -->
             <div class="auth-logo">
-                <img src="{{ asset('assets/images/LogoCompuPlay.jpg') }}" alt="CompuPlay Logo" class="logo-img" onerror="this.onerror=null; this.src='{{ asset('assets/images/LogoCompuPlay.jpg') }}'">
+                <img src="{{ asset('assets/images/LogoCompuPlay.jpg') }}" alt="Logo CompuPlay" class="logo-img" onerror="this.onerror=null; this.src='{{ asset('assets/images/LogoCompuPlay.jpg') }}'">
             </div>
 
             <!-- Reset Password Form -->
             <div class="auth-form active">
                 <h2>Set Semula Kata Laluan</h2>
-                <p class="form-subtitle">Reset Password</p>
+
                 <p class="form-description">Masukkan kata laluan baharu anda</p>
-                <p class="form-description-english">Enter your new password</p>
+
 
                 <div class="error-message" id="resetPasswordError"></div>
                 <div class="success-message" id="resetPasswordSuccess"></div>
@@ -46,7 +46,7 @@
                             <i class="fas fa-lock"></i> Kata Laluan Baharu
                         </label>
                         <div class="password-container">
-                            <input type="password" id="newPassword" placeholder="Masukkan kata laluan baharu (min. 8 aksara)" autocomplete="new-password" required minlength="8">
+                            <input type="password" id="newPassword" placeholder="Masukkan kata laluan baharu (min. 8 aksara)" autocomplete="new-password" required minlength="8" oninvalid="this.setCustomValidity('Sila masukkan sekurang-kurangnya 8 aksara.')" oninput="this.setCustomValidity('')">
                             <button type="button" class="password-toggle" onclick="togglePassword('newPassword', 'newPasswordIcon')">
                                 <i class="fas fa-eye" id="newPasswordIcon"></i>
                             </button>
@@ -58,7 +58,7 @@
                             <i class="fas fa-lock"></i> Sahkan Kata Laluan Baharu
                         </label>
                         <div class="password-container">
-                            <input type="password" id="confirmNewPassword" placeholder="Masukkan semula kata laluan baharu" autocomplete="new-password" required minlength="8">
+                            <input type="password" id="confirmNewPassword" placeholder="Masukkan semula kata laluan baharu" autocomplete="new-password" required minlength="8" oninvalid="this.setCustomValidity('Sila masukkan sekurang-kurangnya 8 aksara.')" oninput="this.setCustomValidity('')">
                             <button type="button" class="password-toggle" onclick="togglePassword('confirmNewPassword', 'confirmNewPasswordIcon')">
                                 <i class="fas fa-eye" id="confirmNewPasswordIcon"></i>
                             </button>

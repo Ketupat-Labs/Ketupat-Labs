@@ -1,0 +1,14 @@
+Tables in database:
+cache
+cache_locks
+failed_jobs
+forum
+forum_post
+forum_tags
+job_batches
+jobs
+migrations
+post_attachment
+post_tags
+sessions
+user

@@ -1,14 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Profile') }}
+            {{ __('Profil') }}
         </h2>
     </x-slot>
 
-    <div class="py-8">
+    <div class="py-8 bg-gradient-to-b from-gray-50 to-white min-h-screen">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Profile Header -->
-            <div class="bg-white shadow rounded-lg mb-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
                 <div class="px-6 py-8">
                     <div class="flex items-start space-x-6">
                         <!-- Avatar -->
@@ -28,10 +28,32 @@
                         <div class="flex-1">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <h1 class="text-3xl font-bold text-gray-900">{{ $profileUser->full_name ?? $profileUser->username }}</h1>
+                                    <div class="flex items-center gap-3">
+                                        <h1 class="text-3xl font-bold text-gray-900">{{ $profileUser->full_name ?? $profileUser->username }}</h1>
+                                        
+                                        @if(($profileUser->share_badges_on_profile ?? true) && isset($badges))
+                                            <div class="flex items-center -space-x-2 overflow-hidden py-1">
+                                                @foreach($badges->where('is_visible', true)->take(3) as $badge)
+                                                    <div class="relative inline-block h-8 w-8 rounded-full ring-2 ring-white bg-white z-10" 
+                                                         title="{{ $badge->name }}">
+                                                        @if($badge->icon && str_starts_with($badge->icon, 'fa'))
+                                                            <div class="w-full h-full flex items-center justify-center rounded-full bg-{{ $badge->color ?? 'blue' }}-100 text-{{ $badge->color ?? 'blue' }}-600">
+                                                                <i class="{{ $badge->icon }} text-xs"></i>
+                                                            </div>
+                                                        @else
+                                                            <img class="h-full w-full rounded-full object-cover" 
+                                                                 src="{{ asset($badge->icon_url ?? 'assets/badges/default.png') }}" 
+                                                                 alt="{{ $badge->name }}">
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+
                                     @if($profileUser->role)
                                         <span class="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full {{ $profileUser->role === 'teacher' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
-                                            {{ $profileUser->role === 'teacher' ? 'Teacher' : 'Student' }}
+                                            {{ $profileUser->role === 'teacher' ? 'Guru' : 'Pelajar' }}
                                         </span>
                                     @endif
                                 </div>
@@ -40,12 +62,12 @@
                                 <div class="flex space-x-3">
                                     @if($isOwnProfile)
                                         <a href="{{ route('profile.edit') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                                            <i class="fas fa-edit mr-2"></i> Edit Profile
+                                            <i class="fas fa-edit mr-2"></i> Sunting Profil
                                         </a>
                                     @else
                                         <button id="followButton" onclick="toggleFollow({{ $profileUser->id }})" class="inline-flex items-center px-4 py-2 {{ $isFollowing ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700' }} text-white rounded-lg transition">
                                             <i class="fas {{ $isFollowing ? 'fa-user-check' : 'fa-user-plus' }} mr-2"></i> 
-                                            <span id="followButtonText">{{ $isFollowing ? 'Following' : 'Follow' }}</span>
+                                            <span id="followButtonText">{{ $isFollowing ? 'Mengikuti' : 'Ikut' }}</span>
                                         </button>
                                         <button onclick="startConversation({{ $profileUser->id }})" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                                             <i class="fas fa-envelope mr-2"></i> Mesej
@@ -58,11 +80,11 @@
                             <div class="mt-6 flex space-x-6">
                                 <button onclick="showFollowingModal({{ $profileUser->id }})" class="text-center hover:text-blue-600 transition cursor-pointer">
                                     <div class="text-2xl font-bold text-gray-900">{{ $followingCount }}</div>
-                                    <div class="text-sm text-gray-500">Following</div>
+                                    <div class="text-sm text-gray-500">Mengikuti</div>
                                 </button>
                                 <button onclick="showFollowersModal({{ $profileUser->id }})" class="text-center hover:text-blue-600 transition cursor-pointer">
                                     <div class="text-2xl font-bold text-gray-900">{{ $followersCount }}</div>
-                                    <div class="text-sm text-gray-500">Followed by</div>
+                                    <div class="text-sm text-gray-500">Pengikut</div>
                                 </button>
                             </div>
 
@@ -70,13 +92,13 @@
                             <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 @if($profileUser->school)
                                     <div>
-                                        <span class="text-sm font-medium text-gray-500">School</span>
+                                        <span class="text-sm font-medium text-gray-500">Sekolah</span>
                                         <p class="text-gray-900">{{ $profileUser->school }}</p>
                                     </div>
                                 @endif
                                 @if($profileUser->class)
                                     <div>
-                                        <span class="text-sm font-medium text-gray-500">Class</span>
+                                        <span class="text-sm font-medium text-gray-500">Kelas</span>
                                         <p class="text-gray-900">{{ $profileUser->class }}</p>
                                     </div>
                                 @endif
@@ -94,19 +116,19 @@
             </div>
 
             <!-- Section Tabs -->
-            <div class="bg-white shadow rounded-lg">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div class="border-b border-gray-200">
                     <nav class="flex -mb-px" aria-label="Tabs">
                         @if($isOwnProfile)
                             <button onclick="showSection('saved')" id="tab-saved" class="section-tab active py-4 px-6 text-sm font-medium border-b-2 border-blue-500 text-blue-600">
-                                <i class="fas fa-bookmark mr-2"></i>Saved Posts
+                                <i class="fas fa-bookmark mr-2"></i>Hantaran Disimpan
                             </button>
                         @endif
                         <button onclick="showSection('posts')" id="tab-posts" class="section-tab {{ $isOwnProfile ? '' : 'active' }} py-4 px-6 text-sm font-medium border-b-2 {{ $isOwnProfile ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' : 'border-blue-500 text-blue-600' }}">
-                            <i class="fas fa-comments mr-2"></i>Forum Posts
+                            <i class="fas fa-comments mr-2"></i>Hantaran Forum
                         </button>
                         <button onclick="showSection('badges')" id="tab-badges" class="section-tab py-4 px-6 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                            <i class="fas fa-trophy mr-2"></i>Badges
+                            <i class="fas fa-trophy mr-2"></i>Lencana
                         </button>
                     </nav>
                 </div>
@@ -117,7 +139,7 @@
                         <div id="savedPostsContent">
                             <div class="text-center py-8">
                                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                <p class="text-gray-500 mt-2">Loading saved posts...</p>
+                                <p class="text-gray-500 mt-2">Memuatkan hantaran disimpan...</p>
                             </div>
                         </div>
                     </div>
@@ -150,7 +172,7 @@
                             @endforeach
                         </div>
                     @else
-                        <p class="text-gray-500 text-center py-8">No posts yet</p>
+                        <p class="text-gray-500 text-center py-8">Tiada hantaran lagi</p>
                     @endif
                 </div>
 
@@ -378,8 +400,8 @@
                         container.innerHTML = `
                             <div class="text-center py-8">
                                 <i class="fas fa-bookmark text-gray-400 text-4xl mb-4"></i>
-                                <p class="text-gray-500 text-lg">No saved posts yet</p>
-                                <p class="text-gray-400 text-sm mt-2">Posts you save will appear here</p>
+                                <p class="text-gray-500 text-lg">Tiada hantaran disimpan lagi</p>
+                                <p class="text-gray-400 text-sm mt-2">Hantaran yang anda simpan akan muncul di sini</p>
                             </div>
                         `;
                     } else {
@@ -409,7 +431,7 @@
                 return `
                     <div class="text-center py-8">
                         <i class="fas fa-bookmark text-gray-400 text-4xl mb-4"></i>
-                        <p class="text-gray-500 text-lg">No saved posts yet</p>
+                        <p class="text-gray-500 text-lg">Tiada hantaran disimpan lagi</p>
                     </div>
                 `;
             }
@@ -677,13 +699,13 @@
                         button.classList.add('bg-blue-600', 'hover:bg-blue-700');
                         icon.classList.remove('fa-user-check');
                         icon.classList.add('fa-user-plus');
-                        buttonText.textContent = 'Follow';
+                        buttonText.textContent = 'Ikut';
                     } else {
                         button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                         button.classList.add('bg-gray-600', 'hover:bg-gray-700');
                         icon.classList.remove('fa-user-plus');
                         icon.classList.add('fa-user-check');
-                        buttonText.textContent = 'Following';
+                        buttonText.textContent = 'Mengikuti';
                     }
                     
                     // Update followers count
@@ -892,77 +914,98 @@
             }
         }
         
-        // Badge Modal Functions
+        // Badge Modal Function - Dynamic Content Loading
         function showBadgeModal(badgeId, badgeCode, badgeName, badgeDescription, badgeIcon, badgeColor, categoryName, categoryColor, xpReward, pointsRequired, progress, status) {
-            // Set modal content
+            // 1. Update Modal Content dynamically
             document.getElementById('badgeModalIcon').className = badgeIcon + ' text-6xl';
             document.getElementById('badgeModalIcon').style.color = badgeColor;
+            
             document.getElementById('badgeModalTitle').textContent = badgeName;
             document.getElementById('badgeModalDescription').textContent = badgeDescription || 'No description available.';
-            document.getElementById('badgeModalCategory').textContent = categoryName;
-            document.getElementById('badgeModalCategory').style.backgroundColor = categoryColor + '20';
-            document.getElementById('badgeModalCategory').style.color = categoryColor;
+            
+            // Category styling
+            const catBadge = document.getElementById('badgeModalCategory');
+            catBadge.textContent = categoryName;
+            catBadge.style.backgroundColor = categoryColor + '20'; // 20 hex = 12% opacity
+            catBadge.style.color = categoryColor;
+            
+            // Stats
             document.getElementById('badgeModalXP').textContent = xpReward + ' XP';
             document.getElementById('badgeModalRequired').textContent = pointsRequired + ' Mata';
             document.getElementById('badgeModalProgress').textContent = progress + ' / ' + pointsRequired;
             
-            // Update button based on status
+            // 2. Button Logic
             const modalButton = document.getElementById('badgeModalButton');
             if (status === 'locked' || status === 'progress') {
                 modalButton.textContent = 'Terkunci';
-                modalButton.className = 'px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold cursor-not-allowed';
+                modalButton.className = 'w-full px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold cursor-not-allowed';
                 modalButton.disabled = true;
             } else if (status === 'earned') {
                 modalButton.textContent = 'Tercapai';
-                modalButton.className = 'px-6 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition';
+                modalButton.className = 'w-full px-6 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition shadow-md';
                 modalButton.disabled = false;
             }
             
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('badgeDetailModal'));
+            // 3. Show Modal using Bootstrap 5 API
+            const modalEl = document.getElementById('badgeDetailModal');
+            const modal = new bootstrap.Modal(modalEl);
             modal.show();
         }
     </script>
     
-    <!-- Badge Detail Modal -->
-    <div class="modal fade" id="badgeDetailModal" tabindex="-1" aria-labelledby="badgeDetailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-2xl overflow-hidden">
-                <div class="modal-header border-0 pb-0">
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body px-6 pb-6 text-center">
-                    <!-- Badge Icon -->
-                    <div class="mb-4">
-                        <div class="w-24 h-24 mx-auto rounded-full flex items-center justify-center" style="background-color: rgba(59, 130, 246, 0.1);">
+    <!-- Dynamic Badge Detail Modal -->
+    <!-- Dynamic Badge Detail Modal -->
+    <!-- Added style z-index: 10000 to ensure it sits above any backdrop -->
+    <div class="modal fade" id="badgeDetailModal" tabindex="-1" aria-labelledby="badgeDetailModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+        <div class="modal-dialog modal-dialog-centered" style="z-index: 10001;">
+            <!-- Modal Content with Rounded Corners and Forced White Background -->
+            <div class="modal-content rounded-2xl border-0 shadow-2xl relative overflow-hidden bg-white">
+                
+                <!-- Close Button: Simple, Standard, High-Z-Index -->
+                <button type="button" 
+                        class="absolute top-4 right-4 z-[9999] p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                        style="width: 40px; height: 40px; pointer-events: auto;"
+                        data-bs-dismiss="modal"
+                        data-dismiss="modal"
+                        onclick="const m = bootstrap.Modal.getInstance(document.getElementById('badgeDetailModal')); if(m) m.hide();" 
+                        aria-label="Close">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+                
+                <div class="modal-body px-8 py-10 text-center bg-white">
+                    
+                    <!-- Icon Circle -->
+                    <div class="mb-6 flex justify-center">
+                        <div class="w-24 h-24 rounded-full flex items-center justify-center bg-opacity-10" style="background-color: rgba(59, 130, 246, 0.1);">
                             <i id="badgeModalIcon" class="fas fa-trophy text-6xl"></i>
                         </div>
                     </div>
                     
-                    <!-- Badge Title -->
-                    <h3 id="badgeModalTitle" class="text-2xl font-bold text-gray-900 mb-2"></h3>
-                    
-                    <!-- Category Badge -->
-                    <span id="badgeModalCategory" class="inline-block px-3 py-1 rounded-full text-sm font-medium mb-4"></span>
+                    <!-- Title & Category -->
+                    <h3 id="badgeModalTitle" class="text-2xl font-bold text-gray-900 mb-2">Badge Title</h3>
+                    <span id="badgeModalCategory" class="inline-block px-3 py-1 rounded-full text-sm font-medium mb-5">Category</span>
                     
                     <!-- Description -->
-                    <p id="badgeModalDescription" class="text-gray-600 mb-6"></p>
+                    <p id="badgeModalDescription" class="text-gray-600 mb-8 leading-relaxed">Description goes here...</p>
                     
-                    <!-- Reward and Requirements -->
-                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-sm font-semibold text-gray-500 uppercase mb-1">REWARD</p>
-                                <p id="badgeModalXP" class="text-lg font-bold text-gray-900">0 XP</p>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-gray-500 uppercase mb-1">REQUIRES</p>
-                                <p id="badgeModalRequired" class="text-lg font-bold text-gray-900">0 Mata</p>
-                            </div>
+                    <!-- Stats Grid - Clean White (No Border/Bg) -->
+                    <div class="grid grid-cols-2 gap-4 mb-6 p-4">
+                        <div class="text-center border-r border-gray-100">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">GANJARAN</p>
+                            <p id="badgeModalXP" class="text-lg font-bold text-gray-900">0 XP</p>
                         </div>
-                        <div class="mt-3 pt-3 border-t border-gray-200">
-                            <p class="text-xs text-gray-500 mb-1">Progress</p>
-                            <p id="badgeModalProgress" class="text-sm font-semibold text-gray-700">0 / 0</p>
+                        <div class="text-center">
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">KEPERLUAN</p>
+                            <p id="badgeModalRequired" class="text-lg font-bold text-gray-900">0 Mata</p>
+                        </div>
+                        <div class="col-span-2 border-t border-gray-100 pt-3 mt-1">
+                             <div class="flex justify-between items-center text-xs text-gray-500 mb-1">
+                                <span>Kemajuan</span>
+                                <span id="badgeModalProgress" class="font-bold text-gray-700">0 / 0</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
                         </div>
                     </div>
                     

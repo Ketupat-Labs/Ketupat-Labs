@@ -4,21 +4,22 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        Schema::create('activity_assignments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('activity_id')->constrained('activities')->onDelete('cascade');
-            $table->foreignId('classroom_id')->constrained('classes')->onDelete('cascade'); // classes table (renamed from classrooms in 12_10)
-            $table->timestamp('assigned_at')->useCurrent();
-            $table->string('status')->default('assigned');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('activity_assignment')) {
+            Schema::create('activity_assignment', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('activity_id')->constrained('activity')->onDelete('cascade');
+                $table->foreignId('classroom_id')->constrained('class')->onDelete('cascade');
+                $table->timestamp('assigned_at')->useCurrent();
+                $table->string('status')->default('assigned');
+                $table->timestamps();
+            });
+        }
     }
 
     /**
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('activity_assignments');
+        Schema::dropIfExists('activity_assignment');
     }
 };

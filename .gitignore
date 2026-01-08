@@ -1,13 +1,17 @@
-<<<<<<< HEAD
-﻿/vendor
+/vendor
 /node_modules
 /public/build
 /public/hot
 /public/storage
 /storage/*.key
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/bootstrap/cache/*
 .env
 .env.production
 .env.backup
+.env.local
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
@@ -19,43 +23,5 @@ yarn-error.log
 *.sqlite
 .DS_Store
 Thumbs.db
-=======
-﻿# Laravel
-/vendor
-/node_modules
-.env
-.env.production
-.env.local
-.env.example
-/public/hot
-/public/storage
-/storage/*.key
-/storage/framework/cache/*
-/storage/framework/sessions/*
-/storage/framework/views/*
-/bootstrap/cache/*
-
-# Composer
-composer.lock
-
-# NPM/Yarn
-package-lock.json
-yarn.lock
-npm-debug.log
-
-# IDE
-/.idea
-/.vscode
 *.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Development
-Homestead.json
-Homestead.yaml
-.env.backup
-.phpunit.result.cache
->>>>>>> 6d44d3eac56b827c0904d252e11f4532a06f0633

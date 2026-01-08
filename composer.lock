@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b4ffedd4d8a89e48565b4637eb88a9fa",
+    "content-hash": "19b6c5627aa1569d28b5ff8d6b96a573",
     "packages": [
         {
             "name": "brick/math",
@@ -2661,16 +2661,16 @@
         },
         {
             "name": "monolog/monolog",
-            "version": "3.9.0",
+            "version": "3.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
-                "reference": "10d85740180ecba7896c87e06a166e0c95a0e3b6"
+                "reference": "b321dd6749f0bf7189444158a3ce785cc16d69b0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/10d85740180ecba7896c87e06a166e0c95a0e3b6",
-                "reference": "10d85740180ecba7896c87e06a166e0c95a0e3b6",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/b321dd6749f0bf7189444158a3ce785cc16d69b0",
+                "reference": "b321dd6749f0bf7189444158a3ce785cc16d69b0",
                 "shasum": ""
             },
             "require": {
@@ -2688,7 +2688,7 @@
                 "graylog2/gelf-php": "^1.4.2 || ^2.0",
                 "guzzlehttp/guzzle": "^7.4.5",
                 "guzzlehttp/psr7": "^2.2",
-                "mongodb/mongodb": "^1.8",
+                "mongodb/mongodb": "^1.8 || ^2.0",
                 "php-amqplib/php-amqplib": "~2.4 || ^3",
                 "php-console/php-console": "^3.1.8",
                 "phpstan/phpstan": "^2",
@@ -2748,7 +2748,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Seldaek/monolog/issues",
-                "source": "https://github.com/Seldaek/monolog/tree/3.9.0"
+                "source": "https://github.com/Seldaek/monolog/tree/3.10.0"
             },
             "funding": [
                 {
@@ -2760,7 +2760,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-03-24T10:02:05+00:00"
+            "time": "2026-01-02T08:56:05+00:00"
         },
         {
             "name": "nesbot/carbon",
@@ -3442,16 +3442,16 @@
         },
         {
             "name": "phpoffice/math",
-            "version": "0.2.0",
+            "version": "0.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/Math.git",
-                "reference": "fc2eb6d1a61b058d5dac77197059db30ee3c8329"
+                "reference": "fc31c8f57a7a81f962cbf389fd89f4d9d06fc99a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/Math/zipball/fc2eb6d1a61b058d5dac77197059db30ee3c8329",
-                "reference": "fc2eb6d1a61b058d5dac77197059db30ee3c8329",
+                "url": "https://api.github.com/repos/PHPOffice/Math/zipball/fc31c8f57a7a81f962cbf389fd89f4d9d06fc99a",
+                "reference": "fc31c8f57a7a81f962cbf389fd89f4d9d06fc99a",
                 "shasum": ""
             },
             "require": {
@@ -3488,22 +3488,22 @@
             ],
             "support": {
                 "issues": "https://github.com/PHPOffice/Math/issues",
-                "source": "https://github.com/PHPOffice/Math/tree/0.2.0"
+                "source": "https://github.com/PHPOffice/Math/tree/0.3.0"
             },
-            "time": "2024-08-12T07:30:45+00:00"
+            "time": "2025-05-29T08:31:49+00:00"
         },
         {
             "name": "phpoffice/phppresentation",
-            "version": "1.0.0",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/PHPPresentation.git",
-                "reference": "732d029640b78b5010750949629f635ed984ee10"
+                "reference": "b9cdcd413e2d463ba3198f912f32716adc88f340"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/732d029640b78b5010750949629f635ed984ee10",
-                "reference": "732d029640b78b5010750949629f635ed984ee10",
+                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/b9cdcd413e2d463ba3198f912f32716adc88f340",
+                "reference": "b9cdcd413e2d463ba3198f912f32716adc88f340",
                 "shasum": ""
             },
             "require": {
@@ -3511,11 +3511,12 @@
                 "ext-zip": "*",
                 "php": "^7.1|^8.0",
                 "phpoffice/common": "^1",
-                "phpoffice/phpspreadsheet": "^1.9.0"
+                "phpoffice/phpspreadsheet": "^1.9 || ^2.0 || ^3.0 || ^4.0"
             },
             "require-dev": {
+                "dompdf/dompdf": "^3.1",
                 "phpmd/phpmd": "2.*",
-                "phpstan/phpstan": "^0.12.88",
+                "phpstan/phpstan": "^0.12.88 || ^1.0.0",
                 "phpunit/phpunit": ">=7.0"
             },
             "suggest": {
@@ -3557,9 +3558,9 @@
             ],
             "support": {
                 "issues": "https://github.com/PHPOffice/PHPPresentation/issues",
-                "source": "https://github.com/PHPOffice/PHPPresentation/tree/1.0.0"
+                "source": "https://github.com/PHPOffice/PHPPresentation/tree/1.2.0"
             },
-            "time": "2021-11-25T08:43:20+00:00"
+            "time": "2025-06-06T10:27:25+00:00"
         },
         {
             "name": "phpoffice/phpspreadsheet",
@@ -3669,44 +3670,43 @@
         },
         {
             "name": "phpoffice/phpword",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/PHPWord.git",
-                "reference": "8392134ce4b5dba65130ba956231a1602b848b7f"
+                "reference": "6d75328229bc93790b37e93741adf70646cea958"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/PHPWord/zipball/8392134ce4b5dba65130ba956231a1602b848b7f",
-                "reference": "8392134ce4b5dba65130ba956231a1602b848b7f",
+                "url": "https://api.github.com/repos/PHPOffice/PHPWord/zipball/6d75328229bc93790b37e93741adf70646cea958",
+                "reference": "6d75328229bc93790b37e93741adf70646cea958",
                 "shasum": ""
             },
             "require": {
                 "ext-dom": "*",
+                "ext-gd": "*",
                 "ext-json": "*",
                 "ext-xml": "*",
+                "ext-zip": "*",
                 "php": "^7.1|^8.0",
-                "phpoffice/math": "^0.2"
+                "phpoffice/math": "^0.3"
             },
             "require-dev": {
-                "dompdf/dompdf": "^2.0",
-                "ext-gd": "*",
+                "dompdf/dompdf": "^2.0 || ^3.0",
                 "ext-libxml": "*",
-                "ext-zip": "*",
                 "friendsofphp/php-cs-fixer": "^3.3",
-                "mpdf/mpdf": "^8.1",
+                "mpdf/mpdf": "^7.0 || ^8.0",
                 "phpmd/phpmd": "^2.13",
-                "phpstan/phpstan-phpunit": "@stable",
+                "phpstan/phpstan": "^0.12.88 || ^1.0.0",
+                "phpstan/phpstan-phpunit": "^1.0 || ^2.0",
                 "phpunit/phpunit": ">=7.0",
                 "symfony/process": "^4.4 || ^5.0",
                 "tecnickcom/tcpdf": "^6.5"
             },
             "suggest": {
                 "dompdf/dompdf": "Allows writing PDF",
-                "ext-gd2": "Allows adding images",
                 "ext-xmlwriter": "Allows writing OOXML and ODF",
-                "ext-xsl": "Allows applying XSL style sheet to headers, to main document part, and to footers of an OOXML template",
-                "ext-zip": "Allows writing OOXML and ODF"
+                "ext-xsl": "Allows applying XSL style sheet to headers, to main document part, and to footers of an OOXML template"
             },
             "type": "library",
             "autoload": {
@@ -3716,7 +3716,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "LGPL-3.0"
+                "LGPL-3.0-only"
             ],
             "authors": [
                 {
@@ -3772,9 +3772,9 @@
             ],
             "support": {
                 "issues": "https://github.com/PHPOffice/PHPWord/issues",
-                "source": "https://github.com/PHPOffice/PHPWord/tree/1.3.0"
+                "source": "https://github.com/PHPOffice/PHPWord/tree/1.4.0"
             },
-            "time": "2024-08-30T18:03:42+00:00"
+            "time": "2025-06-05T10:32:36+00:00"
         },
         {
             "name": "phpoption/phpoption",
@@ -10171,7 +10171,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.1"
+        "php": "^8.2"
     },
     "platform-dev": {},
     "plugin-api-version": "2.6.0"

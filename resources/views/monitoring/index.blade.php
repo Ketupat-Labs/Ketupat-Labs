@@ -20,15 +20,22 @@
                         <h3 class="text-lg font-bold text-gray-800">Lesson Engagement Dashboard</h3>
 
                         <!-- Filter (Placeholder) -->
-                        <div class="flex items-center">
-                            <label class="mr-2 text-sm text-gray-600">Filter by Class:</label>
-                            <select id="classFilter"
-                                class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm">
-                                <option value="">All Classes</option>
-                                @foreach($classrooms as $classroom)
-                                    <option value="{{ $classroom->name }}">{{ $classroom->name }}</option>
-                                @endforeach
-                            </select>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="inactiveFilter" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                <label for="inactiveFilter" class="ml-2 text-sm text-gray-600 font-medium">Show Inactive (>72h)</label>
+                            </div>
+
+                            <div class="flex items-center">
+                                <label class="mr-2 text-sm text-gray-600">Filter by Class:</label>
+                                <select id="classFilter"
+                                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm">
+                                    <option value="">All Classes</option>
+                                    @foreach($classrooms as $classroom)
+                                        <option value="{{ $classroom->name }}">{{ $classroom->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -61,7 +68,7 @@
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($studentProgress as $record)
-                                                            <tr>
+                                                            <tr data-inactive="{{ $record['is_inactive'] ? 'true' : 'false' }}">
                                                                 <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
                                                                     {{ $record['student_name'] }}</td>
                                                                 <td class="px-6 py-4 whitespace-nowrap text-gray-500">{{ $record['class'] }}</td>
@@ -85,12 +92,20 @@
                                                                     </span>
                                                                 </td>
                                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                                    {{ $record['last_accessed'] }}</td>
+                                                                    @if($record['is_inactive'])
+                                                                        <span class="text-red-600 font-bold flex items-center gap-1" title="Inactive for >72h">
+                                                                            ⚠️ {{ $record['last_accessed'] }}
+                                                                        </span>
+                                                                    @else
+                                                                        {{ $record['last_accessed'] }}
+                                                                    @endif
+                                                                </td>
                                                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                                    @if($record['progress'] < 20)
+                                                                    @if($record['progress'] < 20 || $record['is_inactive'])
                                                                         <button onclick="alert('Sending encouragement...')"
-                                                                            class="text-yellow-600 hover:text-yellow-900 bg-yellow-100 px-3 py-1 rounded-md">Provide
-                                                                            Guidance</button>
+                                                                            class="text-yellow-600 hover:text-yellow-900 bg-yellow-100 px-3 py-1 rounded-md">
+                                                                            {{ $record['is_inactive'] ? 'Nudge Student' : 'Provide Guidance' }}
+                                                                        </button>
                                                                     @endif
                                                                 </td>
                                                             </tr>
@@ -109,26 +124,38 @@
         </div>
     </div>
     <script>
-        document.getElementById('classFilter').addEventListener('change', function() {
-            const selectedClass = this.value.toLowerCase();
+        function filterRows() {
+            const selectedClass = document.getElementById('classFilter').value.toLowerCase();
+            const showInactiveOnly = document.getElementById('inactiveFilter').checked;
             const rows = document.querySelectorAll('tbody tr');
             
             rows.forEach(row => {
-                if (selectedClass === "") {
-                    row.style.display = "";
-                    return;
-                }
-                
-                const classCell = row.querySelector('td:nth-child(2)');
-                if (classCell) {
-                    const rowClass = classCell.textContent.trim().toLowerCase();
-                    if (rowClass === selectedClass) {
-                        row.style.display = "";
-                    } else {
-                        row.style.display = "none";
+                let show = true;
+
+                // 1. Check Class
+                if (selectedClass !== "") {
+                    const classCell = row.querySelector('td:nth-child(2)');
+                    if (classCell) {
+                        const rowClass = classCell.textContent.trim().toLowerCase();
+                        if (rowClass !== selectedClass) {
+                            show = false;
+                        }
                     }
                 }
+
+                // 2. Check Inactive Status (AND logic)
+                if (showInactiveOnly) {
+                    const isInactive = row.getAttribute('data-inactive') === 'true';
+                    if (!isInactive) {
+                        show = false;
+                    }
+                }
+
+                row.style.display = show ? "" : "none";
             });
-        });
+        }
+
+        document.getElementById('classFilter').addEventListener('change', filterRows);
+        document.getElementById('inactiveFilter').addEventListener('change', filterRows);
     </script>
 </x-app-layout>

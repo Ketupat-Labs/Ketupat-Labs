@@ -56,6 +56,18 @@ class EnrollmentController extends Controller
             'progress' => 0
         ]);
 
+        // Send Notification
+        $lesson = Lesson::find($request->lesson_id);
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'lesson_enrolled',
+            'title' => 'Pelajaran Didaftar',
+            'message' => 'Anda telah berjaya mendaftar untuk pelajaran "' . ($lesson->title ?? 'Unknown') . '"',
+            'related_type' => 'lesson',
+            'related_id' => $request->lesson_id,
+            'is_read' => false,
+        ]);
+
         return back()->with('success', 'Successfully enrolled in the lesson!');
     }
 
@@ -78,7 +90,11 @@ class EnrollmentController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $completedItems = $enrollment->completed_items ? json_decode($enrollment->completed_items, true) : [];
+        $completedItems = $enrollment->completed_items;
+        if (is_string($completedItems)) {
+            $completedItems = json_decode($completedItems, true);
+        }
+        $completedItems = is_array($completedItems) ? $completedItems : [];
         $itemId = $request->item_id;
 
         if ($request->status === 'completed') {

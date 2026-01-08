@@ -15,14 +15,6 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
 
-            {{-- PROGRESS TRACKING --}}
-            <div class="progress-bar-area bg-gray-200 h-6 rounded-full mb-6">
-                <div id="progress-fill" class="progress-fill h-full text-center text-white bg-[#5FAD56] rounded-full transition-all duration-300"
-                    style="width: 0%;">
-                    <span id="progress-text">0% Selesai</span>
-                </div>
-            </div>
-
             <div class="lesson-content-card space-y-6">
                 
                 <div>
@@ -85,27 +77,29 @@
                                             </div>
                                         </div>
                                     
-                                    @elseif($block['type'] === 'game')
+                                    @elseif($block['type'] === 'game' || $block['type'] === 'memory')
                                         <div class="game-container my-6">
                                             @php
-                                                $gameConfig = json_decode($block['content'], true) ?? ['theme' => 'animals', 'gridSize' => 4];
+                                                $gameConfig = (is_array($block['content'])) ? $block['content'] : (json_decode($block['content'], true) ?? ['theme' => 'animals', 'gridSize' => 4]);
                                             @endphp
                                             <div 
                                                 data-game-block 
                                                 data-game-type="memory"
-                                                data-game-config="{{ json_encode($gameConfig) }}">
+                                                data-id="{{ $block['id'] ?? $index }}"
+                                                data-game-config='@json($gameConfig)'>
                                             </div>
                                         </div>
                                     
                                     @elseif($block['type'] === 'quiz')
                                         <div class="quiz-container my-6">
                                             @php
-                                                $quizConfig = json_decode($block['content'], true) ?? ['questions' => []];
+                                                $quizConfig = (is_array($block['content'])) ? $block['content'] : (json_decode($block['content'], true) ?? ['questions' => []]);
                                             @endphp
                                             <div 
                                                 data-game-block 
                                                 data-game-type="quiz"
-                                                data-game-config="{{ json_encode($quizConfig) }}">
+                                                data-id="{{ $block['id'] ?? $index }}"
+                                                data-game-config='@json($quizConfig)'>
                                             </div>
                                         </div>
                                     @endif
@@ -137,59 +131,5 @@
         </div>
     </div>
 </div>
-
-{{-- Scroll Progress Tracking Script --}}
-<script>
-    (function() {
-        const lessonId = {{ $lesson->id }};
-        const storageKey = `lesson_${lessonId}_progress`;
-        const progressFill = document.getElementById('progress-fill');
-        const progressText = document.getElementById('progress-text');
-        
-        // Load saved progress
-        let maxProgress = parseInt(localStorage.getItem(storageKey) || '0');
-        
-        function updateProgress(percentage) {
-            // Only update if new percentage is higher
-            if (percentage > maxProgress) {
-                maxProgress = percentage;
-                localStorage.setItem(storageKey, maxProgress);
-            }
-            
-            // Update UI
-            progressFill.style.width = maxProgress + '%';
-            progressText.textContent = maxProgress + '% Selesai';
-        }
-        
-        // Initialize with saved progress
-        updateProgress(maxProgress);
-        
-        // Track scroll position
-        function handleScroll() {
-            const windowHeight = window.innerHeight;
-            const documentHeight = document.documentElement.scrollHeight;
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            
-            // Calculate scroll percentage
-            const scrollableHeight = documentHeight - windowHeight;
-            const scrollPercentage = scrollableHeight > 0 
-                ? Math.round((scrollTop / scrollableHeight) * 100)
-                : 100;
-            
-            updateProgress(scrollPercentage);
-        }
-        
-        // Throttle scroll events for performance
-        let scrollTimeout;
-        window.addEventListener('scroll', function() {
-            if (scrollTimeout) {
-                clearTimeout(scrollTimeout);
-            }
-            scrollTimeout = setTimeout(handleScroll, 100);
-        });
-        
-        // Initial check
-        handleScroll();
-    })();
-</script>
+</div>
 </x-app-layout>

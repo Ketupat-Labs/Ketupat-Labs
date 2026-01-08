@@ -43,12 +43,19 @@ export default function BlockEditor({ initialBlocks = [], onChange }) {
     };
 
     const addBlock = (type) => {
+        let content = '';
+        if (type === 'heading') content = '';
+        else if (type === 'youtube') content = '';
+        else if (type === 'image') content = '';
+        else if (type === 'memory') content = { title: '', gridSize: '4x4', theme: 'animals' };
+        else if (type === 'quiz') content = { title: '', questions: [] };
+
         const newBlock = {
             id: `block-${Date.now()}`,
             type,
-            content: type === 'heading' ? '' : type === 'youtube' ? '' : type === 'image' ? '' : '',
+            content,
         };
-        
+
         const newBlocks = [...blocks, newBlock];
         setBlocks(newBlocks);
         onChange(newBlocks);

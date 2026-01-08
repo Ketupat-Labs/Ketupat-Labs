@@ -5,6 +5,8 @@ const BLOCK_TYPES = [
     { type: 'heading', label: 'Heading', icon: '📌', description: 'Section heading' },
     { type: 'youtube', label: 'YouTube', icon: '🎥', description: 'Embed video' },
     { type: 'image', label: 'Image', icon: '🖼️', description: 'Upload or link image' },
+    { type: 'memory', label: 'Memory Game', icon: '🎮', description: 'Matching pairs game' },
+    { type: 'quiz', label: 'Quiz', icon: '❓', description: 'Multiple choice quiz' },
 ];
 
 export default function BlockSidebar({ onAddBlock }) {

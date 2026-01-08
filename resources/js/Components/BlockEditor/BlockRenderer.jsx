@@ -5,6 +5,8 @@ import TextBlock from './blocks/TextBlock';
 import HeadingBlock from './blocks/HeadingBlock';
 import YouTubeBlock from './blocks/YouTubeBlock';
 import ImageBlock from './blocks/ImageBlock';
+import MemoryGameBlock from './blocks/MemoryGameBlock';
+import QuizBlock from './blocks/QuizBlock';
 
 export default function BlockRenderer({ block, onUpdate, onDelete }) {
     const {
@@ -32,6 +34,10 @@ export default function BlockRenderer({ block, onUpdate, onDelete }) {
                 return <YouTubeBlock block={block} onUpdate={onUpdate} />;
             case 'image':
                 return <ImageBlock block={block} onUpdate={onUpdate} />;
+            case 'memory':
+                return <MemoryGameBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />;
+            case 'quiz':
+                return <QuizBlock block={block} onUpdate={onUpdate} onDelete={onDelete} />;
             default:
                 return <div className="text-red-500">Unknown block type: {block.type}</div>;
         }

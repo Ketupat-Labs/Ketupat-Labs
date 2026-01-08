@@ -16,13 +16,13 @@ class ProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         $userId = session('user_id');
-        
+
         return [
             'full_name' => ['required', 'string', 'max:255'],
             'school' => ['nullable', 'string', 'max:255'],
             'class' => ['nullable', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:1000'],
-            'avatar' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif', 'max:5120'], // Max 5MB
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif', 'max:25600'], // Max 25MB
             'remove_avatar' => ['nullable', 'boolean'],
             // Email is not included - it cannot be changed
         ];

@@ -131,7 +131,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 200) {
-                        showSuccess('Settings updated successfully');
+                        showSuccess(data.message);
                     } else {
                         showError(data.message || 'Failed to update settings');
                     }

@@ -1,0 +1,28 @@
+PHP Warning:  Module "openssl" is already loaded in Unknown on line 0
+
+Warning: Module "openssl" is already loaded in Unknown on line 0
+
+   INFO  Seeding database.  
+
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[HY000]: General error: 1364 Field 'category_slug' doesn't have a default value (Connection: mysql, SQL: insert into `badge` (`code`, `name`, `name_bm`, `description`, `icon`, `type`, `value`, `extra`, `requirement_type`, `points_required`, `xp_reward`) values (konsistensi, Konsistensi, Konsistensi, Memahami dan menerapkan konsistensi dalam antaramu..., fas fa-check, points, 50, 10, ?, 0, 0))
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:825
+    821Γûò                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822Γûò                 );
+    823Γûò             }
+    824Γûò 
+  Γ₧£ 825Γûò             throw new QueryException(
+    826Γûò                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827Γûò             );
+    828Γûò         }
+    829Γûò     }
+
+  1   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:53
+      PDOException::("SQLSTATE[HY000]: General error: 1364 Field 'category_slug' doesn't have a default value")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\MySqlConnection.php:53
+      PDOStatement::execute()
+

@@ -48,49 +48,85 @@
                     <!-- Slides Container -->
                     <div id="slides-container-wrapper" class="{{ (isset($status) && $status === 'generating') ? 'hidden' : '' }}">
                         @if(!empty($slides))
-                            <div id="slides-container" class="space-y-6">
+                            <div id="slides-container" class="space-y-8">
                                 @foreach($slides as $index => $slide)
-                                <div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-6 border-2 border-blue-200 shadow-md">
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div class="flex-1">
-                                            <h3 class="text-xl font-bold text-gray-900 mb-2">
-                                                Slaid {{ $index + 1 }}: {{ $slide['title'] ?? 'Tanpa Tajuk' }}
-                                            </h3>
-                                        </div>
-                                        <span class="text-xs text-gray-600 bg-white px-3 py-1 rounded-full border border-blue-300 font-semibold">
-                                            #{{ $index + 1 }}
-                                        </span>
-                                    </div>
-
-                                    @if(isset($slide['image_path']) && $slide['image_path'])
-                                        <div class="mb-4 p-3 bg-green-50 rounded-lg border border-green-300">
-                                            <div class="flex items-center">
-                                                <i class="fas fa-image text-green-600 mr-2"></i>
-                                                <span class="text-sm text-gray-700 font-medium">Imej akan dimasukkan dalam eksport PPTX</span>
+                                <div class="bg-white rounded-xl shadow-lg border-l-4 {{ $index === 0 ? 'border-green-500' : ($index === count($slides) - 1 ? 'border-red-500' : 'border-blue-500') }} overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                                    <!-- Slide Header -->
+                                    <div class="bg-gradient-to-r {{ $index === 0 ? 'from-green-500 to-green-600' : ($index === count($slides) - 1 ? 'from-red-500 to-red-600' : 'from-blue-500 to-purple-600') }} p-4">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-3 py-1">
+                                                    <span class="text-white font-bold text-sm">Slaid {{ $index + 1 }}</span>
+                                                </div>
+                                                @if($index === 0)
+                                                    <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">Pengenalan</span>
+                                                @elseif($index === count($slides) - 1)
+                                                    <span class="bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">Kesimpulan</span>
+                                                @else
+                                                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded">Isi Kandungan</span>
+                                                @endif
                                             </div>
+                                            <span class="text-white text-xs font-medium opacity-80">#{{ $index + 1 }}/{{ count($slides) }}</span>
                                         </div>
-                                    @endif
-
-                                    <div class="mb-4">
-                                        <h4 class="text-sm font-semibold text-gray-700 mb-2">Kandungan:</h4>
-                                        <ul class="list-disc list-inside space-y-2 text-gray-700 ml-4">
-                                            @if(is_array($slide['content'] ?? []))
-                                                @foreach($slide['content'] as $point)
-                                                    <li class="text-gray-800">{{ $point }}</li>
-                                                @endforeach
-                                            @else
-                                                <li class="text-gray-800">{{ $slide['content'] ?? 'Tiada kandungan' }}</li>
-                                            @endif
-                                        </ul>
                                     </div>
 
-                                    @if(!empty($slide['summary']))
-                                        <div class="mt-4 p-3 bg-white rounded-lg border border-blue-200">
-                                            <p class="text-sm text-gray-600 italic">
-                                                <strong>Ringkasan:</strong> {{ $slide['summary'] }}
-                                            </p>
+                                    <div class="p-6">
+                                        <!-- Slide Title -->
+                                        <h3 class="text-2xl font-bold text-gray-900 mb-4 pb-3 border-b-2 border-gray-200">
+                                            {{ $slide['title'] ?? 'Tanpa Tajuk' }}
+                                        </h3>
+
+                                        @if(isset($slide['image_path']) && $slide['image_path'])
+                                            <div class="mb-5 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-l-4 border-green-500 shadow-sm">
+                                                <div class="flex items-center">
+                                                    <div class="bg-green-500 rounded-full p-2 mr-3">
+                                                        <i class="fas fa-image text-white"></i>
+                                                    </div>
+                                                    <span class="text-sm text-gray-700 font-medium">✓ Imej visual akan disertakan dalam eksport PPTX</span>
+                                                </div>
+                                            </div>
+                                        @endif
+
+                                        <!-- Content Points -->
+                                        <div class="mb-5">
+                                            <h4 class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 flex items-center">
+                                                <i class="fas fa-list-ul mr-2 text-blue-500"></i>
+                                                Poin Utama
+                                            </h4>
+                                            <ul class="space-y-3">
+                                                @if(is_array($slide['content'] ?? []))
+                                                    @foreach($slide['content'] as $pointIndex => $point)
+                                                        <li class="flex items-start group">
+                                                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold mr-3 mt-0.5 flex-shrink-0 group-hover:bg-blue-600 transition-colors">
+                                                                {{ $pointIndex + 1 }}
+                                                            </span>
+                                                            <span class="text-gray-800 leading-relaxed flex-1">{{ $point }}</span>
+                                                        </li>
+                                                    @endforeach
+                                                @else
+                                                    <li class="flex items-start">
+                                                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-400 text-white text-xs font-bold mr-3 mt-0.5">•</span>
+                                                        <span class="text-gray-800">{{ $slide['content'] ?? 'Tiada kandungan' }}</span>
+                                                    </li>
+                                                @endif
+                                            </ul>
                                         </div>
-                                    @endif
+
+                                        <!-- Summary Box -->
+                                        @if(!empty($slide['summary']))
+                                            <div class="mt-5 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg border-l-4 border-amber-400 shadow-sm">
+                                                <div class="flex items-start">
+                                                    <div class="bg-amber-400 rounded-full p-2 mr-3 flex-shrink-0">
+                                                        <i class="fas fa-lightbulb text-white text-sm"></i>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <h5 class="text-xs font-bold text-amber-800 uppercase tracking-wide mb-1">Ringkasan</h5>
+                                                        <p class="text-sm text-gray-700 leading-relaxed">{{ $slide['summary'] }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                                 @endforeach
                             </div>
@@ -114,7 +150,7 @@
         @if(isset($status) && $status === 'generating' && $id === 'generating')
         let pollCount = 0;
         const maxPolls = 300; // 5 minutes max (poll every 2 seconds = 10 minutes total)
-        
+
         async function checkGenerationStatus() {
             try {
                 const response = await fetch('{{ route("ai-generator.check-status") }}', {
@@ -125,9 +161,9 @@
                     },
                     credentials: 'include'
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 'completed' && data.set_id) {
                     // Redirect to the completed slide set
                     window.location.href = '{{ route("ai-generator.slaid-dijana.view", ":id") }}'.replace(':id', data.set_id);
@@ -167,7 +203,7 @@
                 setTimeout(checkGenerationStatus, 5000); // Retry after 5 seconds on error
             }
         }
-        
+
         // Start polling when page loads
         setTimeout(checkGenerationStatus, 2000); // Start after 2 seconds
         @endif
@@ -190,7 +226,8 @@
                 });
 
                 if (!response.ok) {
-                    let msg = 'Gagal mengeksport slaid';
+                    // Try to parse JSON error
+                    let msg = '{{ __('Gagal mengeksport slaid') }}';
                     try {
                         const err = await response.json();
                         msg = err.message || msg;

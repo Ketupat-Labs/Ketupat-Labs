@@ -29,6 +29,32 @@ class AIGeneratorController extends Controller
     private ?array $geminiModelsCache = null;
 
     /**
+     * Save error state to both cache and session (for background processing)
+     */
+    private function saveErrorState($userId, $sessionKey, $errorMessage): void
+    {
+        if (!$userId || !$sessionKey) return;
+
+        // Save to cache (survives background processing)
+        Cache::put($sessionKey . '_status', 'error', 3600);
+        Cache::put($sessionKey . '_error', $errorMessage, 3600);
+
+        $cacheKey = 'user_' . $userId . '_slide_sets';
+        $slideSets = Cache::get($cacheKey, []);
+        $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
+        Cache::put($cacheKey, array_values($slideSets), 86400);
+
+        // Try to update session too (may not work in background)
+        try {
+            session([$sessionKey . '_status' => 'error', $sessionKey . '_error' => $errorMessage]);
+            session(['generated_slide_sets' => array_values($slideSets)]);
+            session()->save();
+        } catch (\Exception $e) {
+            // Session not available in background, ignore
+        }
+    }
+
+    /**
      * Ensure the slides array size is exactly the requested count.
      *
      * Policy: no demo/placeholder. If AI returns fewer slides, we retry once with a strict instruction.
@@ -101,16 +127,27 @@ class AIGeneratorController extends Controller
             return redirect()->route('login');
         }
 
-        // Get all generated slide sets from session
-        $slideSets = session('generated_slide_sets', []);
+        // Get all generated slide sets from BOTH session and cache
+        $slideSetsFromSession = session('generated_slide_sets', []);
+        $cacheKey = 'user_' . $userId . '_slide_sets';
+        $slideSetsFromCache = Cache::get($cacheKey, []);
+
+        // Merge cache and session (cache takes priority for background-generated slides)
+        $slideSets = !empty($slideSetsFromCache) ? $slideSetsFromCache : $slideSetsFromSession;
+
         if (!is_array($slideSets)) {
             $slideSets = [];
         }
-        
+
+        // Sync cache back to session for display
+        if (!empty($slideSetsFromCache) && empty($slideSetsFromSession)) {
+            session(['generated_slide_sets' => $slideSetsFromCache]);
+        }
+
         // Check if there's a currently generating set
         $sessionKey = 'slide_generation_' . $userId;
-        $status = session($sessionKey . '_status', 'none');
-        
+        $status = Cache::get($sessionKey . '_status', session($sessionKey . '_status', 'none'));
+
         // If generating, add to list temporarily
         if ($status === 'generating') {
             // Check if generating set already exists
@@ -121,9 +158,9 @@ class AIGeneratorController extends Controller
                     break;
                 }
             }
-            
+
             if (!$hasGenerating) {
-                $currentTopic = session('generated_slides_topic', 'Slaid Sedang Dijana...');
+                $currentTopic = Cache::get('slide_gen_' . $userId . '_topic', session('generated_slides_topic', 'Slaid Sedang Dijana...'));
                 $generatingSet = [
                     'id' => 'generating',
                     'topic' => $currentTopic,
@@ -153,67 +190,100 @@ class AIGeneratorController extends Controller
             return redirect()->route('login');
         }
 
-        $slideSets = session('generated_slide_sets', []);
-        $slideSet = collect($slideSets)->firstWhere('id', $id);
+        // Get slides from cache
+        $cacheKey = 'user_' . $userId . '_slide_sets';
+        $slideSets = Cache::get($cacheKey, []);
 
-        if (!$slideSet) {
-            return redirect()->route('ai-generator.slaid-dijana')
-                ->with('error', 'Slaid tidak ditemui.');
+        // Find the specific slide set
+        $slideSet = null;
+        foreach ($slideSets as $set) {
+            if (isset($set['id']) && $set['id'] === $id) {
+                $slideSet = $set;
+                break;
+            }
         }
 
-        $slides = $slideSet['slides'] ?? [];
-        $topic = $slideSet['topic'] ?? 'Generated Slides';
-        
-        // Check if this is the generating one
-        $sessionKey = 'slide_generation_' . $userId;
-        $status = ($id === 'generating') ? session($sessionKey . '_status', 'generating') : 'completed';
+        if (!$slideSet) {
+            return redirect()->route('ai-generator.slaid-dijana')->with('error', 'Slaid tidak dijumpai.');
+        }
 
-        return view('ai-generator.slaid-dijana-detail', compact('slides', 'topic', 'id', 'status', 'sessionKey'));
+        // Extract data for the view
+        return view('ai-generator.slaid-dijana-detail', [
+            'slideSet' => $slideSet,
+            'topic' => $slideSet['topic'] ?? 'Untitled',
+            'slides' => $slideSet['slides'] ?? [],
+            'status' => $slideSet['status'] ?? 'completed',
+            'slideSetId' => $id
+        ]);
     }
 
     /**
-     * Check generation status
+     * Delete a slide set
+     */
+    public function deleteSlideSet($id)
+    {
+        $userId = session('user_id');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        try {
+            // Get slides from cache
+            $cacheKey = 'user_' . $userId . '_slide_sets';
+            $slideSets = Cache::get($cacheKey, []);
+
+            // Filter out the slide set to delete
+            $filteredSets = array_filter($slideSets, function($set) use ($id) {
+                return !isset($set['id']) || $set['id'] !== $id;
+            });
+
+            // Re-index array
+            $filteredSets = array_values($filteredSets);
+
+            // Update cache
+            Cache::put($cacheKey, $filteredSets, 86400); // 24 hours
+
+            // Also update session
+            session(['generated_slide_sets' => $filteredSets]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Slaid berjaya dipadam',
+                'remaining' => count($filteredSets)
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error deleting slide set: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Ralat semasa memadam slaid'
+            ], 500);
+        }
+    }
+
+    /**
+     * Check generation status (for polling)
      */
     public function checkGenerationStatus(Request $request)
     {
         $userId = session('user_id');
         if (!$userId) {
-            return response()->json(['status' => 'error', 'message' => 'Not authenticated'], 401);
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
         $sessionKey = 'slide_generation_' . $userId;
-        $status = session($sessionKey . '_status', 'none');
-        
-        if ($status === 'completed') {
-            // Get the most recent slide set
-            $slideSets = session('generated_slide_sets', []);
-            $latestSet = !empty($slideSets) ? $slideSets[0] : null;
-            
-            if ($latestSet && ($latestSet['status'] ?? 'completed') === 'completed') {
-                return response()->json([
-                    'status' => 'completed',
-                    'slides' => $latestSet['slides'] ?? [],
-                    'topic' => $latestSet['topic'] ?? 'Generated Slides',
-                    'set_id' => $latestSet['id'] ?? null
-                ]);
-            }
-            
-            // Fallback to old session format
-            $slides = session('generated_slides', []);
-            $topic = session('generated_slides_topic', 'Generated Slides');
+        $status = Cache::get($sessionKey . '_status', 'none');
+
+        if ($status === 'error') {
+            $errorMessage = Cache::get($sessionKey . '_error', 'Unknown error');
             return response()->json([
-                'status' => 'completed',
-                'slides' => $slides,
-                'topic' => $topic
+                'status' => 'error',
+                'message' => $errorMessage
             ]);
-        } elseif ($status === 'generating') {
-            return response()->json(['status' => 'generating']);
-        } elseif ($status === 'error') {
-            $error = session($sessionKey . '_error', 'Unknown error');
-            return response()->json(['status' => 'error', 'message' => $error]);
         }
 
-        return response()->json(['status' => 'none']);
+        return response()->json([
+            'status' => $status
+        ]);
     }
 
     /**
@@ -221,9 +291,17 @@ class AIGeneratorController extends Controller
      */
     public function generateSlides(Request $request)
     {
+        // Double-check authorization (middleware should have already checked)
+        if (!auth()->check() || auth()->user()->role !== 'teacher') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Hanya cikgu dibenarkan menggunakan ciri ini. Pelajar tidak boleh menjana slaid.',
+            ], 403);
+        }
+
         // Increase execution time limit for slide generation (especially with images)
         set_time_limit(300); // 5 minutes should be enough for even 50 slides with images
-        
+
         // Mark generation as started IMMEDIATELY
         $userId = session('user_id');
         $sessionKey = null;
@@ -232,8 +310,19 @@ class AIGeneratorController extends Controller
             session([$sessionKey . '_status' => 'generating']);
             session()->save(); // Force save session immediately
         }
-        
+
         try {
+            // Validate that at least topic or document is provided
+            if (!$request->filled('topic') && !$request->hasFile('document')) {
+                if ($sessionKey) {
+                    session([$sessionKey . '_status' => 'error', $sessionKey . '_error' => 'Sila masukkan topik atau muat naik dokumen.']);
+                }
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Sila masukkan topik atau muat naik dokumen.',
+                ], 400);
+            }
+
             $request->validate([
                 'topic' => 'nullable|string|max:500',
                 'number_of_slides' => 'nullable|integer|min:1|max:50',
@@ -255,7 +344,7 @@ class AIGeneratorController extends Controller
                     'message' => 'End page must be greater than or equal to start page.',
                 ], 400);
             }
-            
+
             // Get parameters
             $topic = $request->input('topic');
             $numberOfSlides = $request->input('number_of_slides', 10);
@@ -267,7 +356,7 @@ class AIGeneratorController extends Controller
                 // Remove any existing "generating" entry
                 $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
                 $slideSets = array_values($slideSets);
-                
+
                 $placeholderTopic = $topic ?: 'Slaid Sedang Dijana...';
                 $placeholderSet = [
                     'id' => 'generating',
@@ -281,7 +370,7 @@ class AIGeneratorController extends Controller
                 session(['generated_slide_sets' => $slideSets]);
                 session()->save(); // Force save
             }
-            
+
             // Save file temporarily if uploaded (for background processing)
             // We need to preserve original filename and extension for proper extraction
             $tempDocumentPath = null;
@@ -292,59 +381,65 @@ class AIGeneratorController extends Controller
                 $originalFilename = $file->getClientOriginalName();
                 $originalExtension = $file->getClientOriginalExtension();
                 $tempDocumentPath = $file->store('temp_slide_generation', 'local');
-                // Store original filename in session for background processing
-                session([
-                    'temp_document_original_name_' . basename($tempDocumentPath) => $originalFilename,
-                    'temp_document_original_ext_' . basename($tempDocumentPath) => $originalExtension
-                ]);
-                session()->save();
+                // Store original filename in Cache for background processing (not session!)
+                Cache::put('temp_document_original_name_' . basename($tempDocumentPath), $originalFilename, 3600);
+                Cache::put('temp_document_original_ext_' . basename($tempDocumentPath), $originalExtension, 3600);
             }
-            
+
             // Return immediate response (202 Accepted) and continue processing in background
             // For XAMPP/development server, we need to ensure response is sent immediately
             ignore_user_abort(true);
             set_time_limit(300); // Allow long execution
-            
+
             // Disable output buffering if enabled
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
-            
+
             // Send response headers and content immediately
             header('Content-Type: application/json', true);
             header('HTTP/1.1 202 Accepted', true);
             http_response_code(202);
-            
+
             echo json_encode([
                 'status' => 202,
                 'message' => 'Generation started',
                 'redirect' => route('ai-generator.slaid-dijana'),
             ]);
-            
+
             // Force flush all output buffers
             if (ob_get_level() > 0) {
                 ob_end_flush();
             }
             flush();
-            
+
             // For FastCGI, finish the request
             if (function_exists('fastcgi_finish_request')) {
                 fastcgi_finish_request();
             }
-            
+
             // Continue processing in background after response is sent
+            // IMPORTANT: Use Cache instead of Session because session is not available after fastcgi_finish_request()
             try {
+                // Store temp data in cache for background access
+                $cacheKey = 'slide_gen_' . $userId;
+                Cache::put($cacheKey . '_topic', $topic, 3600);
+                Cache::put($cacheKey . '_slides_count', $numberOfSlides, 3600);
+                Cache::put($cacheKey . '_detail_level', $detailLevel, 3600);
+                Cache::put($cacheKey . '_page_from', $pageFrom, 3600);
+                Cache::put($cacheKey . '_page_to', $pageTo, 3600);
+
                 // Check if document is uploaded
                 if ($tempDocumentPath) {
                     try {
                         // Load file from temp storage
                         $fullPath = storage_path('app/' . $tempDocumentPath);
-                        
-                        // Get original filename and extension from session
+
+                        // Get original filename and extension from cache
                         $tempFileKey = basename($tempDocumentPath);
-                        $originalFilename = session('temp_document_original_name_' . $tempFileKey, $tempFileKey);
-                        $originalExtension = session('temp_document_original_ext_' . $tempFileKey, pathinfo($tempFileKey, PATHINFO_EXTENSION));
-                        
+                        $originalFilename = Cache::get('temp_document_original_name_' . $tempFileKey, $tempFileKey);
+                        $originalExtension = Cache::get('temp_document_original_ext_' . $tempFileKey, pathinfo($tempFileKey, PATHINFO_EXTENSION));
+
                         Log::info('Starting document extraction (background)', [
                             'temp_path' => $tempDocumentPath,
                             'original_filename' => $originalFilename,
@@ -353,11 +448,11 @@ class AIGeneratorController extends Controller
                             'page_from' => $pageFrom,
                             'page_to' => $pageTo
                         ]);
-                        
+
                         if (!file_exists($fullPath)) {
                             throw new \Exception('Temporary file not found. Please try uploading again.');
                         }
-                        
+
                         // Create a proper UploadedFile object with original filename
                         // We need to use test mode but provide the original filename
                         $uploadedFile = new \Illuminate\Http\UploadedFile(
@@ -367,7 +462,7 @@ class AIGeneratorController extends Controller
                             null,
                             true // test mode
                         );
-                        
+
                         $documentText = $this->extractTextFromDocument($uploadedFile, $pageFrom, $pageTo);
 
                     Log::info('Document extraction completed', [
@@ -378,7 +473,7 @@ class AIGeneratorController extends Controller
                     if (strlen($documentText) < 50) {
                         return response()->json([
                             'status' => 400,
-                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text' . 
+                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text' .
                                         ($pageFrom || $pageTo ? ' in the specified page range.' : '.'),
                         ], 400);
                     }
@@ -396,7 +491,7 @@ class AIGeneratorController extends Controller
 
                     // Generate slides from document using Gemini AI
                     $slides = $this->generateSlidesFromDocument($documentText, $numberOfSlides, $detailLevel, $topic);
-                    
+
                     Log::info('Slide generation completed', [
                         'slides_count' => count($slides)
                     ]);
@@ -405,23 +500,14 @@ class AIGeneratorController extends Controller
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString()
                         ]);
-                        
-                        // Mark as error in session instead of returning
-                        if ($userId && $sessionKey) {
-                            session([
-                                $sessionKey . '_status' => 'error',
-                                $sessionKey . '_error' => $e->getMessage()
-                            ]);
-                            $slideSets = session('generated_slide_sets', []);
-                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                            session(['generated_slide_sets' => array_values($slideSets)]);
-                            session()->save();
-                        }
-                        
-                        // Clean up temp file and session data
+
+                        // Mark as error in cache and session
+                        $this->saveErrorState($userId, $sessionKey, $e->getMessage());
+
+                        // Clean up temp file and cache data
                         if ($tempDocumentPath) {
                             $tempFileKey = basename($tempDocumentPath);
-                            session()->forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
+                            Cache::forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
                             $fullPath = storage_path('app/' . $tempDocumentPath);
                             if (file_exists($fullPath)) {
                                 @unlink($fullPath);
@@ -433,23 +519,14 @@ class AIGeneratorController extends Controller
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString()
                         ]);
-                        
-                        // Mark as error in session
-                        if ($userId && $sessionKey) {
-                            session([
-                                $sessionKey . '_status' => 'error',
-                                $sessionKey . '_error' => $e->getMessage()
-                            ]);
-                            $slideSets = session('generated_slide_sets', []);
-                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                            session(['generated_slide_sets' => array_values($slideSets)]);
-                            session()->save();
-                        }
-                        
-                        // Clean up temp file and session data
+
+                        // Mark as error
+                        $this->saveErrorState($userId, $sessionKey, $e->getMessage());
+
+                        // Clean up temp file
                         if ($tempDocumentPath) {
                             $tempFileKey = basename($tempDocumentPath);
-                            session()->forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
+                            Cache::forget(['temp_document_original_name_' . $tempFileKey, 'temp_document_original_ext_' . $tempFileKey]);
                             $fullPath = storage_path('app/' . $tempDocumentPath);
                             if (file_exists($fullPath)) {
                                 @unlink($fullPath);
@@ -460,17 +537,8 @@ class AIGeneratorController extends Controller
                 } else {
                     // Validate topic is required if no document
                     if (empty($topic)) {
-                        // Mark as error in session
-                        if ($userId && $sessionKey) {
-                            session([
-                                $sessionKey . '_status' => 'error',
-                                $sessionKey . '_error' => 'Either topic or document is required'
-                            ]);
-                            $slideSets = session('generated_slide_sets', []);
-                            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                            session(['generated_slide_sets' => array_values($slideSets)]);
-                            session()->save();
-                        }
+                        // Mark as error
+                        $this->saveErrorState($userId, $sessionKey, 'Either topic or document is required');
                         return; // Exit background processing
                     }
 
@@ -492,14 +560,15 @@ class AIGeneratorController extends Controller
                 if (!$sessionKey && $userId) {
                     $sessionKey = 'slide_generation_' . $userId;
                 }
-            
-            // Get existing slide sets
-            $slideSets = session('generated_slide_sets', []);
-            
+
+            // Get existing slide sets from cache (background-safe)
+            $cacheKey = 'user_' . $userId . '_slide_sets';
+            $slideSets = Cache::get($cacheKey, []);
+
             // Remove any "generating" entry
-            $slideSets = array_filter($slideSets, fn($set) => $set['id'] !== 'generating');
+            $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
             $slideSets = array_values($slideSets); // Re-index
-            
+
             // Create new slide set entry
             $newSet = [
                 'id' => uniqid('slideset_', true),
@@ -509,21 +578,31 @@ class AIGeneratorController extends Controller
                 'created_at' => now()->toDateTimeString(),
                 'slide_count' => count($slides)
             ];
-            
+
             // Add to beginning of array (newest first)
             array_unshift($slideSets, $newSet);
-            
-            // Keep only last 50 slide sets to prevent session bloat
+
+            // Keep only last 50 slide sets to prevent bloat
             $slideSets = array_slice($slideSets, 0, 50);
-            
-            session([
-                'generated_slide_sets' => $slideSets,
-                'generated_slides' => $slides, // Keep for backward compatibility
-                'generated_slides_topic' => $topic, // Keep for backward compatibility
-                $sessionKey . '_status' => 'completed'
-            ]);
-                session()->save(); // Force save session
-                
+
+            // Save to both cache (for background) and session (for immediate display)
+            Cache::put($cacheKey, $slideSets, 86400); // 24 hours
+            Cache::put($sessionKey . '_status', 'completed', 3600);
+
+            // Also update session if still available
+            try {
+                session([
+                    'generated_slide_sets' => $slideSets,
+                    'generated_slides' => $slides,
+                    'generated_slides_topic' => $topic,
+                    $sessionKey . '_status' => 'completed'
+                ]);
+                session()->save();
+            } catch (\Exception $e) {
+                // Session may not be available after fastcgi_finish_request, ignore
+                Log::info('Session not available in background, using cache only');
+            }
+
                 // Clean up temp file
                 if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
                     @unlink(storage_path('app/' . $tempDocumentPath));
@@ -535,19 +614,9 @@ class AIGeneratorController extends Controller
                     'trace' => $e->getTraceAsString()
                 ]);
 
-                // Mark generation as error in session
-                if (isset($userId) && $userId && isset($sessionKey) && $sessionKey) {
-                    session([
-                        $sessionKey . '_status' => 'error',
-                        $sessionKey . '_error' => $e->getMessage()
-                    ]);
-                    // Remove generating placeholder
-                    $slideSets = session('generated_slide_sets', []);
-                    $slideSets = array_filter($slideSets, fn($set) => ($set['id'] ?? '') !== 'generating');
-                    session(['generated_slide_sets' => array_values($slideSets)]);
-                    session()->save();
-                }
-                
+                // Mark generation as error
+                $this->saveErrorState($userId ?? null, $sessionKey ?? null, $e->getMessage());
+
                 // Clean up temp file on error
                 if ($tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
                     @unlink(storage_path('app/' . $tempDocumentPath));
@@ -560,7 +629,7 @@ class AIGeneratorController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Mark generation as error in session
+            // Mark generation as error
             if (isset($userId) && $userId && isset($sessionKey) && $sessionKey) {
                 session([
                     $sessionKey . '_status' => 'error',
@@ -568,7 +637,7 @@ class AIGeneratorController extends Controller
                 ]);
                 session()->save();
             }
-            
+
             // Clean up temp file
             if (isset($tempDocumentPath) && $tempDocumentPath && file_exists(storage_path('app/' . $tempDocumentPath))) {
                 @unlink(storage_path('app/' . $tempDocumentPath));
@@ -587,6 +656,14 @@ class AIGeneratorController extends Controller
      */
     public function generateQuiz(Request $request)
     {
+        // Double-check authorization (middleware should have already checked)
+        if (!auth()->check() || auth()->user()->role !== 'teacher') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Hanya cikgu dibenarkan menggunakan ciri ini. Pelajar tidak boleh menjana kuiz.',
+            ], 403);
+        }
+
         try {
             $request->validate([
                 'topic' => 'nullable|string|max:500',
@@ -606,11 +683,14 @@ class AIGeneratorController extends Controller
                 try {
                     $documentText = $this->extractTextFromDocument($request->file('document'));
 
+                    // Log the extracted text length for debugging
+                    Log::info('Document text extracted, length: ' . strlen($documentText));
+
                     // Validate that we got actual text content
                     if (strlen($documentText) < 50) {
                         return response()->json([
                             'status' => 400,
-                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text.',
+                            'message' => 'Document appears to be empty or too short. Please ensure your document contains readable text (not scanned images).',
                         ], 400);
                     }
 
@@ -619,10 +699,13 @@ class AIGeneratorController extends Controller
                         $topic = 'Document analysis';
                     }
 
-                    // Generate quiz from document using Gemini AI
+                    // Generate quiz from document using AI
                     $quiz = $this->generateQuizFromDocument($documentText, $numberOfQuestions, $difficulty, $questionType, $topic);
                 } catch (\Exception $e) {
-                    // Return error to user instead of falling back to demo mode
+                    // Log the full error for debugging
+                    Log::error('Quiz generation from document failed: ' . $e->getMessage());
+
+                    // Return user-friendly error message
                     return response()->json([
                         'status' => 400,
                         'message' => $e->getMessage(),
@@ -717,7 +800,7 @@ class AIGeneratorController extends Controller
     {
         $out = [];
         foreach ($quiz as $i => $q) {
-            $out[] = 'Question ' . ($i + 1) . ':';
+            $out[] = 'Soalan ' . ($i + 1) . ':';
             $out[] = (string)($q['question'] ?? '');
             $out[] = '';
 
@@ -730,12 +813,12 @@ class AIGeneratorController extends Controller
             $correct = (int)($q['correct_answer'] ?? -1);
             if ($correct >= 0 && $correct < count($options)) {
                 $out[] = '';
-                $out[] = 'Correct Answer: ' . chr(65 + $correct);
+                $out[] = 'Jawapan Betul: ' . chr(65 + $correct);
             }
 
             $explanation = trim((string)($q['explanation'] ?? ''));
             if ($explanation !== '') {
-                $out[] = 'Explanation: ' . $explanation;
+                $out[] = 'Penjelasan: ' . $explanation;
             }
 
             $out[] = str_repeat('-', 40);
@@ -774,7 +857,7 @@ class AIGeneratorController extends Controller
         $section = $phpWord->addSection();
 
         foreach ($quiz as $i => $q) {
-            $section->addText('Question ' . ($i + 1), ['bold' => true, 'size' => 16]);
+            $section->addText('Soalan ' . ($i + 1), ['bold' => true, 'size' => 16]);
             $section->addText((string)($q['question'] ?? ''), ['bold' => true]);
             $section->addTextBreak(1);
 
@@ -787,12 +870,12 @@ class AIGeneratorController extends Controller
             $correct = (int)($q['correct_answer'] ?? -1);
             if ($correct >= 0 && $correct < count($options)) {
                 $section->addTextBreak(1);
-                $section->addText('Correct Answer: ' . chr(65 + $correct), ['bold' => true]);
+                $section->addText('Jawapan Betul: ' . chr(65 + $correct), ['bold' => true]);
             }
 
             $explanation = trim((string)($q['explanation'] ?? ''));
             if ($explanation !== '') {
-                $section->addText('Explanation: ' . $explanation, ['italic' => true]);
+                $section->addText('Penjelasan: ' . $explanation, ['italic' => true]);
             }
 
             if ($i < count($quiz) - 1) {
@@ -841,11 +924,11 @@ class AIGeneratorController extends Controller
         $parts[] = '.answer{margin-top:10px;font-weight:700;}';
         $parts[] = '.explain{margin-top:6px;font-style:italic;color:#333;}';
         $parts[] = '</style></head><body>';
-        $parts[] = '<h1>Generated Quiz</h1>';
+        $parts[] = '<h1>Kuiz Dijana</h1>';
 
         foreach ($quiz as $i => $q) {
             $parts[] = '<div class="q">';
-            $parts[] = '<div class="question">' . $escape('Question ' . ($i + 1) . ': ') . $escape($q['question'] ?? '') . '</div>';
+            $parts[] = '<div class="question">' . $escape('Soalan ' . ($i + 1) . ': ') . $escape($q['question'] ?? '') . '</div>';
 
             $options = is_array($q['options'] ?? null) ? (array)$q['options'] : [];
             $parts[] = '<ol type="A">';
@@ -856,12 +939,12 @@ class AIGeneratorController extends Controller
 
             $correct = (int)($q['correct_answer'] ?? -1);
             if ($correct >= 0 && $correct < count($options)) {
-                $parts[] = '<div class="answer">' . $escape('Correct Answer: ' . chr(65 + $correct)) . '</div>';
+                $parts[] = '<div class="answer">' . $escape('Jawapan Betul: ' . chr(65 + $correct)) . '</div>';
             }
 
             $explanation = trim((string)($q['explanation'] ?? ''));
             if ($explanation !== '') {
-                $parts[] = '<div class="explain">' . $escape('Explanation: ' . $explanation) . '</div>';
+                $parts[] = '<div class="explain">' . $escape('Penjelasan: ' . $explanation) . '</div>';
             }
 
             $parts[] = '</div>';
@@ -1095,14 +1178,14 @@ class AIGeneratorController extends Controller
     {
         $out = [];
         foreach ($slides as $i => $slide) {
-            $out[] = 'Slide ' . ($i + 1) . ': ' . (string)($slide['title'] ?? '');
+            $out[] = 'Slaid ' . ($i + 1) . ': ' . (string)($slide['title'] ?? '');
             $contentLines = $this->normalizeSlideContent($slide['content'] ?? []);
             foreach ($contentLines as $line) {
                 $out[] = '- ' . $line;
             }
             $summary = trim((string)($slide['summary'] ?? ''));
             if ($summary !== '') {
-                $out[] = 'Summary: ' . $summary;
+                $out[] = 'Ringkasan: ' . $summary;
             }
             $out[] = ''; // blank line between slides
         }
@@ -1125,7 +1208,7 @@ class AIGeneratorController extends Controller
 
         foreach ($slides as $i => $slide) {
             $title = (string)($slide['title'] ?? '');
-            $section->addText('Slide ' . ($i + 1) . ': ' . $title, ['bold' => true, 'size' => 16]);
+            $section->addText('Slaid ' . ($i + 1) . ': ' . $title, ['bold' => true, 'size' => 16]);
 
             $contentLines = $this->normalizeSlideContent($slide['content'] ?? []);
             foreach ($contentLines as $line) {
@@ -1134,7 +1217,7 @@ class AIGeneratorController extends Controller
 
             $summary = trim((string)($slide['summary'] ?? ''));
             if ($summary !== '') {
-                $section->addText('Summary: ' . $summary, ['italic' => true, 'size' => 11]);
+                $section->addText('Ringkasan: ' . $summary, ['italic' => true, 'size' => 11]);
             }
 
             // page break between slides except the last
@@ -1187,7 +1270,7 @@ class AIGeneratorController extends Controller
         $parts[] = '</style></head><body>';
 
         foreach ($slides as $i => $slide) {
-            $title = $escape('Slide ' . ($i + 1) . ': ' . ($slide['title'] ?? ''));
+            $title = $escape('Slaid ' . ($i + 1) . ': ' . ($slide['title'] ?? ''));
             $parts[] = '<div class="slide">';
             $parts[] = '<h1>' . $title . '</h1>';
 
@@ -1200,7 +1283,7 @@ class AIGeneratorController extends Controller
 
             $summary = trim((string)($slide['summary'] ?? ''));
             if ($summary !== '') {
-                $parts[] = '<div class="summary">' . $escape('Summary: ' . $summary) . '</div>';
+                $parts[] = '<div class="summary">' . $escape('Ringkasan: ' . $summary) . '</div>';
             }
             $parts[] = '</div>';
         }
@@ -1273,22 +1356,45 @@ class AIGeneratorController extends Controller
 
     private function buildSlidesJsonPrompt(string $topic, int $numberOfSlides, string $detailLevel): string
     {
-        // Give the model an explicit contract + example shape.
-        // Keep it short to reduce risk of model adding extra prose.
-        $schemaExample = '[{"title":"Slide 1 title","content":["Point 1","Point 2"],"summary":"Short summary"}]';
+        // Enhanced schema with more structure
+        $schemaExample = '[{"title":"Pengenalan Topik","content":["Definisi dan konsep asas","Kepentingan dalam bidang","Sejarah atau latar belakang","Objektif pembelajaran"],"summary":"Ringkasan lengkap tentang asas topik"}]';
 
-        return "You are an educational content creator.\n" .
-            "Task: Create {$numberOfSlides} presentation slides about: {$topic}.\n" .
-            "Detail level: {$detailLevel}.\n\n" .
-            "OUTPUT FORMAT (STRICT):\n" .
-            "Return ONLY a valid JSON array (no markdown, no code fences, no extra text).\n" .
-            "Each array item must be an object with keys: title (string), content (array of strings), summary (string).\n" .
-            "Example: {$schemaExample}\n\n" .
-            "Rules:\n" .
-            "- content must contain 3-7 bullet points\n" .
-            "- keep language clear and educational\n" .
-        "- do not include citations or URLs unless necessary\n" .
-        "- IMPORTANT: output MUST include EXACTLY {$numberOfSlides} items in the JSON array";
+        // Map detail level to specific instructions
+        $detailInstructions = match($detailLevel) {
+            'basic' => "- Fokus kepada konsep asas dan mudah difahami\n- Gunakan ayat pendek dan jelas\n- Berikan contoh mudah yang relatable\n- 4-5 poin utama setiap slaid",
+            'intermediate' => "- Terangkan konsep dengan lebih terperinci\n- Sertakan contoh praktikal dan aplikasi\n- Hubungkan idea antara slaid\n- 5-6 poin setiap slaid dengan sub-poin jika perlu",
+            'advanced' => "- Analisis mendalam dengan teori dan kajian\n- Sertakan implikasi dan perspektif kritikal\n- Gunakan terminologi teknikal yang sesuai\n- 6-7 poin terperinci setiap slaid",
+            default => "- Terangkan dengan jelas dan terperinci\n- Sertakan contoh yang sesuai\n- 5-6 poin setiap slaid"
+        };
+
+        return "Anda adalah seorang pendidik profesional yang berpengalaman dalam mencipta kandungan pembelajaran berkualiti tinggi dalam Bahasa Melayu.\n\n" .
+            "TUGAS: Cipta {$numberOfSlides} slaid pembentangan pendidikan yang komprehensif tentang: {$topic}\n" .
+            "Tahap Perincian: {$detailLevel}\n\n" .
+            "STRUKTUR SLAID YANG DIPERLUKAN:\n" .
+            "Slaid 1: Pengenalan & Objektif\n" .
+            "Slaid 2-" . ($numberOfSlides-1) . ": Isi kandungan utama (logik dan berturutan)\n" .
+            "Slaid {$numberOfSlides}: Kesimpulan & Rumusan\n\n" .
+            "GARIS PANDUAN KANDUNGAN:\n" .
+            $detailInstructions . "\n" .
+            "- Setiap slaid mesti ada topik yang jelas dan spesifik\n" .
+            "- Gunakan bahasa formal tetapi mudah difahami\n" .
+            "- Susun poin dari umum ke khusus\n" .
+            "- Sertakan fakta, contoh, atau statistik jika relevan\n" .
+            "- Pastikan aliran logik antara slaid\n" .
+            "- Ringkasan mesti merumuskan intipati slaid\n\n" .
+            "FORMAT OUTPUT (WAJIB):\n" .
+            "Hanya kembalikan JSON array yang sah (TIADA markdown, TIADA code fence, TIADA teks tambahan).\n" .
+            "Setiap item array mestilah objek dengan kunci: title (string), content (array of strings), summary (string).\n" .
+            "Contoh format: {$schemaExample}\n\n" .
+            "PERATURAN KRITIKAL:\n" .
+            "✓ Semua kandungan dan tajuk MESTI dalam Bahasa Melayu\n" .
+            "✓ Array content mesti mengandungi 4-7 poin bullet\n" .
+            "✓ Bahasa yang jelas, formal, dan mendidik\n" .
+            "✓ Elakkan penyalinan langsung - gunakan ayat sendiri\n" .
+            "✓ PENTING: Output MESTI mengandungi TEPAT {$numberOfSlides} item dalam array JSON\n" .
+            "✓ Jangan sertakan emoji, simbol aneh, atau format khas\n" .
+            "✓ Pastikan setiap poin adalah ayat lengkap yang bermakna\n\n" .
+            "Mulakan output dengan '[' dan akhiri dengan ']'. Tidak ada teks lain.";
     }
 
     /**
@@ -1368,17 +1474,43 @@ class AIGeneratorController extends Controller
      */
     private function generateSlidesWithOpenAI(string $topic, int $numberOfSlides, string $detailLevel): array
     {
-        $systemMessage = "You are an educational content creator. " .
-            "Return ONLY valid JSON (no markdown, no code fences, no extra text).";
+        $systemMessage = "Anda adalah seorang pendidik profesional yang berpengalaman dalam mencipta kandungan pembelajaran berkualiti tinggi dalam Bahasa Melayu. " .
+            "Anda mahir dalam menyusun maklumat secara logik, menggunakan bahasa yang jelas, dan mencipta kandungan yang menarik untuk pelajar. " .
+            "Kembalikan HANYA JSON yang sah (tiada markdown, tiada code fence, tiada teks tambahan).";
 
-        $userMessage = "Create {$numberOfSlides} educational slides about: {$topic}.\n" .
-            "Detail level: {$detailLevel}.\n\n" .
-            "Strict output format: a JSON array of slide objects.\n" .
-            "Each slide object keys:\n" .
-            "- title: string\n" .
-            "- content: array of strings (3-7 bullet points)\n" .
-            "- summary: string\n\n" .
-            "Start your response with '[' and end with ']'.";
+        // Map detail level to specific instructions
+        $detailInstructions = match($detailLevel) {
+            'basic' => "Fokus kepada konsep asas yang mudah difahami. Gunakan ayat pendek dan jelas. Berikan contoh mudah yang relatable. Setiap slaid perlu 4-5 poin utama.",
+            'intermediate' => "Terangkan konsep dengan lebih terperinci. Sertakan contoh praktikal dan aplikasi. Hubungkan idea antara slaid. Setiap slaid perlu 5-6 poin dengan sub-poin jika perlu.",
+            'advanced' => "Analisis mendalam dengan teori dan kajian. Sertakan implikasi dan perspektif kritikal. Gunakan terminologi teknikal yang sesuai. Setiap slaid perlu 6-7 poin terperinci.",
+            default => "Terangkan dengan jelas dan terperinci. Sertakan contoh yang sesuai. Setiap slaid perlu 5-6 poin."
+        };
+
+        $userMessage = "Cipta {$numberOfSlides} slaid pembentangan pendidikan yang komprehensif tentang: {$topic}\n" .
+            "Tahap perincian: {$detailLevel}\n\n" .
+            "STRUKTUR YANG DIPERLUKAN:\n" .
+            "- Slaid 1: Pengenalan & Objektif pembelajaran\n" .
+            "- Slaid 2-" . ($numberOfSlides-1) . ": Isi kandungan utama (susun secara logik)\n" .
+            "- Slaid {$numberOfSlides}: Kesimpulan & Rumusan\n\n" .
+            "GARIS PANDUAN:\n" .
+            "{$detailInstructions}\n" .
+            "- Gunakan Bahasa Melayu formal tetapi mudah difahami\n" .
+            "- Susun poin dari umum ke khusus\n" .
+            "- Sertakan fakta, contoh, atau data jika relevan\n" .
+            "- Pastikan aliran logik antara slaid\n" .
+            "- Setiap poin mesti ayat lengkap yang bermakna\n" .
+            "- Ringkasan mesti merumuskan intipati slaid\n\n" .
+            "FORMAT OUTPUT KETAT:\n" .
+            "JSON array sahaja. Setiap objek slaid mesti ada:\n" .
+            "- title: string (tajuk slaid yang jelas)\n" .
+            "- content: array of strings (4-7 poin bullet yang lengkap)\n" .
+            "- summary: string (rumusan 1-2 ayat)\n\n" .
+            "PENTING:\n" .
+            "✓ Tepat {$numberOfSlides} slaid\n" .
+            "✓ Semua dalam Bahasa Melayu\n" .
+            "✓ Tiada emoji atau simbol aneh\n" .
+            "✓ Mulakan dengan '[' dan akhiri dengan ']'\n" .
+            "✓ Tiada teks atau penjelasan lain";
 
         $response = $this->callOpenAI($systemMessage, $userMessage, 3000);
         // Parse the response
@@ -1452,11 +1584,11 @@ class AIGeneratorController extends Controller
                 ? "All questions should be true/false with 2 options: 'True' and 'False'."
                 : "Mix of multiple choice and true/false questions.");
 
-        $prompt = "You are an educational quiz creator. Create {$numberOfQuestions} quiz questions about: {$topic}\n\n" .
+        $prompt = "You are an educational quiz creator proficient in Malay. Create {$numberOfQuestions} quiz questions in Malay language about: {$topic}\n\n" .
                  "Difficulty: {$difficulty}\n" .
                  "Question type: {$typeInstruction}\n\n" .
                  "Return ONLY a valid JSON array with no markdown formatting or code blocks. " .
-                 "Each question must be an object with:\n" .
+                 "Each question must be an object with (content in Malay):\n" .
                  "- 'question': string (the question text)\n" .
                  "- 'options': array of strings (answer options)\n" .
                  "- 'correct_answer': number (0-based index of correct option)\n" .
@@ -1484,7 +1616,7 @@ class AIGeneratorController extends Controller
      */
     private function generateQuizWithOpenAI(string $topic, int $numberOfQuestions, string $difficulty, string $questionType): array
     {
-        $systemMessage = "You are an educational quiz creator. Generate quiz questions in JSON format. " .
+        $systemMessage = "You are an educational quiz creator proficient in Malay. Generate quiz questions in Malay language in JSON format. " .
                         "Each question should have: question text, options (array of 4 options), correct_answer (index 0-3), and explanation. " .
                         "Return ONLY valid JSON array with no markdown formatting or code blocks.";
 
@@ -1492,10 +1624,10 @@ class AIGeneratorController extends Controller
             ? "All questions should be multiple choice with 4 options each."
             : ($questionType === 'true_false'
                 ? "All questions should be true/false with 2 options: 'True' and 'False'."
-                : "Mix of multiple choice and true/false questions.");        $userMessage = "Create {$numberOfQuestions} quiz questions about: {$topic}. " .
+                : "Mix of multiple choice and true/false questions.");        $userMessage = "Create {$numberOfQuestions} quiz questions in Malay language about: {$topic}. " .
                       "Difficulty: {$difficulty}. " .
                       "Question type: {$typeInstruction} " .
-                      "Format: JSON array where each question is an object with 'question', 'options' (array), 'correct_answer' (0-based index), and 'explanation' fields.";
+                      "Format: JSON array where each question is an object with 'question', 'options' (array), 'correct_answer' (0-based index), and 'explanation' fields (all text in Malay).";
 
         $response = $this->callOpenAI($systemMessage, $userMessage, 3000);
 
@@ -1560,6 +1692,8 @@ class AIGeneratorController extends Controller
             ],
             CURLOPT_TIMEOUT => 60,
             CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => false, // Disable SSL verification for development
+            CURLOPT_SSL_VERIFYHOST => false, // Disable host verification for development
         ]);
 
         $response = curl_exec($ch);
@@ -1568,19 +1702,34 @@ class AIGeneratorController extends Controller
         curl_close($ch);
 
         if ($curlError) {
-            throw new \Exception('Connection error: ' . $curlError);
+            Log::error('OpenAI cURL error: ' . $curlError);
+            throw new \Exception('Connection error: ' . $curlError . '. Please check your internet connection and firewall settings.');
         }
 
         if ($httpCode !== 200) {
             $errorData = json_decode($response, true);
             $errorMessage = $errorData['error']['message'] ?? 'Unknown error';
 
+            Log::error('OpenAI API error', [
+                'http_code' => $httpCode,
+                'response' => $response,
+                'error_message' => $errorMessage
+            ]);
+
             // Provide helpful error messages
-            if (strpos($errorMessage, 'Incorrect API key') !== false) {
-                throw new \Exception('Invalid OpenAI API key. Please update your OPENAI_API_KEY in the .env file with a valid key from https://platform.openai.com/account/api-keys');
+            if (strpos($errorMessage, 'Incorrect API key') !== false || $httpCode === 401) {
+                throw new \Exception('Invalid OpenAI API key (401). Please update your OPENAI_API_KEY in the .env file with a valid key from https://platform.openai.com/account/api-keys');
             }
 
-            throw new \Exception('API error: ' . $errorMessage);
+            if ($httpCode === 429) {
+                throw new \Exception('Rate limit exceeded (429). Please wait a moment and try again.');
+            }
+
+            if (strpos($errorMessage, 'model') !== false && strpos($errorMessage, 'does not exist') !== false) {
+                throw new \Exception('The model "' . env('OPENAI_MODEL', 'gpt-3.5-turbo') . '" is not available. Please update OPENAI_MODEL in .env to a valid model like "gpt-4o-mini" or "gpt-3.5-turbo".');
+            }
+
+            throw new \Exception('API error (HTTP ' . $httpCode . '): ' . $errorMessage);
         }
 
         $data = json_decode($response, true);
@@ -1688,7 +1837,7 @@ class AIGeneratorController extends Controller
             'pdftotext.exe', // Try PATH
             'pdftotext', // Try PATH (without .exe)
         ];
-        
+
         foreach ($possiblePaths as $path) {
             // If it's a full path, check if file exists
             if (strpos($path, '\\') !== false || strpos($path, '/') !== false) {
@@ -1704,7 +1853,7 @@ class AIGeneratorController extends Controller
                 }
             }
         }
-        
+
         return null;
     }
 
@@ -1718,20 +1867,20 @@ class AIGeneratorController extends Controller
             // If page range is specified, try pdftotext binary first (only reliable way to extract specific pages)
             if (($pageFrom !== null || $pageTo !== null) && function_exists('shell_exec')) {
                 $pdftotextPath = $this->getPdftotextPath();
-                
+
                 if ($pdftotextPath) {
                     $start = ($pageFrom !== null) ? $pageFrom : 1;
                     $end = ($pageTo !== null) ? $pageTo : 10000; // Large number for "to end"
-                    
+
                     $command = escapeshellarg($pdftotextPath) . " -f {$start} -l {$end} " . escapeshellarg($filePath) . " - 2>&1";
                     Log::info('Attempting pdftotext extraction', [
                         'command' => $command,
                         'page_from' => $start,
                         'page_to' => $end,
                     ]);
-                    
+
                     $output = @shell_exec($command);
-                    
+
                     if ($output && trim($output) && strpos($output, 'command not found') === false && strpos($output, 'not recognized') === false) {
                         // Check if there are actual errors in the output
                         if (strpos($output, 'Error') === false && strpos($output, 'error') === false) {
@@ -1744,7 +1893,7 @@ class AIGeneratorController extends Controller
                             }
                         }
                     }
-                    
+
                     Log::warning("pdftotext command executed but output was invalid", [
                         'output_length' => strlen($output ?? ''),
                         'output_preview' => substr($output ?? '', 0, 200),
@@ -1752,10 +1901,10 @@ class AIGeneratorController extends Controller
                 } else {
                     Log::warning("pdftotext binary not found in common locations or PATH");
                 }
-                
+
                 // If pdftotext failed but page range was specified, warn user
                 Log::warning("Page range extraction via pdftotext failed or pdftotext not available. Extracting all text instead.");
-                
+
                 // For very large PDFs, warn that extraction might be slow or fail
                 $fileSize = filesize($filePath);
                 if ($fileSize > 10 * 1024 * 1024) { // > 10MB
@@ -1775,15 +1924,15 @@ class AIGeneratorController extends Controller
                         Log::warning("PDF text extraction exceeded 500KB, truncating to prevent memory issues.");
                         $text = mb_substr($text, 0, 500000, 'UTF-8');
                     }
-                    
+
                     Log::info('PDF text extraction completed', ['text_length' => strlen($text)]);
-                    
+
                     if ($pageFrom !== null || $pageTo !== null) {
                         Log::info("Extracted all PDF text. Page range filtering requires pdftotext binary to be installed.");
                     }
                     return $text;
                 }
-                
+
                 Log::warning('PDF text extraction returned empty or too short text');
             } catch (\Throwable $e) {
                 Log::error('PDF parser failed: ' . $e->getMessage(), [
@@ -1791,7 +1940,7 @@ class AIGeneratorController extends Controller
                     'file_path' => $filePath,
                     'file_size' => file_exists($filePath) ? filesize($filePath) : 'unknown'
                 ]);
-                
+
                 throw new \Exception('Failed to extract text from PDF. The PDF may be too large or corrupted: ' . $e->getMessage());
             }
 
@@ -1811,7 +1960,7 @@ class AIGeneratorController extends Controller
     private function extractTextFromTxt(string $filePath, ?int $pageFrom = null, ?int $pageTo = null): string
     {
         $content = file_get_contents($filePath);
-        
+
         if ($pageFrom === null && $pageTo === null) {
             return $content;
         }
@@ -1873,7 +2022,7 @@ class AIGeneratorController extends Controller
         }
 
         $result = trim(implode("\n", array_filter($parts)));
-        
+
         if (strlen($result) < 20) {
             throw new \Exception('Could not extract text from DOC/DOCX. Please ensure the document is not password-protected or try saving as TXT.');
         }
@@ -1990,7 +2139,7 @@ class AIGeneratorController extends Controller
                          "Make the content educational, clear, and well-structured based on the document.";
 
                 $response = $this->callGemini($prompt, 4000);
-                
+
                 // Check if we got the right number of slides, retry once if not
                 $tempSlides = json_decode($response, true);
                 if (is_array($tempSlides) && count($this->normalizeSlides($tempSlides)) < $numberOfSlides) {
@@ -2059,8 +2208,10 @@ class AIGeneratorController extends Controller
                               "Base the questions on the document content provided.";
 
                 $response = $this->callOpenAI($systemMessage, $userMessage, 4000);
+                Log::info('OpenAI API successfully generated quiz from document');
             } catch (\Exception $e) {
-                Log::warning('OpenAI API failed for document quiz, trying Gemini: ' . $e->getMessage());
+                $openaiError = $e->getMessage();
+                Log::warning('OpenAI API failed for document quiz, trying Gemini: ' . $openaiError);
             }
         }
 
@@ -2083,13 +2234,24 @@ class AIGeneratorController extends Controller
 
                 Log::info('Gemini API successfully generated quiz from document');
             } catch (\Exception $e) {
-                Log::error('Gemini API also failed for document quiz: ' . $e->getMessage());
+                $geminiError = $e->getMessage();
+                Log::error('Gemini API also failed for document quiz: ' . $geminiError);
             }
         }
 
         if (!$response) {
-            // No demo mode - throw exception if both APIs fail
-            throw new \Exception('Failed to generate quiz from document. Please check your API configuration or try again later.');
+            // Provide more helpful error message
+            $errorMsg = 'Failed to generate quiz from document. ';
+            if (isset($openaiError)) {
+                $errorMsg .= 'OpenAI: ' . $openaiError . '. ';
+            }
+            if (isset($geminiError)) {
+                $errorMsg .= 'Gemini: ' . $geminiError . '. ';
+            }
+            if (!isset($openaiError) && !isset($geminiError)) {
+                $errorMsg .= 'No AI API keys configured. Please check your .env file.';
+            }
+            throw new \Exception($errorMsg);
         }
 
         // Parse the response
@@ -2368,7 +2530,7 @@ class AIGeneratorController extends Controller
     private function generateImagesForSlides(array $slides, string $topic): array
     {
         $apiKey = env('OPENAI_API_KEY');
-        
+
         if (!$apiKey || strlen($apiKey) < 20) {
             Log::info('OpenAI API key not configured, skipping image generation');
             return $slides;
@@ -2394,20 +2556,20 @@ class AIGeneratorController extends Controller
             try {
                 // Check if flowchart should be used
                 $useFlowchart = $this->shouldUseFlowchart($slide);
-                
+
                 // Generate image description from slide content
                 $imagePrompt = $this->createImagePromptFromSlide($slide, $topic);
-                
+
                 Log::info('Generated image prompt for slide', [
                     'slide_index' => $index,
                     'slide_title' => $slide['title'] ?? 'N/A',
                     'image_type' => $useFlowchart ? 'flowchart' : 'illustration',
                     'prompt_preview' => mb_substr($imagePrompt, 0, 200) . '...'
                 ]);
-                
+
                 // Generate image using DALL-E
                 $imageUrl = $this->generateImageWithDallE($imagePrompt);
-                
+
                 if ($imageUrl) {
                     // Download and save image
                     $imagePath = $this->downloadImageFromUrl($imageUrl, $tmpImageDir, 'slide_' . $index . '_' . uniqid());
@@ -2440,7 +2602,7 @@ class AIGeneratorController extends Controller
         $title = strtolower(trim($slide['title'] ?? ''));
         $contentArray = is_array($slide['content']) ? $slide['content'] : [];
         $summary = strtolower(trim($slide['summary'] ?? ''));
-        
+
         // Keywords that indicate a flowchart would be appropriate
         $flowchartKeywords = [
             'process', 'workflow', 'algorithm', 'procedure', 'sequence', 'steps', 'step',
@@ -2451,14 +2613,14 @@ class AIGeneratorController extends Controller
             'input', 'output', 'start', 'end', 'begin', 'finish', 'first', 'next',
             'then', 'finally', 'after', 'before', 'during', 'order', 'sequence'
         ];
-        
+
         // Check title
         foreach ($flowchartKeywords as $keyword) {
             if (strpos($title, $keyword) !== false) {
                 return true;
             }
         }
-        
+
         // Check content points
         $contentText = strtolower(implode(' ', $contentArray));
         foreach ($flowchartKeywords as $keyword) {
@@ -2466,19 +2628,19 @@ class AIGeneratorController extends Controller
                 return true;
             }
         }
-        
+
         // Check summary
         foreach ($flowchartKeywords as $keyword) {
             if (strpos($summary, $keyword) !== false) {
                 return true;
             }
         }
-        
+
         // Check if content has numbered steps or sequential structure
         if (count($contentArray) >= 3) {
             $hasNumberedSteps = false;
             $hasSequentialWords = false;
-            
+
             foreach ($contentArray as $point) {
                 $pointLower = strtolower(trim($point));
                 // Check for numbered steps (1., 2., Step 1, etc.)
@@ -2490,12 +2652,12 @@ class AIGeneratorController extends Controller
                     $hasSequentialWords = true;
                 }
             }
-            
+
             if ($hasNumberedSteps || $hasSequentialWords) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -2509,23 +2671,23 @@ class AIGeneratorController extends Controller
         $title = trim($slide['title'] ?? '');
         $contentArray = is_array($slide['content']) ? $slide['content'] : [];
         $summary = trim($slide['summary'] ?? '');
-        
+
         // Check if this slide should use a flowchart
         $useFlowchart = $this->shouldUseFlowchart($slide);
-        
+
         if ($useFlowchart) {
             // Generate flowchart-specific prompt
             return $this->createFlowchartPrompt($slide, $topic);
         }
-        
+
         // Build a focused, detailed prompt based on the actual slide content
         $prompt = "Create an educational illustration that visually represents the following slide content: ";
-        
+
         // Primary focus: Slide title (most important)
         if (!empty($title)) {
             $prompt .= "\"$title\". ";
         }
-        
+
         // Secondary focus: Main content points
         if (!empty($contentArray) && count($contentArray) > 0) {
             $prompt .= "The slide covers these key points: ";
@@ -2540,24 +2702,24 @@ class AIGeneratorController extends Controller
             }
             $prompt .= ". ";
         }
-        
+
         // Additional context: Summary if available
         if (!empty($summary)) {
             $prompt .= "Context: $summary. ";
         }
-        
+
         // Overall topic context (if different from title)
         if (!empty($topic) && strtolower($title) !== strtolower($topic)) {
             $prompt .= "This is part of a presentation about: $topic. ";
         }
-        
+
         // Style and technical requirements
         $prompt .= "Style: Professional educational illustration, clean and modern design, suitable for academic presentation. ";
         $prompt .= "The image should directly visualize the concepts mentioned in the slide content. ";
         $prompt .= "Use appropriate colors, diagrams, icons, or visual metaphors that represent the slide's subject matter. ";
         $prompt .= "Do not include any text, words, or numbers in the image. ";
         $prompt .= "Make it visually engaging and relevant to the specific slide content described above.";
-        
+
         return $prompt;
     }
 
@@ -2569,14 +2731,14 @@ class AIGeneratorController extends Controller
         $title = trim($slide['title'] ?? '');
         $contentArray = is_array($slide['content']) ? $slide['content'] : [];
         $summary = trim($slide['summary'] ?? '');
-        
+
         $prompt = "Create a professional flowchart diagram that visually represents the following process/workflow: ";
-        
+
         // Primary focus: Slide title
         if (!empty($title)) {
             $prompt .= "\"$title\". ";
         }
-        
+
         // Detailed process steps
         if (!empty($contentArray) && count($contentArray) > 0) {
             $prompt .= "The process consists of these steps: ";
@@ -2594,17 +2756,17 @@ class AIGeneratorController extends Controller
             }
             $prompt .= ". ";
         }
-        
+
         // Additional context
         if (!empty($summary)) {
             $prompt .= "Context: $summary. ";
         }
-        
+
         // Overall topic
         if (!empty($topic) && strtolower($title) !== strtolower($topic)) {
             $prompt .= "This is part of a presentation about: $topic. ";
         }
-        
+
         // Flowchart-specific instructions
         $prompt .= "Create a flowchart with: ";
         $prompt .= "rectangular boxes for process steps, ";
@@ -2616,7 +2778,7 @@ class AIGeneratorController extends Controller
         $prompt .= "Use appropriate colors to distinguish different types of elements (processes, decisions, start/end). ";
         $prompt .= "The flowchart should clearly show the sequence and relationships between the steps described. ";
         $prompt .= "Do not include any text labels, words, or numbers in the flowchart boxes - use visual symbols, icons, or abstract representations instead.";
-        
+
         return $prompt;
     }
 
@@ -2626,14 +2788,14 @@ class AIGeneratorController extends Controller
     private function generateImageWithDallE(string $prompt): ?string
     {
         $apiKey = env('OPENAI_API_KEY');
-        
+
         if (!$apiKey || strlen($apiKey) < 20) {
             return null;
         }
 
         try {
             $ch = curl_init('https://api.openai.com/v1/images/generations');
-            
+
             $postData = json_encode([
                 'model' => 'dall-e-3',
                 'prompt' => $prompt,
@@ -2670,7 +2832,7 @@ class AIGeneratorController extends Controller
             }
 
             $data = json_decode($response, true);
-            
+
             if (isset($data['data'][0]['url'])) {
                 return $data['data'][0]['url'];
             }
@@ -2689,7 +2851,7 @@ class AIGeneratorController extends Controller
     {
         try {
             $imageData = @file_get_contents($imageUrl);
-            
+
             if ($imageData === false) {
                 Log::warning('Failed to download image from URL: ' . $imageUrl);
                 return null;
@@ -2700,7 +2862,7 @@ class AIGeneratorController extends Controller
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mimeType = finfo_buffer($finfo, $imageData);
             finfo_close($finfo);
-            
+
             if ($mimeType === 'image/jpeg' || $mimeType === 'image/jpg') {
                 $extension = 'jpg';
             } elseif ($mimeType === 'image/png') {
@@ -2710,7 +2872,7 @@ class AIGeneratorController extends Controller
             }
 
             $filePath = $saveDir . '/' . $filename . '.' . $extension;
-            
+
             if (@file_put_contents($filePath, $imageData) === false) {
                 Log::warning('Failed to save image to: ' . $filePath);
                 return null;

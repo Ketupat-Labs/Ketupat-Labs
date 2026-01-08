@@ -39,8 +39,11 @@
                         
                         // Strict validation based on type
                         $isValid = false;
-                        if ($activity->type === 'Game' && !empty($config['customPairs'])) {
-                            $isValid = true;
+                        if ($activity->type === 'Game') {
+                            // Valid if it has custom pairs OR is in preset mode
+                            if (!empty($config['customPairs']) || ($config['mode'] ?? '') === 'preset') {
+                                $isValid = true;
+                            }
                         } elseif ($activity->type === 'Quiz' && !empty($config['questions'])) {
                             $isValid = true;
                         }
@@ -129,19 +132,18 @@
                     if(startArea) startArea.classList.add('hidden');
                         if(gameArea) {
                             gameArea.classList.remove('hidden');
-                            gameArea.classList.add('opacity-100');
+                            // Small delay to ensure transition starts
+                            setTimeout(() => {
+                                gameArea.classList.add('opacity-100');
+                            }, 50);
                             
-                            // Re-trigger game initialization in case it was missed due to being hidden
+                            // Safe to call multiple times now
                             if (window.initializeGames) {
                                 window.initializeGames();
-                            } else {
-                                // Fallback: dispatch event that loader might be watching
-                                window.dispatchEvent(new Event('resize'));
                             }
-
-                            setTimeout(() => {
-                                window.dispatchEvent(new Event('resize'));
-                            }, 100);
+                            
+                            // Force resize event for any layout calculations
+                            window.dispatchEvent(new Event('resize'));
                         }
                 });
             }

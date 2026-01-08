@@ -100,8 +100,15 @@ class ProfileController extends Controller
             }
         }
 
-        // Get all badges with category information
+        // Get all badges with category information - Filtered by Profile User's Role
+        $role = $profileUser->role ?? 'student';
+        
         $allBadges = \App\Models\Badge::with('category')
+            ->whereHas('category', function($q) use ($role) {
+                $q->where('role_restriction', 'all')
+                  ->orWhere('role_restriction', $role)
+                  ->orWhereNull('role_restriction');
+            })
             ->orderBy('name', 'asc')
             ->get();
         
@@ -142,6 +149,25 @@ class ProfileController extends Controller
             $percentage = min(100, round(($badge->progress / $required) * 100));
             $badge->progress_percentage = (int)$percentage;
             
+            // Determine visibility based on user settings
+            $visibleBadgeCodes = [];
+            
+            // Try to decode settings
+            if (!empty($profileUser->visible_badge_codes)) {
+                $decoded = json_decode($profileUser->visible_badge_codes, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $visibleBadgeCodes = $decoded;
+                }
+            }
+            
+            // If no specific badges selected (or empty selection), default to showing all earned badges
+            // This ensures if 'share' is ON, we show something rather than nothing
+            if (empty($visibleBadgeCodes)) {
+                $visibleBadgeCodes = $userBadges->keys()->toArray();
+            }
+            
+            $badge->is_visible = $badge->is_earned && in_array($badge->code, $visibleBadgeCodes);
+
             return $badge;
         });
 

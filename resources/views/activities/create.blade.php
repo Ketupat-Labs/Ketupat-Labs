@@ -8,22 +8,26 @@
                         <h2 class="text-2xl font-bold text-gray-800">
                             Cipta Aktiviti Baru
                         </h2>
-                            <a href="{{ route('lessons.index', ['tab' => 'activities']) }}" class="text-gray-600 hover:text-gray-900 font-medium">
-                                ← Kembali
-                            </a>
+                        <a href="{{ route('lessons.index', ['tab' => 'activities']) }}"
+                            class="text-gray-600 hover:text-gray-900 font-medium">
+                            ← Kembali
+                        </a>
                     </div>
 
                     <form action="{{ route('activities.store') }}" method="POST">
                         @csrf
-                        
+
                         <div class="mb-4">
                             <label for="title" class="block text-sm font-medium text-gray-700">Tajuk Aktiviti</label>
-                            <input type="text" name="title" id="title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required placeholder="Contoh: Permainan Matematik">
+                            <input type="text" name="title" id="title"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                required placeholder="Contoh: Permainan Matematik">
                         </div>
 
                         <div class="mb-4">
                             <label for="type" class="block text-sm font-medium text-gray-700">Jenis Aktiviti</label>
-                            <select name="type" id="type" onchange="toggleGameConfig()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <select name="type" id="type" onchange="toggleGameConfig()"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                                 <option value="Game">Memory Game</option>
                                 <option value="Quiz">Quiz Game</option>
                                 <option value="Exercise">Latihan</option>
@@ -32,32 +36,94 @@
                         </div>
 
                         <div class="mb-4">
-                            <label for="suggested_duration" class="block text-sm font-medium text-gray-700">Cadangan Masa</label>
-                            <input type="text" name="suggested_duration" id="suggested_duration" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required placeholder="Contoh: 30 Minit">
+                            <label for="suggested_duration" class="block text-sm font-medium text-gray-700">Cadangan
+                                Masa</label>
+                            <input type="text" name="suggested_duration" id="suggested_duration"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                required placeholder="Contoh: 30 Minit">
                         </div>
 
                         <div class="mb-4">
-                            <label for="description" class="block text-sm font-medium text-gray-700">Penerangan (Pilihan)</label>
-                            <textarea name="description" id="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
+                            <label for="description" class="block text-sm font-medium text-gray-700">Penerangan
+                                (Pilihan)</label>
+                            <textarea name="description" id="description" rows="3"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"></textarea>
+                        </div>
+                        
+                        <!-- Badge Selection -->
+                        <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <label for="badge_id" class="block text-sm font-bold text-gray-800">
+                                    🏆 Penganugerahan Lencana (Pilihan)
+                                </label>
+                                <a href="{{ route('badges.create') }}" target="_blank" class="text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                                    + Cipta Lencana Baru
+                                </a>
+                            </div>
+                            <p class="text-xs text-gray-600 mb-2">Pelajar akan menerima lencana ini secara automatik apabila menyelesaikan aktiviti.</p>
+                            
+                            <select name="badge_id" id="badge_id"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                <option value="">-- Tiada Lencana --</option>
+                                @if(isset($availableBadges) && $availableBadges->count() > 0)
+                                    @foreach($availableBadges as $badge)
+                                        <option value="{{ $badge->id }}">
+                                            {{ $badge->icon }} {{ $badge->name }} ({{ $badge->xp_reward }} XP)
+                                        </option>
+                                    @endforeach
+                                @else
+                                    <option value="" disabled>Tiada lencana tersedia (Cipta lencana baru dahulu)</option>
+                                @endif
+                            </select>
                         </div>
 
                         <!-- Hidden JSON Input -->
                         <textarea name="content" id="content" class="hidden"></textarea>
 
                         <!-- Visual Game Builder -->
-                        <div id="game-builder-area" class="mb-6 bg-gray-50 p-6 rounded-lg border-2 border-dashed border-gray-300 hidden">
+                        <div id="game-builder-area"
+                            class="mb-6 bg-gray-50 p-6 rounded-lg border-2 border-dashed border-gray-300 hidden">
                             <h3 class="text-lg font-bold text-gray-800 mb-4" id="builder-title">Game Configuration</h3>
-                            
+
                             <!-- Memory Game Builder -->
                             <div id="memory-builder" class="hidden">
-                                <div class="mb-4">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Matching Pairs</label>
-                                    <div id="memory-pairs-container" class="space-y-3">
-                                        <!-- Pairs will be added here -->
+                                <!-- Step 1: Configuration Options -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                        <label for="memory_theme" class="block text-sm font-medium text-gray-700">Tema
+                                            Pratetap</label>
+                                        <select id="memory_theme" onchange="toggleMemoryTheme()"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                            <option value="custom">Tersuai (Gambar/Teks Sendiri)</option>
+                                            <option value="animals">Haiwan</option>
+                                            <option value="fruits">Buah-buahan</option>
+                                            <option value="shapes">Bentuk</option>
+                                        </select>
                                     </div>
-                                    <button type="button" onclick="addMemoryPair()" class="mt-3 text-sm flex items-center text-blue-600 hover:text-blue-800 font-semibold">
-                                        <span class="text-xl mr-1">+</span> Add New Pair
-                                    </button>
+                                    <div>
+                                        <label for="memory_grid_size"
+                                            class="block text-sm font-medium text-gray-700">Saiz Grid</label>
+                                        <select id="memory_grid_size"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                            <option value="4x4">4x4 (Mudah - 8 Pasangan)</option>
+                                            <option value="6x6">6x6 (Sederhana - 18 Pasangan)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Step 2: Custom Pairs (Only shown if custom is selected) -->
+                                <div id="custom-pairs-wrapper">
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Pasangan Tersuai
+                                            (Custom Matching Pairs)</label>
+                                        <div id="memory-pairs-container" class="space-y-3">
+                                            <!-- Pairs will be added here -->
+                                        </div>
+                                        <button type="button" onclick="addMemoryPair()"
+                                            class="mt-3 text-sm flex items-center text-blue-600 hover:text-blue-800 font-semibold">
+                                            <span class="text-xl mr-1">+</span> Tambah Pasangan Baru
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -66,7 +132,8 @@
                                 <div id="questions-container" class="space-y-6">
                                     <!-- Questions will be added here -->
                                 </div>
-                                <button type="button" onclick="addQuizQuestion()" class="mt-4 w-full py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 font-semibold transition">
+                                <button type="button" onclick="addQuizQuestion()"
+                                    class="mt-4 w-full py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 font-semibold transition">
                                     + Add New Question
                                 </button>
                             </div>
@@ -102,6 +169,16 @@
                             }
 
                             // Memory Game Functions
+                            function toggleMemoryTheme() {
+                                const theme = document.getElementById('memory_theme').value;
+                                const customWrapper = document.getElementById('custom-pairs-wrapper');
+                                if (theme === 'custom') {
+                                    customWrapper.classList.remove('hidden');
+                                } else {
+                                    customWrapper.classList.add('hidden');
+                                }
+                            }
+
                             function addMemoryPair() {
                                 const container = document.getElementById('memory-pairs-container');
                                 const id = Date.now();
@@ -139,7 +216,7 @@
                                             ${[0, 1, 2, 3].map(i => `
                                                 <div class="flex items-center gap-3">
                                                     <input type="radio" name="correct-${id}" value="${i}" ${i === 0 ? 'checked' : ''} class="correct-radio text-green-600 focus:ring-green-500">
-                                                    <input type="text" placeholder="Option ${i+1}" class="answer-input w-full text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                                    <input type="text" placeholder="Option ${i + 1}" class="answer-input w-full text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                                                 </div>
                                             `).join('')}
                                             <p class="text-xs text-gray-400 mt-1">* Select the radio button next to the correct answer.</p>
@@ -150,73 +227,84 @@
                             }
 
                             // Form Submission Handler
-                            document.querySelector('form').addEventListener('submit', function(e) {
+                            document.querySelector('form').addEventListener('submit', function (e) {
                                 const type = document.getElementById('type').value;
                                 const contentInput = document.getElementById('content');
                                 let data = {};
 
                                 if (type === 'Game') {
-                                    // Serialize Memory Pairs
-                                    const pairs = [];
-                                    document.querySelectorAll('.pair-item').forEach(row => {
-                                        const c1 = row.querySelector('.card-1-input').value.trim();
-                                        const c2 = row.querySelector('.card-2-input').value.trim();
-                                        if (c1 && c2) pairs.push({ card1: c1, card2: c2 });
-                                    });
-                                    
-                                    if (pairs.length === 0) {
-                                        e.preventDefault();
-                                        alert('Sila tambah sekurang-kurangnya satu pasangan untuk Memory Game.');
-                                        return false;
+                                    const theme = document.getElementById('memory_theme').value;
+                                    const gridSizeVal = document.getElementById('memory_grid_size').value; // e.g., "4x4"
+
+                                    // Parse grid size to integer (e.g., "4x4" -> 4)
+                                    const gridInt = parseInt(gridSizeVal.split('x')[0]);
+
+                                    let pairs = [];
+                                    if (theme === 'custom') {
+                                        // Serialize Memory Pairs only for custom theme
+                                        document.querySelectorAll('.pair-item').forEach(row => {
+                                            const c1 = row.querySelector('.card-1-input').value.trim();
+                                            const c2 = row.querySelector('.card-2-input').value.trim();
+                                            if (c1 && c2) pairs.push({ card1: c1, card2: c2 });
+                                        });
+
+                                        if (pairs.length === 0) {
+                                            e.preventDefault();
+                                            alert('Sila tambah sekurang-kurangnya satu pasangan untuk Memory Game Tersuai.');
+                                            return false;
+                                        }
                                     }
-                                    
+
                                     data = {
-                                        mode: "custom",
-                                        gridSize: 4,
-                                        customPairs: pairs
+                                        mode: theme === 'custom' ? "custom" : "preset",
+                                        theme: theme, // 'custom', 'animals', etc.
+                                        gridSize: gridInt, // 4 or 6
+                                        customPairs: theme === 'custom' ? pairs : []
                                     };
                                 } else if (type === 'Quiz') {
-                                    // Serialize Quiz Questions
-                                    const questions = [];
-                                    document.querySelectorAll('.question-item').forEach(block => {
-                                        const qText = block.querySelector('.question-input').value.trim();
-                                        const answers = Array.from(block.querySelectorAll('.answer-input')).map(i => i.value.trim()).filter(a => a);
-                                        const correctIndex = Array.from(block.querySelectorAll('.correct-radio')).findIndex(r => r.checked);
-                                        
-                                        if (qText && answers.length > 0) {
-                                            questions.push({
-                                                question: qText,
-                                                answers: answers,
-                                                correctAnswer: correctIndex >= 0 ? correctIndex : 0
-                                            });
-                                        }
-                                    });
+                                // Serialize Quiz Questions
+                                const questions = [];
+                                document.querySelectorAll('.question-item').forEach(block => {
+                                    const qText = block.querySelector('.question-input').value.trim();
+                                    const answers = Array.from(block.querySelectorAll('.answer-input')).map(i => i.value.trim()).filter(a => a);
+                                    const correctIndex = Array.from(block.querySelectorAll('.correct-radio')).findIndex(r => r.checked);
 
-                                    if (questions.length === 0) {
-                                        e.preventDefault();
-                                        alert('Sila tambah sekurang-kurangnya satu soalan untuk Quiz Game.');
-                                        return false;
+                                    if (qText && answers.length > 0) {
+                                        questions.push({
+                                            question: qText,
+                                            answers: answers,
+                                            correctAnswer: correctIndex >= 0 ? correctIndex : 0
+                                        });
                                     }
+                                });
 
-                                    data = { questions: questions };
-                                } else {
-                                    // For Exercise and Video types, use empty object instead of empty string
-                                    data = {};
+                                if (questions.length === 0) {
+                                    e.preventDefault();
+                                    alert('Sila tambah sekurang-kurangnya satu soalan untuk Quiz Game.');
+                                    return false;
                                 }
 
-                                // Always set valid JSON (empty object if no content)
-                                contentInput.value = JSON.stringify(data);
-                                
-                                // Debug: Log the content being sent
-                                console.log('Saving activity with content:', contentInput.value);
+                                data = { questions: questions };
+                            } else {
+                                // For Exercise and Video types, use empty object instead of empty string
+                                data = {};
+                            }
+
+                            // Always set valid JSON (empty object if no content)
+                            contentInput.value = JSON.stringify(data);
+
+                            // Debug: Log the content being sent
+                            console.log('Saving activity with content:', contentInput.value);
                             });
 
                             // Initialize
                             toggleGameConfig();
+                            toggleMemoryTheme();
                         </script>
 
                         <div class="flex items-center justify-end mt-4">
-                            <a href="{{ route('lessons.index', ['tab' => 'activities']) }}" class="mr-4 text-gray-600 hover:text-gray-900">Batal</a>
+                            <a href="{{ route('lessons.index', ['tab' => 'activities']) }}"
+                                class="mr-4 text-gray-600 hover:text-gray-900">Batal</a>
                             <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                                 Simpan Aktiviti
                             </button>

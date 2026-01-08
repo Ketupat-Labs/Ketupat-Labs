@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const MemoryGame = ({ config = {} }) => {
+const MemoryGame = ({ config = {}, onFinish }) => {
     const {
         mode = 'preset',
         theme = 'animals',
@@ -29,7 +29,8 @@ const MemoryGame = ({ config = {} }) => {
 
     const initializeGame = () => {
         let cardPairs = [];
-        let calculatedGridSize = gridSize;
+        let calculatedGridSize = typeof gridSize === 'string' ? parseInt(gridSize.split('x')[0]) : parseInt(gridSize);
+        if (isNaN(calculatedGridSize)) calculatedGridSize = 4;
 
         if (mode === 'custom' && customPairs && customPairs.length > 0) {
             // Filter out empty pairs

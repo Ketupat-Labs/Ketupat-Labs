@@ -40,7 +40,7 @@ class LessonController extends Controller
             'content' => 'nullable|string', // Old field for backward compatibility
             'content_blocks' => 'nullable|json', // New block-based content
             'duration' => 'nullable|integer|min:5',
-            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:25600',
             'url' => 'nullable|url',
             'is_public' => 'nullable|in:0,1',
         ]);
@@ -108,7 +108,7 @@ class LessonController extends Controller
             'content_blocks' => 'nullable|json', // Block editor data
             'content' => 'nullable|string', // Backward compatibility
             'duration' => 'nullable|integer|min:5',
-            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'material_file' => 'nullable|file|mimes:pdf,doc,docx|max:25600',
             'url' => 'nullable|url',
             'is_public' => 'nullable|in:0,1',
         ]);
@@ -178,7 +178,7 @@ class LessonController extends Controller
             $activitySubmissions = \App\Models\ActivitySubmission::where('user_id', $user->id)
                 ->get()
                 ->pluck('completed_at', 'activity_assignment_id');
-            
+
             $lessonEnrollments = \App\Models\Enrollment::where('user_id', $user->id)
                 ->get()
                 ->pluck('status', 'lesson_id');
@@ -187,21 +187,21 @@ class LessonController extends Controller
         // 1. Fetch Lessons
         $classroomIds = collect();
         if ($user && $user->role === 'student') {
-             $classroomIds = $user->enrolledClassrooms()->pluck('class.id');
+            $classroomIds = $user->enrolledClassrooms()->pluck('class.id');
         }
 
         $lessons = Lesson::where('is_published', true)
-            ->where(function($query) use ($classroomIds, $user) {
+            ->where(function ($query) use ($classroomIds, $user) {
                 // Show if Public
                 $query->where('is_public', true);
-                
+
                 // OR if assigned to one of the student's classrooms via lesson_assignment table
                 if ($classroomIds->isNotEmpty()) {
-                    $query->orWhereHas('assignments', function($q) use ($classroomIds) {
+                    $query->orWhereHas('assignments', function ($q) use ($classroomIds) {
                         $q->whereIn('classroom_id', $classroomIds);
                     });
                 }
-                
+
                 // OR if user is a teacher and this is their own lesson
                 if ($user && $user->role === 'teacher') {
                     $query->orWhere('teacher_id', $user->id);
@@ -210,13 +210,14 @@ class LessonController extends Controller
             ->latest()
             ->get()
             ->map(function ($lesson) use ($lessonEnrollments) {
-            $lesson->setAttribute('item_type', 'lesson');
-            $lesson->setAttribute('sort_date', $lesson->created_at);
-            // Check completion
-            $isCompleted = $lessonEnrollments->get($lesson->id) === 'completed';
-            $lesson->setAttribute('is_completed', $isCompleted);
-            return $lesson;
-        });
+                $lesson->setAttribute('item_type', 'lesson');
+                $lesson->setAttribute('sort_date', $lesson->created_at);
+                // Check completion
+                $status = $lessonEnrollments->get($lesson->id);
+                $lesson->setAttribute('is_completed', $status === 'completed');
+                $lesson->setAttribute('is_enrolled', !is_null($status)); // True if any status exists
+                return $lesson;
+            });
 
         // 2. Fetch Activities (Class Assigned + Public)
         $classActivities = collect();
@@ -238,17 +239,18 @@ class LessonController extends Controller
                     })
                     ->map(function ($assignment) use ($activitySubmissions, $user) {
                         $activity = $assignment->activity;
-                        if (!$activity) return null;
-                        
+                        if (!$activity)
+                            return null;
+
                         // Attach assignment details to activity object for view
                         $activity->setAttribute('item_type', 'activity');
                         $activity->setAttribute('sort_date', $assignment->assigned_at ?? $assignment->created_at);
                         $activity->setAttribute('due_date', $assignment->due_date);
                         $activity->setAttribute('assignment_id', $assignment->id);
-                        
+
                         // Check if completed
                         if ($user && $user->role === 'student') {
-                            $isCompleted = $activitySubmissions->has($assignment->id) || 
+                            $isCompleted = $activitySubmissions->has($assignment->id) ||
                                 \App\Models\ActivitySubmission::where('activity_id', $activity->id)
                                     ->where('user_id', $user->id)
                                     ->whereNotNull('completed_at')
@@ -266,27 +268,27 @@ class LessonController extends Controller
         // Fetch Public Activities (exclude those already in classActivities to avoid duplicates)
         $assignedActivityIds = $classActivities->pluck('id')->toArray();
         $publicActivities = \App\Models\Activity::where('is_public', true)
-             ->whereNotIn('id', $assignedActivityIds) // Exclude already assigned activities
-             ->latest()
-             ->get()
-             ->map(function ($activity) use ($user) {
-                 $activity->setAttribute('item_type', 'activity');
-                 $activity->setAttribute('sort_date', $activity->created_at);
-                 $activity->setAttribute('due_date', null);
-                 $activity->setAttribute('assignment_id', 'public_' . $activity->id);
-                 
-                 // Check if completed (for public activities, check by activity_id)
-                 $isCompleted = false;
-                 if ($user && $user->role === 'student') {
-                     $isCompleted = \App\Models\ActivitySubmission::where('activity_id', $activity->id)
-                         ->where('user_id', $user->id)
-                         ->whereNotNull('completed_at')
-                         ->exists();
-                 }
-                 $activity->setAttribute('is_completed', $isCompleted);
-                 
-                 return $activity;
-             });
+            ->whereNotIn('id', $assignedActivityIds) // Exclude already assigned activities
+            ->latest()
+            ->get()
+            ->map(function ($activity) use ($user) {
+                $activity->setAttribute('item_type', 'activity');
+                $activity->setAttribute('sort_date', $activity->created_at);
+                $activity->setAttribute('due_date', null);
+                $activity->setAttribute('assignment_id', 'public_' . $activity->id);
+
+                // Check if completed (for public activities, check by activity_id)
+                $isCompleted = false;
+                if ($user && $user->role === 'student') {
+                    $isCompleted = \App\Models\ActivitySubmission::where('activity_id', $activity->id)
+                        ->where('user_id', $user->id)
+                        ->whereNotNull('completed_at')
+                        ->exists();
+                }
+                $activity->setAttribute('is_completed', $isCompleted);
+
+                return $activity;
+            });
 
         $activities = $classActivities->concat($publicActivities);
 
@@ -318,13 +320,26 @@ class LessonController extends Controller
                 ->where('lesson_id', $lesson->id)
                 ->first();
 
-            $enrollment = \App\Models\Enrollment::where('user_id', session('user_id'))
-                ->where('lesson_id', $lesson->id)
-                ->first();
+            // Auto-enroll if not exists (ensure tracking works)
+            $enrollment = \App\Models\Enrollment::firstOrCreate(
+                [
+                    'user_id' => session('user_id'),
+                    'lesson_id' => $lesson->id
+                ],
+                [
+                    'status' => 'enrolled',
+                    'progress' => 0,
+                    'completed_items' => [] // Pass array, let Cast handle serialization
+                ]
+            );
 
             // SYNC PROGRESS: Ensure completed items are valid for current lesson blocks
             if ($enrollment) {
-                $completedItems = $enrollment->completed_items ? json_decode($enrollment->completed_items, true) : [];
+                // completed_items is cast to array in Model, but handle string fallback just in case
+                $completedItems = $enrollment->completed_items ?? [];
+                if (is_string($completedItems)) {
+                    $completedItems = json_decode($completedItems, true) ?? [];
+                }
                 $originalCount = count($completedItems);
 
                 // Get all valid Item IDs from lesson blocks
@@ -342,25 +357,26 @@ class LessonController extends Controller
                 // Filter out invalid items (orphaned from deleted blocks?)
                 $completedItems = array_values(array_intersect($completedItems, $validItemIds));
 
-                // Also check if 'submission' is marked complete but no submission exists? 
-                // (Optional: strict check, but maybe overkill. Let's trust the flag if submission was deleted manually but progress kept? No, let's strictly check submission existence too if needed. But for now, just syncing block IDs is enough to fix the 67% ghost issue.)
-
                 if (count($completedItems) !== $originalCount) {
                     // Update DB if changes found
                     $enrollment->completed_items = json_encode($completedItems);
+                }
 
-                    // Recalculate Progress
-                    $totalItems = count($validItemIds); // Blocks + 1
-                    $progress = ($totalItems > 0) ? min(100, round((count($completedItems) / $totalItems) * 100)) : 0;
+                // ALWAYS Recalculate Progress (in case teacher added blocks)
+                $totalItems = count($validItemIds); // Blocks + 1
+                $calculatedProgress = ($totalItems > 0) ? min(100, round((count($completedItems) / $totalItems) * 100)) : 0;
 
-                    $enrollment->progress = $progress;
+                // Only save if progress or items changed
+                if ($enrollment->progress != $calculatedProgress || count($completedItems) !== $originalCount) {
+                    $enrollment->progress = $calculatedProgress;
 
-                    if ($progress == 100)
+                    if ($calculatedProgress == 100) {
                         $enrollment->status = 'completed';
-                    elseif ($progress > 0)
+                    } elseif ($calculatedProgress > 0) {
                         $enrollment->status = 'in_progress';
-                    else
-                        $enrollment->status = 'enrolled'; // Reset to enrolled if 0
+                    } else {
+                        $enrollment->status = 'enrolled'; // Reset if 0
+                    }
 
                     $enrollment->save();
                 }
@@ -374,7 +390,7 @@ class LessonController extends Controller
     public function uploadImage(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:25600', // Max 25MB
         ]);
 
         if ($request->hasFile('image')) {

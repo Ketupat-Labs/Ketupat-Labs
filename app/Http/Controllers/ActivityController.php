@@ -24,7 +24,14 @@ class ActivityController extends Controller
      */
     public function create(): View
     {
-        return view('activities.create');
+        // Get teacher's unassigned custom badges
+        $availableBadges = \App\Models\Badge::where('creator_id', session('user_id'))
+            ->where('is_custom', true)
+            ->whereNull('activity_id') // Only unassigned badges
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('activities.create', compact('availableBadges'));
     }
 
     /**
@@ -38,6 +45,7 @@ class ActivityController extends Controller
             'suggested_duration' => 'required|string|max:50',
             'description' => 'nullable|string',
             'content' => 'nullable|string', // Allow JSON content
+            'badge_id' => 'nullable|exists:badge,id', // Badge assignment
         ]);
 
         // Ensure content is valid JSON or null
@@ -55,7 +63,7 @@ class ActivityController extends Controller
             $content = '{}';
         }
 
-        Activity::create([
+        $activity = Activity::create([
             'teacher_id' => session('user_id'),
             'title' => $request->title,
             'type' => $request->type,
@@ -63,6 +71,13 @@ class ActivityController extends Controller
             'description' => $request->description,
             'content' => $content,
         ]);
+
+        // Link badge to activity if selected
+        if ($request->badge_id) {
+            \App\Models\Badge::where('id', $request->badge_id)
+                ->where('creator_id', session('user_id'))
+                ->update(['activity_id' => $activity->id]);
+        }
 
         return redirect()->route('lessons.index', ['tab' => 'activities'])->with('success', 'Aktiviti berjaya dicipta.');
     }
@@ -90,7 +105,18 @@ class ActivityController extends Controller
         if (session('user_id') != $activity->teacher_id) {
             abort(403);
         }
-        return view('activities.edit', compact('activity'));
+
+        // Get teacher's unassigned custom badges + currently assigned badge
+        $availableBadges = \App\Models\Badge::where('creator_id', session('user_id'))
+            ->where('is_custom', true)
+            ->where(function($query) use ($activity) {
+                $query->whereNull('activity_id')
+                      ->orWhere('activity_id', $activity->id);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('activities.edit', compact('activity', 'availableBadges'));
     }
 
     public function update(Request $request, Activity $activity): RedirectResponse
@@ -105,6 +131,7 @@ class ActivityController extends Controller
             'suggested_duration' => 'required|string|max:50',
             'description' => 'nullable|string',
             'content' => 'nullable|string',
+            'badge_id' => 'nullable|exists:badge,id', // Badge assignment
         ]);
 
         // Ensure content is valid JSON or null (same as store method)
@@ -129,6 +156,19 @@ class ActivityController extends Controller
             'description' => $request->description,
             'content' => $content,
         ]);
+
+        // Update badge assignment
+        // First, unlink any previously assigned badge
+        \App\Models\Badge::where('activity_id', $activity->id)
+            ->where('creator_id', session('user_id'))
+            ->update(['activity_id' => null]);
+
+        // Then link new badge if selected
+        if ($request->badge_id) {
+            \App\Models\Badge::where('id', $request->badge_id)
+                ->where('creator_id', session('user_id'))
+                ->update(['activity_id' => $activity->id]);
+        }
 
         return redirect()->route('lessons.index', ['tab' => 'activities'])->with('success', 'Aktiviti berjaya dikemaskini.');
     }
@@ -275,7 +315,7 @@ class ActivityController extends Controller
                 'related_id' => $activity->id,
                 'is_read' => false,
             ]);
-            
+
             // Notify teacher if assignment exists
             if ($assignment && $activity->teacher_id) {
                 \App\Models\Notification::create([
@@ -287,6 +327,37 @@ class ActivityController extends Controller
                     'related_id' => $activity->id,
                     'is_read' => false,
                 ]);
+            }
+            
+            // Auto-award badge linked to this activity
+            if ($activity->badge) {
+                $badge = $activity->badge;
+                
+                // Check if user already has this badge (avoid duplicates)
+                $hasBadge = \App\Models\UserBadge::where('user_id', $user->id)
+                    ->where('badge_code', $badge->code)
+                    ->exists();
+                    
+                if (!$hasBadge) {
+                    \App\Models\UserBadge::create([
+                        'user_id' => $user->id,
+                        'badge_code' => $badge->code,
+                        'status' => 'redeemed',
+                        'earned_at' => now(),
+                        'redeemed_at' => now(),
+                    ]);
+                    
+                    // Notify user about badge
+                    \App\Models\Notification::create([
+                        'user_id' => $user->id,
+                        'type' => 'badge_earned',
+                        'title' => 'Lencana Baharu Diperolehi!',
+                        'message' => 'Tahniah! Anda telah memperolehi lencana "' . $badge->name . '"',
+                        'related_type' => 'badge',
+                        'related_id' => $badge->id,
+                        'is_read' => false,
+                    ]);
+                }
             }
         }
 

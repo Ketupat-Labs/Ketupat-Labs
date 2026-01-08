@@ -1,0 +1,35 @@
+PHP Warning:  Module "openssl" is already loaded in Unknown on line 0
+
+Warning: Module "openssl" is already loaded in Unknown on line 0
+
+   INFO  Seeding database.  
+
+  Database\Seeders\UsersSeeder  RUNNING  
+  Database\Seeders\UsersSeeder  0 ms DONE  
+
+  Database\Seeders\BadgeCategorySeeder  RUNNING  
+  Database\Seeders\BadgeCategorySeeder  9 ms DONE  
+
+  Database\Seeders\BadgesSeeder  RUNNING  
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'category_code' in 'field list' (Connection: mysql, SQL: update `badge` set `code` = konsistensi, `name` = Konsistensi, `name_bm` = Konsistensi, `description` = Memahami dan menerapkan konsistensi dalam antaramu..., `category_code` = core, `icon` = fas fa-check, `type` = points, `value` = 50, `extra` = 10, `requirement_type` = ?, `points_required` = 0, `xp_reward` = 0 where (`code` = konsistensi) limit 1)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:825
+    821Γûò                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822Γûò                 );
+    823Γûò             }
+    824Γûò 
+  Γ₧£ 825Γûò             throw new QueryException(
+    826Γûò                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827Γûò             );
+    828Γûò         }
+    829Γûò     }
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:592
+      PDOException::("SQLSTATE[42S22]: Column not found: 1054 Unknown column 'category_code' in 'field list'")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:592
+      PDO::prepare("update `badge` set `code` = ?, `name` = ?, `name_bm` = ?, `description` = ?, `category_code` = ?, `icon` = ?, `type` = ?, `value` = ?, `extra` = ?, `requirement_type` = ?, `points_required` = ?, `xp_reward` = ? where (`code` = ?) limit 1")
+
