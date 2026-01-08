@@ -6,6 +6,7 @@ use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Notification;
+use App\Models\Reaction;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -270,12 +271,27 @@ class MessagingController extends Controller
             $query->whereNotIn('id', $deletedMessageIds);
         }
         
-        $messages = $query->with('sender:id,username,full_name,avatar_url')
+        $messages = $query->with(['sender:id,username,full_name,avatar_url', 'reactions.user:id,username,full_name,avatar_url'])
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->offset($offset)
             ->get()
-            ->map(function ($message) {
+            ->map(function ($message) use ($user) {
+                // Get reactions grouped by type
+                $reactions = $message->reactions->groupBy('reaction_type')->map(function ($group) use ($user) {
+                    return [
+                        'count' => $group->count(),
+                        'users' => $group->map(function ($reaction) {
+                            return [
+                                'id' => $reaction->user->id,
+                                'username' => $reaction->user->username,
+                                'full_name' => $reaction->user->full_name,
+                            ];
+                        })->toArray(),
+                        'user_reacted' => $group->pluck('user_id')->contains($user->id),
+                    ];
+                });
+                
                 // Flatten sender data into message object for easier frontend access
                 return [
                     'id' => $message->id,
@@ -294,6 +310,8 @@ class MessagingController extends Controller
                     'username' => $message->sender->username ?? null,
                     'full_name' => $message->sender->full_name ?? null,
                     'avatar_url' => $message->sender->avatar_url ? asset($message->sender->avatar_url) : null,
+                    // Add reactions
+                    'reactions' => $reactions,
                 ];
             })
             ->reverse()
@@ -976,6 +994,152 @@ class MessagingController extends Controller
             'status' => 200,
             'message' => 'Group renamed successfully',
             'data' => ['name' => $conversation->name],
+        ]);
+    }
+
+    public function toggleReaction(Request $request, $messageId)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'emoji' => 'required|string|max:10',
+        ]);
+
+        $message = Message::findOrFail($messageId);
+        
+        // Check if user is participant in the conversation
+        $isParticipant = $message->conversation->participants()
+            ->where('user_id', $user->id)
+            ->exists();
+        
+        if (!$isParticipant) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Not a participant in this conversation',
+            ], 403);
+        }
+
+        // Map emoji to reaction_type for database storage
+        $emojiMap = [
+            '👍' => 'like',
+            '❤️' => 'love',
+            '😂' => 'laugh',
+            '😮' => 'surprised',
+            '😥' => 'sad',
+            '🙏' => 'pray',
+            '😡' => 'angry',
+            '⭐' => 'star',
+        ];
+
+        $reactionType = $emojiMap[$request->emoji] ?? 'like';
+        
+        // Check if reaction already exists
+        $existingReaction = Reaction::where('user_id', $user->id)
+            ->where('target_type', 'message')
+            ->where('target_id', $messageId)
+            ->where('reaction_type', $reactionType)
+            ->first();
+
+        if ($existingReaction) {
+            // Remove reaction (toggle off)
+            $existingReaction->delete();
+            $action = 'removed';
+        } else {
+            // Remove any existing reaction from this user (only one reaction per user per message)
+            Reaction::where('user_id', $user->id)
+                ->where('target_type', 'message')
+                ->where('target_id', $messageId)
+                ->delete();
+            
+            // Add new reaction
+            Reaction::create([
+                'user_id' => $user->id,
+                'target_type' => 'message',
+                'target_id' => $messageId,
+                'reaction_type' => $reactionType,
+            ]);
+            $action = 'added';
+        }
+
+        // Get updated reactions count with user info
+        $reactions = Reaction::where('target_type', 'message')
+            ->where('target_id', $messageId)
+            ->with('user:id,username,full_name,avatar_url')
+            ->get()
+            ->groupBy('reaction_type')
+            ->map(function ($group) use ($user) {
+                return [
+                    'count' => $group->count(),
+                    'users' => $group->map(function ($reaction) {
+                        return [
+                            'id' => $reaction->user->id,
+                            'username' => $reaction->user->username,
+                            'full_name' => $reaction->user->full_name,
+                        ];
+                    })->toArray(),
+                    'user_reacted' => $group->pluck('user_id')->contains($user->id),
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Reaction ' . $action,
+            'data' => [
+                'reactions' => $reactions,
+                'action' => $action,
+            ],
+        ]);
+    }
+
+    public function getMessageReactions($messageId)
+    {
+        $user = $this->getCurrentUser();
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        $message = Message::findOrFail($messageId);
+        
+        // Check if user is participant
+        $isParticipant = $message->conversation->participants()
+            ->where('user_id', $user->id)
+            ->exists();
+        
+        if (!$isParticipant) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Not a participant in this conversation',
+            ], 403);
+        }
+
+        $reactions = Reaction::where('target_type', 'message')
+            ->where('target_id', $messageId)
+            ->with('user:id,username,full_name,avatar_url')
+            ->get()
+            ->groupBy('reaction_type')
+            ->map(function ($group) use ($user) {
+                return [
+                    'count' => $group->count(),
+                    'users' => $group->map(function ($reaction) {
+                        return [
+                            'id' => $reaction->user->id,
+                            'username' => $reaction->user->username,
+                            'full_name' => $reaction->user->full_name,
+                            'avatar_url' => $reaction->user->avatar_url,
+                        ];
+                    })->toArray(),
+                    'user_reacted' => $group->pluck('user_id')->contains($user->id),
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
+            'data' => [
+                'reactions' => $reactions,
+            ],
         ]);
     }
 

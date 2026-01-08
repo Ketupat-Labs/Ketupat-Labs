@@ -77,6 +77,20 @@ Route::get('/reset-password/{token}', function ($token) {
 // and 'broadcast.auth' middleware to get the authenticated user (supports both Auth and session-based auth)
 Broadcast::routes(['middleware' => ['web', 'broadcast.auth']]);
 
+// Test endpoint to verify session authentication is working
+Route::get('/test-session-auth', function (Request $request) {
+    return response()->json([
+        'status' => 200,
+        'auth_check' => Auth::check(),
+        'auth_guard_check' => Auth::guard('web')->check(),
+        'session_user_id' => session('user_id'),
+        'has_session_user_id' => session()->has('user_id'),
+        'session_id' => session()->getId(),
+        'session_keys' => array_keys(session()->all()),
+        'cookies' => $request->cookies->all(),
+    ]);
+})->middleware('web');
+
 // Dashboard route - using DashboardController from Ketupat-Labs
 // Note: DashboardController uses session('user_id') for auth, not Auth::check()
 Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');

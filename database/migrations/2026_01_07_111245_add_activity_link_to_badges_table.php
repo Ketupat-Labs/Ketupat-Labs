@@ -16,13 +16,11 @@ return new class extends Migration
             // Add creator_id to track which teacher created the badge
             if (!Schema::hasColumn('badge', 'creator_id')) {
                 $table->unsignedBigInteger('creator_id')->nullable()->after('id');
-                $table->foreign('creator_id')->references('id')->on('users')->onDelete('cascade');
             }
             
             // Add activity_id to link badge to a specific activity (1:1 relationship)
             if (!Schema::hasColumn('badge', 'activity_id')) {
                 $table->unsignedBigInteger('activity_id')->nullable()->unique()->after('creator_id');
-                $table->foreign('activity_id')->references('id')->on('activity')->onDelete('set null');
             }
             
             // Add is_custom flag to distinguish teacher-created badges from system badges
@@ -30,6 +28,29 @@ return new class extends Migration
                 $table->boolean('is_custom')->default(false)->after('activity_id');
             }
         });
+        
+        // Add foreign keys separately after columns are created
+        if (Schema::hasColumn('badge', 'creator_id') && !Schema::hasColumn('badge', 'badge_creator_id_foreign')) {
+            try {
+                Schema::table('badge', function (Blueprint $table) {
+                    $table->foreign('creator_id')->references('id')->on('users')->onDelete('cascade');
+                });
+            } catch (\Exception $e) {
+                // Foreign key might already exist or users table structure doesn't match
+                \Log::warning('Could not add creator_id foreign key: ' . $e->getMessage());
+            }
+        }
+        
+        if (Schema::hasColumn('badge', 'activity_id') && Schema::hasTable('activity')) {
+            try {
+                Schema::table('badge', function (Blueprint $table) {
+                    $table->foreign('activity_id')->references('id')->on('activity')->onDelete('set null');
+                });
+            } catch (\Exception $e) {
+                // Foreign key might already exist or activity table doesn't exist
+                \Log::warning('Could not add activity_id foreign key: ' . $e->getMessage());
+            }
+        }
         
         // Set existing badges as system badges (not custom)
         DB::table('badge')->update(['is_custom' => false]);

@@ -97,6 +97,8 @@ Route::middleware('auth:web')->group(function () {
         Route::delete('/conversation/{conversationId}', [MessagingController::class, 'deleteConversation']);
         Route::delete('/conversation/{conversationId}/messages', [MessagingController::class, 'clearAllMessages']);
         Route::get('/available-users', [MessagingController::class, 'getAvailableUsers']);
+        Route::post('/message/{messageId}/reaction', [MessagingController::class, 'toggleReaction']);
+        Route::get('/message/{messageId}/reactions', [MessagingController::class, 'getMessageReactions']);
     });
 
     // Notification routes

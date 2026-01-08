@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     
+    // Remove any existing emoji picker containers
+    const existingPicker = document.getElementById('emojiPickerContainer');
+    if (existingPicker) {
+        existingPicker.remove();
+    }
+    
     // Clear old message caches on page load
     clearOldMessageCaches();
     
@@ -41,7 +47,22 @@ document.addEventListener('DOMContentLoaded', () => {
     loadNavigationUserInfo();
     initEventListeners();
     loadConversations();
-    connectWebSocket();
+    
+    // Listen for echoReady event before connecting WebSocket
+    window.addEventListener('echoReady', () => {
+        console.log('echoReady event received in messaging.js, connecting WebSocket...');
+        connectWebSocket();
+    });
+    
+    // Also try to connect immediately (in case Echo is already ready)
+    // And set a timeout as fallback
+    setTimeout(() => {
+        if (!messagingState.isWebSocketConnected) {
+            console.log('Echo not connected yet, attempting connection...');
+            connectWebSocket();
+        }
+    }, 500);
+    
     loadPinnedMessages();
     
     const messageInput = document.getElementById('messageInput');
@@ -777,13 +798,15 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
             
             // Final check before rendering
             if (messagingState.currentConversationId === conversationId) {
-                // Only re-render if messages actually changed (compare message IDs)
+                // Always render if there are no messages (to show empty state)
+                // Or if messages changed or it's pagination
                 const currentMessageIds = new Set(messagingState.messages.map(m => m.id));
                 const previousMessageIds = new Set(Array.from(lastRenderedMessageIds));
                 const messagesChanged = currentMessageIds.size !== previousMessageIds.size ||
                     Array.from(currentMessageIds).some(id => !previousMessageIds.has(id));
                 
-                if (messagesChanged || page !== 1) {
+                // Always render if no messages (to show empty state) or if messages changed
+                if (messagingState.messages.length === 0 || messagesChanged || page !== 1) {
                     renderMessages();
                 }
                 
@@ -805,13 +828,25 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
                 };
             }
         } else {
+            // API returned non-200 status
+            hideMessagesLoading();
+            // If no messages in state, show empty state
+            if (!messagingState.messages || messagingState.messages.length === 0) {
+                renderMessages(); // This will show empty state
+            }
             showError(data.message || 'Gagal memuatkan mesej');
         }
     } catch (error) {
         console.error('Error loading messages:', error);
+        hideMessagesLoading();
         // Only show error if still on the same conversation
         if (messagingState.currentConversationId === conversationId) {
-            showError('Gagal memuatkan mesej. Sila cuba lagi.');
+            // If no messages, show empty state instead of error
+            if (!messagingState.messages || messagingState.messages.length === 0) {
+                renderMessages(); // This will show empty state
+            } else {
+                showError('Gagal memuatkan mesej. Sila cuba lagi.');
+            }
         }
     }
 }
@@ -843,7 +878,12 @@ function showMessagesLoading() {
 
 // Hide loading state
 function hideMessagesLoading() {
-    // Loading will be replaced by renderMessages() or empty state
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    
+    // If container shows loading spinner, ensure it gets cleared
+    // renderMessages() will be called to show messages or empty state
+    // This is a safety check - renderMessages() should always be called after hideMessagesLoading()
 }
 
 function renderMessages() {
@@ -945,7 +985,7 @@ function renderMessages() {
                                 ${msg.message_type === 'text' ? 
                                     `<div>${formatMessageContent(msg.content)}</div>` :
                                     msg.message_type === 'shared_post' && msg.attachment_url ?
-                                    `<div id="shared-post-${msg.id}" class="shared-post-container" style="min-width: 300px; max-width: 500px; width: 100%;">Loading post preview...</div>` :
+                                    `<div id="shared-post-${msg.id}" class="shared-post-container" style="min-width: 220px; max-width: 350px; width: 100%;">Loading post preview...</div>` :
                                     msg.message_type === 'image' && msg.attachment_url ?
                                     `<div class="message-image-container" style="max-width: 400px; max-height: 400px; border-radius: 8px; overflow: hidden; cursor: pointer;" onclick="window.open('${escapeHtml(msg.attachment_url)}', '_blank');">
                                         <img src="${escapeHtml(msg.attachment_url)}" alt="${escapeHtml(msg.attachment_name || 'Image')}" style="width: 100%; height: auto; display: block;" onerror="this.parentElement.innerHTML='<div style=\\'padding: 20px; text-align: center; color: #999;\\'><i class=\\'fas fa-image\\'></i><br>Image not available</div>';">
@@ -965,6 +1005,7 @@ function renderMessages() {
                                 ${msg.is_edited ? '<span class="message-edited">edited</span>' : ''}
                                 <span>${formatTime(msg.created_at)}</span>
                             </div>
+                            ${renderMessageReactions(msg)}
                         </div>
                     </div>
                 </div>
@@ -991,7 +1032,10 @@ function renderMessages() {
             if (msg.message_type === 'shared_post' && msg.attachment_url) {
                 const previewContainer = document.getElementById(`shared-post-${msg.id}`);
                 if (previewContainer) {
-                    renderSharedPostPreview(msg).then(html => {
+                    // Determine if this is own message by checking parent element
+                    const messageElement = previewContainer.closest('[data-message-id]');
+                    const isOwn = messageElement ? messageElement.closest('.message')?.classList.contains('own') || false : false;
+                    renderSharedPostPreview(msg, isOwn).then(html => {
                         // Double-check container still exists (might have been removed)
                         const container = document.getElementById(`shared-post-${msg.id}`);
                         if (container && container.parentElement) {
@@ -1140,24 +1184,64 @@ async function sendMessage() {
             // Clear reply preview
             cancelReply();
             
-            // Don't reload immediately - wait for WebSocket to deliver the message
-            // This prevents race conditions where loadMessages might not include the new message
-            // The WebSocket handler will add the message when it arrives
+            // Optimistically add message to UI immediately
+            const currentUserId = getCurrentUserId();
+            
+            // Get user info from existing messages or fetch it
+            let userInfo = null;
+            if (messagingState.messages.length > 0) {
+                // Try to find user info from existing messages sent by current user
+                const ownMessage = messagingState.messages.find(m => parseInt(m.sender_id) === parseInt(currentUserId));
+                if (ownMessage) {
+                    userInfo = {
+                        username: ownMessage.username,
+                        full_name: ownMessage.full_name,
+                        avatar_url: ownMessage.avatar_url
+                    };
+                }
+            }
+            
+            const optimisticMessage = {
+                id: data.data.message_id,
+                conversation_id: messagingState.currentConversationId,
+                sender_id: parseInt(currentUserId),
+                content: content,
+                message_type: messageType,
+                attachment_url: attachmentUrl,
+                attachment_name: attachmentName,
+                created_at: new Date().toISOString(),
+                is_edited: false,
+                reactions: {},
+                username: userInfo?.username || 'You',
+                full_name: userInfo?.full_name || 'You',
+                avatar_url: userInfo?.avatar_url || null
+            };
+            
+            // Add message to array if it doesn't exist
+            const messageExists = messagingState.messages.some(m => m.id === optimisticMessage.id);
+            if (!messageExists) {
+                messagingState.messages.push(optimisticMessage);
+                // Sort by created_at to maintain order
+                messagingState.messages.sort((a, b) => {
+                    return new Date(a.created_at) - new Date(b.created_at);
+                });
+                renderMessages();
+                scrollToBottom(true);
+            }
+            
+            // Update conversations list
             await loadConversations();
             
-            // If WebSocket doesn't deliver within 1 second, reload messages as fallback
+            // If WebSocket doesn't deliver within 1 second, reload messages to get server data
             setTimeout(async () => {
-                // Check if the new message is already in the array
+                // Check if the new message is already in the array with full data
                 const messageExists = messagingState.messages.some(m => m.id === data.data.message_id);
                 if (!messageExists) {
                     // Message not received via WebSocket, reload from server
                     await loadMessages(messagingState.currentConversationId);
                 } else {
-                    // Message exists, just update cache to ensure it's saved
-                    const message = messagingState.messages.find(m => m.id === data.data.message_id);
-                    if (message) {
-                        updateMessageInCache(messagingState.currentConversationId, message);
-                    }
+                    // Message exists, reload to ensure we have the latest server data
+                    await loadMessages(messagingState.currentConversationId);
                 }
                 
                 // Update pin indicators after loading
@@ -2077,17 +2161,71 @@ function connectWebSocket() {
         return;
     }
     
-    // Use Laravel Echo if available (from app.blade.php)
-    if (typeof window.Echo !== 'undefined' && (window.Echo.connector || window.Echo.private)) {
-        console.log('Using Laravel Echo for messaging WebSocket');
+    // Check if Echo is available - handle both constructor and instance
+    const echoAvailable = typeof window.Echo !== 'undefined' && (
+        // Echo is an instance (already initialized)
+        (window.Echo.connector || window.Echo.private || window.Echo.options) ||
+        // Echo is a constructor function (will be initialized by messaging.blade.php)
+        typeof window.Echo === 'function'
+    );
+    
+    if (echoAvailable) {
+        // If Echo is a constructor, wait for it to be initialized
+        if (typeof window.Echo === 'function' && !window.Echo.connector && !window.Echo.private) {
+            console.log('Echo constructor found, waiting for initialization...');
+            // Wait for echoReady event or check periodically
+            let attempts = 0;
+            const maxAttempts = 50;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if ((window.Echo.connector || window.Echo.private || window.Echo.options) || attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    if (window.Echo.connector || window.Echo.private || window.Echo.options) {
+                        console.log('Echo instance ready, connecting...');
+                        initializeEchoConnection();
+                    } else {
+                        console.warn('Echo did not initialize after waiting, using polling fallback');
+                        messagingState.isWebSocketConnected = false;
+                        startPollingFallback();
+                    }
+                }
+            }, 100);
+            return;
+        }
         
-        try {
-            // Join current conversation if any (will be set up when conversation is selected)
-            if (messagingState.currentConversationId) {
-                joinConversation(messagingState.currentConversationId);
-            }
-            
-            // Update online status
+        // Echo is already an instance, connect immediately
+        console.log('Using Laravel Echo for messaging WebSocket');
+        initializeEchoConnection();
+    } else {
+        // Echo not available, use polling fallback
+        console.log('Laravel Echo not available, using polling fallback');
+        messagingState.isWebSocketConnected = false;
+        startPollingFallback();
+    }
+}
+
+function initializeEchoConnection() {
+    try {
+        // Join current conversation if any (will be set up when conversation is selected)
+        if (messagingState.currentConversationId) {
+            joinConversation(messagingState.currentConversationId);
+        }
+        
+        // Update online status
+        updateOnlineStatus(true);
+        
+        // Mark as connected
+        messagingState.echoConnected = true;
+        messagingState.isWebSocketConnected = true;
+        stopPollingFallback(); // Stop polling since WebSocket is connected
+        console.log('Laravel Echo connected for messaging');
+        
+    } catch (error) {
+        console.error('Error setting up Laravel Echo:', error);
+        messagingState.isWebSocketConnected = false;
+        startPollingFallback();
+    }
+}
             updateOnlineStatus(true);
             
             // Mark as connected
@@ -2192,7 +2330,16 @@ function joinConversation(conversationId) {
             }
             
             // Join new conversation channel
+            // Note: Initial auth may show 403 errors in console, but Echo will retry and succeed
             const channel = window.Echo.private(`conversation.${conversationId}`);
+            
+            // Handle auth errors gracefully - Echo will retry automatically
+            channel.error((error) => {
+                if (error.status !== 403) {
+                    console.error('Channel subscription error:', error);
+                }
+                // 403 errors are expected on initial attempts and will be retried
+            });
             
             channel.listen('.new_message', (data) => {
                 console.log('New message via Echo:', data);
@@ -2619,7 +2766,7 @@ function formatMessageContent(text) {
 const sharedPostCache = new Map();
 
 // Fetch and render shared post preview
-async function renderSharedPostPreview(msg) {
+async function renderSharedPostPreview(msg, isOwn = false) {
     const postId = parseInt(msg.attachment_url);
     if (!postId) {
         // Fallback to link if post_id is invalid
@@ -2628,7 +2775,7 @@ async function renderSharedPostPreview(msg) {
 
     // Check cache first
     if (sharedPostCache.has(postId)) {
-        return renderSharedPostCard(sharedPostCache.get(postId), msg);
+        return renderSharedPostCard(sharedPostCache.get(postId), msg, isOwn);
     }
 
     // Fetch post data
@@ -2647,7 +2794,7 @@ async function renderSharedPostPreview(msg) {
         if (data.status === 200 && data.data.posts && data.data.posts.length > 0) {
             const post = data.data.posts[0];
             sharedPostCache.set(postId, post);
-            return renderSharedPostCard(post, msg);
+            return renderSharedPostCard(post, msg, isOwn);
         } else {
             // Post not found or access denied, show fallback
             return `<div class="shared-post-preview"><a href="${escapeHtml(msg.attachment_name || '/forum/post/' + postId)}" target="_blank">${escapeHtml(msg.content || 'Shared Post')}</a></div>`;
@@ -2660,16 +2807,16 @@ async function renderSharedPostPreview(msg) {
 }
 
 // Render shared post card (similar to forum main page)
-function renderSharedPostCard(post, msg) {
+function renderSharedPostCard(post, msg, isOwn = false) {
     const postUrl = `/forum/post/${post.id}`;
     const forumUrl = `/forum/${post.forum_id}`;
     const authorUrl = post.author_id ? `/profile/${post.author_id}` : '#';
     
-    // Process content preview (first 200 chars)
+    // Process content preview (first 120 chars for smaller container)
     let contentPreview = '';
     if (post.content) {
-        const content = post.content.substring(0, 200);
-        contentPreview = escapeHtml(content) + (post.content.length > 200 ? '...' : '');
+        const content = post.content.substring(0, 120);
+        contentPreview = escapeHtml(content) + (post.content.length > 120 ? '...' : '');
     }
 
     // Get first image attachment for preview
@@ -2680,8 +2827,8 @@ function renderSharedPostCard(post, msg) {
             return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
         });
         if (imageAtt) {
-            imagePreview = `<div class="shared-post-image" style="width: 100%; max-height: 200px; overflow: hidden; border-radius: 8px 8px 0 0; margin: -12px -12px 12px -12px;">
-                <img src="${escapeHtml(imageAtt.url)}" alt="${escapeHtml(post.title)}" style="width: 100%; height: auto; display: block;" onerror="this.parentElement.style.display='none';">
+            imagePreview = `<div class="shared-post-image" style="width: 100%; overflow: hidden; border-radius: 8px 8px 0 0; margin: -10px -10px 8px -10px;">
+                <img src="${escapeHtml(imageAtt.url)}" alt="${escapeHtml(post.title)}" style="width: 100%; height: auto; display: block; object-fit: contain; max-height: none;" onerror="this.parentElement.style.display='none';">
             </div>`;
         }
     }
@@ -2689,48 +2836,48 @@ function renderSharedPostCard(post, msg) {
     // Poll options preview
     let pollPreview = '';
     if (post.post_type === 'poll' && post.poll_options && Array.isArray(post.poll_options)) {
-        pollPreview = `<div class="shared-post-poll" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
-            <div style="font-weight: 600; margin-bottom: 8px; color: #666; font-size: 0.9em;">Poll Options:</div>
-            ${post.poll_options.slice(0, 3).map((option, idx) => `
-                <div style="padding: 6px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; font-size: 0.9em;">
-                    <span style="font-weight: 600; color: #ff4500;">${idx + 1}.</span>
-                    <span>${escapeHtml(option.text)}</span>
-                    ${option.vote_count > 0 ? `<span style="margin-left: auto; color: #666; font-size: 0.85em;">${option.vote_count} vote${option.vote_count !== 1 ? 's' : ''}</span>` : ''}
+        pollPreview = `<div class="shared-post-poll" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid ${isOwn ? 'rgba(255, 255, 255, 0.3)' : '#e0e0e0'} !important;">
+            <div style="font-weight: 600; margin-bottom: 6px; color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important; font-size: 0.8em;">Poll Options:</div>
+            ${post.poll_options.slice(0, 2).map((option, idx) => `
+                <div style="padding: 4px; margin: 3px 0; background: ${isOwn ? 'rgba(255, 255, 255, 0.15)' : '#f5f5f5'} !important; border-radius: 4px; font-size: 0.75em;">
+                    <span style="font-weight: 600; color: ${isOwn ? 'rgba(255, 255, 255, 0.95)' : '#ff4500'} !important;">${idx + 1}.</span>
+                    <span style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#333'} !important;">${escapeHtml(option.text.length > 40 ? option.text.substring(0, 40) + '...' : option.text)}</span>
+                    ${option.vote_count > 0 ? `<span style="margin-left: auto; color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important; font-size: 0.7em;">${option.vote_count}</span>` : ''}
                 </div>
             `).join('')}
-            ${post.poll_options.length > 3 ? `<div style="font-size: 0.85em; color: #999; margin-top: 4px;">+${post.poll_options.length - 3} more options</div>` : ''}
-            ${post.total_poll_votes > 0 ? `<div style="font-size: 0.85em; color: #666; margin-top: 8px;">Total votes: ${post.total_poll_votes}</div>` : ''}
+            ${post.poll_options.length > 2 ? `<div style="font-size: 0.7em; color: ${isOwn ? 'rgba(255, 255, 255, 0.8)' : '#999'} !important; margin-top: 3px;">+${post.poll_options.length - 2} more</div>` : ''}
+            ${post.total_poll_votes > 0 ? `<div style="font-size: 0.7em; color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important; margin-top: 6px;">Total: ${post.total_poll_votes}</div>` : ''}
         </div>`;
     }
 
     return `
-        <div class="shared-post-preview" 
+        <div class="shared-post-preview ${isOwn ? 'own-message-shared-post' : 'received-message-shared-post'}" 
              onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')"
              onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" 
              onmouseout="this.style.boxShadow='none'"
-             style="border: 1px solid #e0e0e0; border-radius: 8px; background: white; overflow: hidden; cursor: pointer; transition: box-shadow 0.2s; display: block; width: 100%; max-width: 500px; min-width: 300px; box-sizing: border-box;">
+             style="border: 1px solid #e0e0e0 !important; border-radius: 8px !important; background: ${isOwn ? 'rgba(255, 255, 255, 0.25)' : '#f8f9fa'} !important; overflow: hidden !important; cursor: pointer !important; transition: box-shadow 0.2s !important; display: block !important; width: 100% !important; max-width: 350px !important; min-width: 220px !important; box-sizing: border-box !important; color: ${isOwn ? 'rgba(255, 255, 255, 0.95)' : '#333'} !important;">
             ${imagePreview}
-            <div style="padding: 12px; box-sizing: border-box;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.85em; color: #666; flex-wrap: wrap;">
-                    <span style="font-weight: 600; color: #ff4500; cursor: pointer;" onclick="event.stopPropagation(); window.open('${forumUrl}', '_blank')">r/${escapeHtml(post.forum_name || 'Forum')}</span>
-                    <span>•</span>
-                    <span onclick="event.stopPropagation(); window.open('${authorUrl}', '_blank')" style="cursor: pointer; color: #666;">${escapeHtml(post.author_name || post.author_username || 'Unknown')}</span>
-                    <span>•</span>
-                    <span style="color: #666;">${formatTime(post.created_at)}</span>
+            <div style="padding: 8px; box-sizing: border-box; color: ${isOwn ? 'rgba(255, 255, 255, 0.95)' : '#333'} !important;">
+                <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 2px; font-size: 0.75em; color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important; flex-wrap: wrap;">
+                    <span style="font-weight: 600; color: ${isOwn ? 'rgba(255, 255, 255, 0.95)' : '#ff4500'} !important; cursor: pointer;" onclick="event.stopPropagation(); window.open('${forumUrl}', '_blank')">${escapeHtml(post.forum_name || 'Forum')}</span>
+                    <span style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">•</span>
+                    <span onclick="event.stopPropagation(); window.open('${authorUrl}', '_blank')" style="cursor: pointer; color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">${escapeHtml(post.author_name || post.author_username || 'Unknown')}</span>
+                    <span style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">•</span>
+                    <span style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">${formatTime(post.created_at)}</span>
                 </div>
-                <div style="font-weight: 600; font-size: 1.1em; color: #333; margin-bottom: 8px; cursor: pointer; word-wrap: break-word; line-height: 1.3;" onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')">
+                <div style="font-weight: 600; font-size: 0.95em; color: ${isOwn ? 'rgba(255, 255, 255, 0.95)' : '#333'} !important; margin-bottom: 2px; cursor: pointer; word-wrap: break-word; line-height: 1.3;" onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')">
                     ${escapeHtml(post.title)}
                 </div>
-                ${contentPreview ? `<div style="color: #666; font-size: 0.9em; margin-bottom: 8px; line-height: 1.4; word-wrap: break-word;">${contentPreview}</div>` : ''}
+                ${contentPreview ? `<div style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important; font-size: 0.8em; margin-bottom: 2px; line-height: 1.3; word-wrap: break-word; max-height: 60px; overflow: hidden;">${contentPreview}</div>` : ''}
                 ${pollPreview}
-                <div style="display: flex; align-items: center; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; font-size: 0.85em;">
-                    <span onclick="event.stopPropagation(); togglePostReaction(${post.id}, '${postUrl}')" style="cursor: pointer; display: flex; align-items: center; gap: 4px; color: #666;">
-                        <i class="${post.user_reacted ? 'fas' : 'far'} fa-heart" style="color: ${post.user_reacted ? '#ff4500' : '#666'};"></i>
-                        <span>${post.reaction_count || 0}</span>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px; padding-top: 4px; border-top: 1px solid ${isOwn ? 'rgba(255, 255, 255, 0.3)' : '#f0f0f0'} !important; font-size: 0.75em;">
+                    <span onclick="event.stopPropagation(); togglePostReaction(${post.id}, '${postUrl}')" style="cursor: pointer; display: flex; align-items: center; gap: 4px; color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">
+                        <i class="${post.user_reacted ? 'fas' : 'far'} fa-heart" style="color: ${post.user_reacted ? '#ff4500' : (isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666')} !important;"></i>
+                        <span style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">${post.reaction_count || 0}</span>
                     </span>
-                    <span onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')" style="cursor: pointer; display: flex; align-items: center; gap: 4px; color: #666;">
-                        <i class="far fa-comment"></i>
-                        <span>${post.reply_count || 0}</span>
+                    <span onclick="event.stopPropagation(); window.open('${postUrl}', '_blank')" style="cursor: pointer; display: flex; align-items: center; gap: 4px; color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">
+                        <i class="far fa-comment" style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;"></i>
+                        <span style="color: ${isOwn ? 'rgba(255, 255, 255, 0.9)' : '#666'} !important;">${post.reply_count || 0}</span>
                     </span>
                 </div>
             </div>
@@ -2864,9 +3011,6 @@ function showMessageContextMenu(event, messageId, isOwn) {
                     ${emoji}
                 </button>
             `).join('')}
-            <button class="reaction-btn more-reactions" onclick="event.stopPropagation(); showMoreReactions(${messageId});">
-                <i class="fas fa-plus"></i>
-            </button>
         </div>
     `;
     
@@ -3051,7 +3195,7 @@ function copyMessage(messageId) {
         } else {
             // Simple toast fallback
             const toast = document.createElement('div');
-            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 14px;';
+            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 14px; max-width: 300px; word-wrap: break-word; white-space: normal; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
             toast.textContent = 'Message copied to clipboard';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
@@ -3529,7 +3673,7 @@ function copySelectedMessages() {
             showToast('Messages copied to clipboard');
         } else {
             const toast = document.createElement('div');
-            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 14px;';
+            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 14px; max-width: 300px; word-wrap: break-word; white-space: normal; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
             toast.textContent = 'Messages copied to clipboard';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
@@ -3583,14 +3727,186 @@ async function deleteSelectedMessages() {
 }
 
 
-function addReaction(messageId, emoji) {
-    console.log('Add reaction:', messageId, emoji);
-    // Implement API call to add reaction
+async function addReaction(messageId, emoji) {
+    try {
+        const response = await fetch(`/api/messaging/message/${messageId}/reaction`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+            },
+            credentials: 'include',
+            body: JSON.stringify({ emoji: emoji })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 200) {
+            // Update message reactions in state
+            const message = messagingState.messages.find(m => m.id === messageId);
+            if (message) {
+                message.reactions = data.data.reactions;
+            }
+            
+            // Clear cache for this message to force re-render
+            messageElementsCache.delete(messageId);
+            
+            // Re-render the message to show updated reactions
+            renderMessages();
+            
+            // Close context menu and emoji picker
+            closeMessageContextMenu();
+            const picker = document.getElementById('emojiPickerContainer');
+            if (picker) picker.remove();
+        } else {
+            showError(data.message || 'Failed to add reaction');
+        }
+    } catch (error) {
+        console.error('Error adding reaction:', error);
+        showError('Failed to add reaction');
+    }
 }
 
 function showMoreReactions(messageId) {
-    // Show extended reactions picker
-    console.log('Show more reactions for:', messageId);
+    // Close context menu first
+    closeMessageContextMenu();
+    
+    // Create emoji picker container
+    let pickerContainer = document.getElementById('emojiPickerContainer');
+    if (pickerContainer) {
+        pickerContainer.remove();
+    }
+    
+    pickerContainer = document.createElement('div');
+    pickerContainer.id = 'emojiPickerContainer';
+    pickerContainer.style.cssText = 'position: fixed; z-index: 10001; background: white; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 12px; max-width: 350px; max-height: 400px; overflow-y: auto;';
+    
+    // Get message position for placement
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageElement) {
+        const rect = messageElement.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const pickerWidth = 350; // max-width
+        const pickerHeight = 400; // max-height
+        const spacing = 10; // spacing from message
+        
+        // Calculate if picker would overflow on the right
+        const rightSpace = viewportWidth - rect.right;
+        const leftSpace = rect.left;
+        const wouldOverflowRight = (rect.right + spacing + pickerWidth) > viewportWidth;
+        const wouldOverflowLeft = (rect.left - spacing - pickerWidth) < 0;
+        
+        // Position horizontally: prefer right, but use left if right would overflow
+        if (wouldOverflowRight && leftSpace >= pickerWidth) {
+            // Position on the left side of the message
+            pickerContainer.style.left = (rect.left - pickerWidth - spacing) + 'px';
+        } else if (wouldOverflowRight && rightSpace < pickerWidth && leftSpace < pickerWidth) {
+            // Not enough space on either side, position on left edge with margin
+            pickerContainer.style.left = '20px';
+        } else {
+            // Position on the right side (default)
+            pickerContainer.style.left = (rect.right + spacing) + 'px';
+        }
+        
+        // Position vertically: ensure it doesn't overflow bottom
+        let topPosition = rect.top;
+        if (topPosition + pickerHeight > viewportHeight) {
+            // Adjust to fit in viewport
+            topPosition = Math.max(10, viewportHeight - pickerHeight - 10);
+        }
+        // Ensure it doesn't go above viewport
+        if (topPosition < 10) {
+            topPosition = 10;
+        }
+        pickerContainer.style.top = topPosition + 'px';
+    } else {
+        // Fallback position
+        pickerContainer.style.right = '20px';
+        pickerContainer.style.bottom = '100px';
+    }
+    
+    // Popular emojis organized by category
+    const emojiCategories = {
+        'Smileys & People': ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓'],
+        'Gestures': ['👋', '🤚', '🖐', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏'],
+        'Hearts & Love': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
+        'Objects & Symbols': ['⭐', '🌟', '✨', '💫', '🔥', '💯', '✅', '❌', '❗', '❓', '💡', '🎉', '🎊', '🎈', '🎁'],
+    };
+    
+    let emojiHtml = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+    
+    for (const [category, emojis] of Object.entries(emojiCategories)) {
+        emojiHtml += `<div><div style="font-size: 11px; color: #666; margin-bottom: 6px; font-weight: 600;">${category}</div>`;
+        emojiHtml += '<div style="display: flex; flex-wrap: wrap; gap: 4px;">';
+        emojis.forEach(emoji => {
+            emojiHtml += `<button onclick="event.stopPropagation(); addReaction(${messageId}, '${emoji}'); document.getElementById('emojiPickerContainer')?.remove();" style="font-size: 24px; background: none; border: none; cursor: pointer; padding: 4px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='none'">${emoji}</button>`;
+        });
+        emojiHtml += '</div></div>';
+    }
+    
+    emojiHtml += '</div>';
+    pickerContainer.innerHTML = emojiHtml;
+    
+    document.body.appendChild(pickerContainer);
+    
+    // Close picker when clicking outside
+    setTimeout(() => {
+        const closePicker = (e) => {
+            if (!pickerContainer.contains(e.target) && e.target.closest('.reaction-btn') !== document.querySelector(`[data-message-id="${messageId}"]`)) {
+                pickerContainer.remove();
+                document.removeEventListener('click', closePicker);
+            }
+        };
+        document.addEventListener('click', closePicker);
+    }, 100);
+}
+
+// Render message reactions
+function renderMessageReactions(msg) {
+    if (!msg.reactions || Object.keys(msg.reactions).length === 0) {
+        return '';
+    }
+    
+    // Map reaction types to emojis
+    const emojiMap = {
+        'like': '👍',
+        'love': '❤️',
+        'laugh': '😂',
+        'surprised': '😮',
+        'sad': '😥',
+        'pray': '🙏',
+        'angry': '😡',
+        'star': '⭐',
+    };
+    
+    const currentUserId = getCurrentUserId();
+    let reactionsHtml = '<div class="message-reactions-display" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">';
+    
+    for (const [reactionType, reactionData] of Object.entries(msg.reactions)) {
+        const emoji = emojiMap[reactionType] || '👍';
+        const count = reactionData.count || 0;
+        const userReacted = reactionData.user_reacted || false;
+        
+        if (count > 0) {
+            reactionsHtml += `
+                <button class="message-reaction-badge ${userReacted ? 'user-reacted' : ''}" 
+                        onclick="event.stopPropagation(); addReaction(${msg.id}, '${emoji}');"
+                        style="background: ${userReacted ? '#e3f2fd' : '#f5f5f5'}; border: 1px solid ${userReacted ? '#2196f3' : '#ddd'}; border-radius: 12px; padding: 2px 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;"
+                        onmouseover="this.style.background='${userReacted ? '#bbdefb' : '#e0e0e0'}'"
+                        onmouseout="this.style.background='${userReacted ? '#e3f2fd' : '#f5f5f5'}'"
+                        title="${reactionData.users?.map(u => u.full_name || u.username).join(', ') || ''}">
+                    <span style="font-size: 14px;">${emoji}</span>
+                    <span style="color: #666; font-weight: 500;">${count}</span>
+                </button>
+            `;
+        }
+    }
+    
+    reactionsHtml += '</div>';
+    return reactionsHtml;
 }
 
 async function confirmDeleteMessage(messageId, showConfirm = true) {
@@ -3945,6 +4261,7 @@ window.shareMessage = function(messageId) {
 };
 window.addReaction = addReaction;
 window.showMoreReactions = showMoreReactions;
+window.renderMessageReactions = renderMessageReactions;
 window.toggleConversationOptions = toggleConversationOptions;
 
 // Export for onclick handlers
