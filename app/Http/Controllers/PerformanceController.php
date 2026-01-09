@@ -140,14 +140,45 @@ class PerformanceController extends Controller
                         $score = 100;
                         $max = 100; 
                     } else {
-                        $score = $quizAttempt ? $quizAttempt->score : 0;
-                        $max = $quizAttempt ? $quizAttempt->total_questions : 0;
+                        // Check for linked activity scores
+                        $linkedActivityScore = null;
+                         if ($lesson->content_blocks) {
+                            $blocks = is_array($lesson->content_blocks) ? $lesson->content_blocks : json_decode($lesson->content_blocks, true);
+                            $linkedActivityIds = [];
+                            if (is_array($blocks)) {
+                                foreach ($blocks as $block) {
+                                    if (isset($block['type']) && $block['type'] === 'activity' && isset($block['data']['activityId'])) {
+                                        $linkedActivityIds[] = $block['data']['activityId'];
+                                    } elseif (isset($block['type']) && $block['type'] === 'activity' && isset($block['activity_id'])) {
+                                        $linkedActivityIds[] = $block['activity_id'];
+                                    }
+                                }
+                            }
+                            if (!empty($linkedActivityIds)) {
+                                $avgScore = \App\Models\ActivitySubmission::where('user_id', $student->id)
+                                    ->whereIn('activity_id', $linkedActivityIds)
+                                    ->avg('score');
+                                if ($avgScore !== null) {
+                                    $linkedActivityScore = round($avgScore);
+                                }
+                            }
+                        }
+
+                        if ($linkedActivityScore !== null) {
+                            $score = $linkedActivityScore;
+                            $max = 100; // Assuming activity scores are 0-100
+                            // Mark as completed for calculation purposes if they have a score
+                            $isCompleted = true; 
+                        } else {
+                            $score = $quizAttempt ? $quizAttempt->score : 0;
+                            $max = $quizAttempt ? $quizAttempt->total_questions : 0;
+                        }
                     }
 
                     $studentRow['grades'][$lesson->id] = [
                         'score' => $score,
                         'max' => $max,
-                        'display' => $isCompleted ? '100%' : ($quizAttempt ? "$score/$max" : '-')
+                        'display' => $isCompleted ? $score.'%' : ($quizAttempt ? "$score/$max" : '-')
                     ];
 
                     if ($isCompleted || $quizAttempt) {
@@ -301,15 +332,47 @@ class PerformanceController extends Controller
                         ->first();
                     
                     $teacherGrade = $submission ? $submission->grade : null;
+
+                    // Check Linked Activities in Lesson Content
+                    $activityScore = null;
+                    if ($selectedLesson->content_blocks) {
+                        $blocks = is_array($selectedLesson->content_blocks) ? $selectedLesson->content_blocks : json_decode($selectedLesson->content_blocks, true);
+                        $linkedActivityIds = [];
+                        if (is_array($blocks)) {
+                            foreach ($blocks as $block) {
+                                if (isset($block['type']) && $block['type'] === 'activity' && isset($block['data']['activityId'])) {
+                                    $linkedActivityIds[] = $block['data']['activityId'];
+                                }
+                                // Fallback for diff structure
+                                if (isset($block['type']) && $block['type'] === 'activity' && isset($block['activity_id'])) {
+                                    $linkedActivityIds[] = $block['activity_id'];
+                                }
+                            }
+                        }
+
+                        if (!empty($linkedActivityIds)) {
+                            $avgScore = \App\Models\ActivitySubmission::where('user_id', $student->id)
+                                ->whereIn('activity_id', $linkedActivityIds)
+                                ->avg('score');
+                            
+                            if ($avgScore !== null) {
+                                $activityScore = round($avgScore);
+                            }
+                        }
+                    }
                     
                     // Final Display Grade
-                    // If Teacher Grade exists, it overrides everything.
-                    // If not, use 100 if completed.
-                    // If neither, 0 (or '-').
                     if ($teacherGrade !== null) {
                         $displayGrade = $teacherGrade;
+                    } elseif ($activityScore !== null) {
+                        $displayGrade = $activityScore;
                     } else {
                         $displayGrade = $isCompleted ? 100 : '-';
+                    }
+
+                    // Treat as completed if we have an activity score
+                    if (!$isCompleted && $activityScore !== null) {
+                        $isCompleted = true;
                     }
                     
                     if ($displayGrade !== '-') {

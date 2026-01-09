@@ -102,12 +102,28 @@ const MemoryGame = ({ config = {}, onFinish }) => {
                 // Check if game is won
                 if (newMatched.length === cards.length) {
                     setGameWon(true);
+                    
+                    // Scoring Logic: 
+                    // Optimal moves = Total Pairs.
+                    // User Request: "lowest possible step + 1" gets 100%.
+                    const totalPairs = cards.length / 2;
+                    const finalMoves = moves + 1; // Current move count
+                    const optimalWithBuffer = totalPairs + 1;
+                    
+                    let percentage = 0;
+                    if (finalMoves <= optimalWithBuffer) {
+                        percentage = 100;
+                    } else {
+                        // Efficiency ratio based on the buffer
+                        percentage = Math.round((optimalWithBuffer / finalMoves) * 100);
+                    }
+
                     if (onFinish) {
                         onFinish({
-                            score: moves + 1, // Using moves as score for now, but also including percentage 100
-                            moves: moves + 1,
-                            totalPairs: cards.length / 2,
-                            percentage: 100,
+                            score: percentage, // Score is the percentage
+                            moves: finalMoves,
+                            totalPairs: totalPairs,
+                            percentage: percentage,
                             completionStatus: 'Winner'
                         });
                     }

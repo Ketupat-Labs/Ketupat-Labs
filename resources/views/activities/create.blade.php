@@ -14,7 +14,7 @@
                         </a>
                     </div>
 
-                    <form action="{{ route('activities.store') }}" method="POST">
+                    <form id="create-activity-form" action="{{ route('activities.store') }}" method="POST">
                         @csrf
 
                         <div class="mb-4">
@@ -216,7 +216,7 @@
                                             ${[0, 1, 2, 3].map(i => `
                                                 <div class="flex items-center gap-3">
                                                     <input type="radio" name="correct-${id}" value="${i}" ${i === 0 ? 'checked' : ''} class="correct-radio text-green-600 focus:ring-green-500">
-                                                    <input type="text" placeholder="Option ${i + 1}" class="answer-input w-full text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                                    <input type="text" value="${answers[i] || ''}" placeholder="Option ${i+1}" class="answer-input w-full text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                                                 </div>
                                             `).join('')}
                                             <p class="text-xs text-gray-400 mt-1">* Select the radio button next to the correct answer.</p>
@@ -227,7 +227,7 @@
                             }
 
                             // Form Submission Handler
-                            document.querySelector('form').addEventListener('submit', function (e) {
+                            document.getElementById('create-activity-form').addEventListener('submit', function (e) {
                                 const type = document.getElementById('type').value;
                                 const contentInput = document.getElementById('content');
                                 let data = {};
