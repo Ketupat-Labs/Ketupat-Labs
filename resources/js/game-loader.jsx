@@ -17,19 +17,10 @@ window.initializeGames = function () {
     console.log('Game loader: Found', gameContainers.length, 'game containers');
 
     gameContainers.forEach(container => {
-        // Prevent double initialization if root already exists
-        if (container._reactRoot) {
-            console.log('Game already initialized for this container, skipping re-creation.');
-            // Optional: If you want to force re-render with new config, you could do:
-            // container._reactRoot.render(...) here.
-            // For now, we assume config doesn't change on the fly.
-            return;
-        }
-
         const gameType = container.dataset.gameType;
         const blockId = container.dataset.id; // Capture the block ID
         let gameConfig = {};
-        
+
         try {
             gameConfig = JSON.parse(container.dataset.gameConfig || '{}');
         } catch (e) {
@@ -42,22 +33,27 @@ window.initializeGames = function () {
         const GameComponent = gameComponents[gameType];
         if (GameComponent) {
             try {
-                const root = createRoot(container);
-                // Store root on element to prevent duplicate initialization
-                container._reactRoot = root; 
-                
+                let root;
+                if (container._reactRoot) {
+                    console.log('Game root already exists, re-rendering...');
+                    root = container._reactRoot;
+                } else {
+                    root = createRoot(container);
+                    container._reactRoot = root;
+                }
+
                 root.render(
                     <GameComponent
                         config={gameConfig}
                         onFinish={(results) => {
-                             // Pass blockId to the handler
+                            // Pass blockId to the handler
                             if (window.handleGameScore) {
                                 window.handleGameScore(results, blockId);
                             }
                         }}
                     />
                 );
-                console.log('✓ Game loaded successfully:', gameType);
+                console.log('✓ Game loaded/updated successfully:', gameType);
             } catch (err) {
                 console.error('Error rendering game:', err);
             }

@@ -249,27 +249,30 @@ class ScheduleController extends Controller
                 // Validate ownership
                 $classroom = Classroom::where('id', $classroomId)->where('teacher_id', $user->id)->first();
                 if ($classroom) {
-                    $assignment = \App\Models\ActivityAssignment::create([
-                        'activity_id' => $activity->id, 
-                        'classroom_id' => $classroomId,
-                        'due_date' => $request->due_date ? \Carbon\Carbon::parse($request->due_date)->toDateTimeString() : null, 
-                        'notes' => $request->notes,
-                        'assigned_at' => now()
-                    ]);
+                    $assignment = \App\Models\ActivityAssignment::updateOrCreate(
+                        ['activity_id' => $activity->id, 'classroom_id' => $classroomId], 
+                        [
+                            'due_date' => $request->due_date ? \Carbon\Carbon::parse($request->due_date)->toDateTimeString() : null, 
+                            'notes' => $request->notes,
+                            'assigned_at' => now()
+                        ]
+                    );
                     
-                    // Notify all students in the classroom
-                    $students = $classroom->students;
-                    foreach ($students as $student) {
-                        $dueDateText = $assignment->due_date ? ' Tarikh akhir: ' . \Carbon\Carbon::parse($assignment->due_date)->format('d/m/Y H:i') : '';
-                        \App\Models\Notification::create([
-                            'user_id' => $student->id,
-                            'type' => 'activity_assigned',
-                            'title' => 'Aktiviti Baharu Ditugaskan',
-                            'message' => 'Aktiviti "' . $activity->title . '" telah ditugaskan kepada kelas "' . $classroom->name . '"' . $dueDateText,
-                            'related_type' => 'activity',
-                            'related_id' => $activity->id,
-                            'is_read' => false,
-                        ]);
+                    if ($assignment->wasRecentlyCreated) {
+                        // Notify all students in the classroom only if it's a new assignment
+                        $students = $classroom->students;
+                        foreach ($students as $student) {
+                            $dueDateText = $assignment->due_date ? ' Tarikh akhir: ' . \Carbon\Carbon::parse($assignment->due_date)->format('d/m/Y H:i') : '';
+                            \App\Models\Notification::create([
+                                'user_id' => $student->id,
+                                'type' => 'activity_assigned',
+                                'title' => 'Aktiviti Baharu Ditugaskan',
+                                'message' => 'Aktiviti "' . $activity->title . '" telah ditugaskan kepada kelas "' . $classroom->name . '"' . $dueDateText,
+                                'related_type' => 'activity',
+                                'related_id' => $activity->id,
+                                'is_read' => false,
+                            ]);
+                        }
                     }
                 }
             }
