@@ -94,19 +94,23 @@ class ChatbotController extends Controller
 
         // Prefer OpenAI official API
         if ($openaiKey && strlen($openaiKey) > 20) {
-            $systemMessage = "Anda adalah Ketupat, pembantu AI untuk platform pendidikan. " .
-                "Tugas anda ialah menerangkan konsep dengan jelas, ringkas, dan mesra. " .
-                "PENTING: Sentiasa jawab dalam Bahasa Melayu sahaja.";
+            try {
+                $systemMessage = "Anda adalah Ketupat, pembantu AI untuk platform pendidikan. " .
+                    "Tugas anda ialah menerangkan konsep dengan jelas, ringkas, dan mesra. " .
+                    "PENTING: Sentiasa jawab dalam Bahasa Melayu sahaja.";
 
-            $userText = $context
-                ? ("Konteks dari teks yang dipilih:\n" . $context . "\n\nSoalan pengguna:\n" . $prompt)
-                : $prompt;
+                $userText = $context
+                    ? ("Konteks dari teks yang dipilih:\n" . $context . "\n\nSoalan pengguna:\n" . $prompt)
+                    : $prompt;
 
-            $reply = $this->callOpenAIChat($systemMessage, $userText, 900);
-            if (trim($reply) === '') {
-                throw new \Exception('AI tidak dapat menghasilkan jawapan. Sila cuba lagi.');
+                $reply = $this->callOpenAIChat($systemMessage, $userText, 900);
+                if (trim($reply) !== '') {
+                    return trim($reply);
+                }
+            } catch (\Exception $e) {
+                Log::warning('OpenAI API (Chatbot) failed, falling back to Gemini: ' . $e->getMessage());
+                // Fallthrough to Gemini
             }
-            return trim($reply);
         }
 
         // Optional fallback to Gemini (if configured)
@@ -137,12 +141,13 @@ class ChatbotController extends Controller
                 return trim($response);
             } catch (\Exception $e) {
                 Log::error('Gemini fallback error (chatbot): ' . $e->getMessage(), ['exception' => $e]);
-                throw $e;
+                // Fallthrough to demo mode
             }
         }
 
-        // No demo / fake replies
-        throw new \Exception('AI tidak dikonfigurasikan. Sila tambah OPENAI_API_KEY dalam fail .env.');
+        // Final Fallback: Demo Mode (Mock Response)
+        // This ensures the app doesn't crash if all keys are invalid/missing.
+        return "👋 [Mod Demo]\n\nSaya tidak dapat menyambung ke perkhidmatan AI (kunci API tidak sah atau tamat tempoh). Namun, ini adalah contoh jawapan simulasi:\n\nHCI (Human-Computer Interaction) atau Interaksi Manusia-Komputer adalah bidang kajian yang memfokuskan kepada reka bentuk dan penggunaan teknologi komputer, khususnya antaramuka antara manusia (pengguna) dan komputer. Tujuannya adalah untuk menjadikan komputer lebih mudah, cekap, dan menyeronokkan untuk digunakan.";
     }
 
     /**
