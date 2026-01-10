@@ -43,6 +43,7 @@ return [
         Illuminate\View\ViewServiceProvider::class,
         
         // Application Service Providers
+        App\Providers\BroadcastServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
     ],
     'aliases' => Facade::defaultAliases()->merge([

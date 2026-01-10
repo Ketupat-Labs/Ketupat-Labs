@@ -135,18 +135,9 @@ Route::middleware('auth:web')->group(function () {
     Route::post('/classroom/{classroom}/create-forum', [\App\Http\Controllers\ClassroomController::class, 'createForum']);
 
 
-    // Chatbot routes
-    Route::prefix('chatbot')->group(function () {
-        Route::post('/chat', [ChatbotController::class, 'chat']);
-    });
 
-    // AI Generator routes (Legacy) - Teacher only
-    Route::prefix('ai-generator')->middleware('teacher')->group(function () {
-        Route::post('/slides', [\App\Http\Controllers\AIGeneratorController::class, 'generateSlides']);
-        Route::post('/quiz', [\App\Http\Controllers\AIGeneratorController::class, 'generateQuiz']);
-            Route::post('/slides/export', [\App\Http\Controllers\AIGeneratorController::class, 'exportSlides']);
-            Route::post('/quiz/export', [\App\Http\Controllers\AIGeneratorController::class, 'exportQuiz']);
-    });
+
+
 
     // AI Content routes (New Document Analyzer)
     Route::prefix('ai-content')->group(function () {
@@ -161,6 +152,11 @@ Route::middleware('auth:web')->group(function () {
     Route::prefix('lessons')->group(function () {
         Route::post('/upload-image', [\App\Http\Controllers\LessonController::class, 'uploadImage']);
     });
+});
+
+// Chatbot routes
+Route::prefix('chatbot')->group(function () {
+    Route::post('/chat', [ChatbotController::class, 'chat']);
 });
 
 

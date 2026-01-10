@@ -247,7 +247,7 @@ class ScheduleController extends Controller
             // Create new assignments for each selected class
             foreach ($classroomIds as $classroomId) {
                 // Validate ownership
-                $classroom = Classroom::where('id', $classroomId)->where('teacher_id', $user->id)->first();
+                $classroom = Classroom::with('students')->where('id', $classroomId)->where('teacher_id', $user->id)->first();
                 if ($classroom) {
                     $assignment = \App\Models\ActivityAssignment::updateOrCreate(
                         ['activity_id' => $activity->id, 'classroom_id' => $classroomId], 
@@ -259,19 +259,26 @@ class ScheduleController extends Controller
                     );
                     
                     if ($assignment->wasRecentlyCreated) {
+                        \Illuminate\Support\Facades\Log::info("Activity '{$activity->title}' assigned to class '{$classroom->name}'. Sending notifications to " . $classroom->students->count() . " students.");
+
                         // Notify all students in the classroom only if it's a new assignment
                         $students = $classroom->students;
                         foreach ($students as $student) {
                             $dueDateText = $assignment->due_date ? ' Tarikh akhir: ' . \Carbon\Carbon::parse($assignment->due_date)->format('d/m/Y H:i') : '';
-                            \App\Models\Notification::create([
-                                'user_id' => $student->id,
-                                'type' => 'activity_assigned',
-                                'title' => 'Aktiviti Baharu Ditugaskan',
-                                'message' => 'Aktiviti "' . $activity->title . '" telah ditugaskan kepada kelas "' . $classroom->name . '"' . $dueDateText,
-                                'related_type' => 'activity',
-                                'related_id' => $activity->id,
-                                'is_read' => false,
-                            ]);
+                            
+                            try {
+                                \App\Models\Notification::create([
+                                    'user_id' => $student->id,
+                                    'type' => 'activity_assigned',
+                                    'title' => 'Aktiviti Baharu Ditugaskan',
+                                    'message' => 'Aktiviti "' . $activity->title . '" telah ditugaskan kepada kelas "' . $classroom->name . '"' . $dueDateText,
+                                    'related_type' => 'activity',
+                                    'related_id' => $activity->id,
+                                    'is_read' => false,
+                                ]);
+                            } catch (\Exception $e) {
+                                \Illuminate\Support\Facades\Log::error("Failed to create notification for student {$student->id}: " . $e->getMessage());
+                            }
                         }
                     }
                 }

@@ -15,8 +15,15 @@ class EnsureUserIsTeacher
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Check if user is authenticated
-        if (!auth()->check()) {
+        $user = auth()->user();
+
+        // Fallback: Check session manually if auth()->user() is null
+        if (!$user && session('user_id')) {
+            $user = \App\Models\User::find(session('user_id'));
+        }
+
+        // Check if user is authenticated (found)
+        if (!$user) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'status' => 401,
@@ -27,7 +34,7 @@ class EnsureUserIsTeacher
         }
 
         // Check if user has teacher role
-        if (auth()->user()->role !== 'teacher') {
+        if ($user->role !== 'teacher') {
             if ($request->expectsJson()) {
                 return response()->json([
                     'status' => 403,
