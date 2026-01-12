@@ -1,6 +1,7 @@
+# Base image
 FROM php:8.2-cli
 
-# Install system libraries
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     libpng-dev libjpeg-dev libfreetype6-dev libzip-dev zip unzip git curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -10,18 +11,24 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Set working directory
 WORKDIR /app
 
-# Copy composer files first for caching
+# Copy composer files first (caching)
 COPY composer.json composer.lock ./
+
+# Install PHP dependencies
 RUN composer install --optimize-autoloader --no-interaction --no-scripts
 
-# Copy rest of app
+# Copy rest of the application
 COPY . .
+
+# Copy entrypoint script
+COPY docker-entrypoint.php /usr/local/bin/docker-entrypoint.php
+RUN chmod +x /usr/local/bin/docker-entrypoint.php
 
 # Expose port
 EXPOSE 8080
 
-# Runtime: convert PORT to int and run artisan serve
-CMD php -r '$_ENV["PORT"] = isset($_ENV["PORT"]) ? (int)$_ENV["PORT"] : 8080;' && \
-    php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
+# Runtime: entrypoint handles PORT + config + serve
+CMD ["php", "/usr/local/bin/docker-entrypoint.php"]
