@@ -1,17 +1,12 @@
 <?php
-/**
- * Entrypoint for Docker container
- * Fixes Laravel serve PORT type issue and clears config cache at runtime
- */
+// Docker entrypoint: fixes string + int error
 
-// Convert PORT to integer (Railway sets it as string)
+// Convert Railway PORT to integer
 $port = $_ENV['PORT'] ?? 8080;
 $_ENV['PORT'] = (int)$port;
 
-// Clear config cache at runtime
-echo "Clearing config cache...\n";
+// Clear Laravel config cache (runtime)
 passthru('php artisan config:clear');
 
 // Start Laravel dev server
-echo "Starting Laravel server on 0.0.0.0:{$_ENV['PORT']}...\n";
 passthru("php artisan serve --host=0.0.0.0 --port={$_ENV['PORT']}");
