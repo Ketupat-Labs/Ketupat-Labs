@@ -17,12 +17,24 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Set working directory
 WORKDIR /app
-COPY . .
 
-# Install PHP dependencies
+# Copy composer files first for caching
+COPY composer.json composer.lock ./
+
+# Install dependencies
 RUN composer install --optimize-autoloader --no-interaction --no-scripts
 
+# Copy rest of app
+COPY . .
+
+# Clear config cache to make sure env vars are loaded
+RUN php artisan config:clear
+
+# Expose port (Railway usually sets this dynamically)
 EXPOSE 8080
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8080"]
+# Fix: make PORT an integer and run artisan serve
+CMD php -r '$_ENV["PORT"] = isset($_ENV["PORT"]) ? (int)$_ENV["PORT"] : 8080;' && \
+    php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
