@@ -24,8 +24,8 @@ class AppServiceProvider extends ServiceProvider
         // Register notification observer
         Notification::observe(NotificationObserver::class);
 
-        // Force HTTPS in production to avoid mixed content issues on Render
-        if (config('app.env') === 'production') {
+        // Force HTTPS if we are running on Render (regardless of APP_ENV)
+        if (env('RENDER') || config('app.env') === 'production') {
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
     }
