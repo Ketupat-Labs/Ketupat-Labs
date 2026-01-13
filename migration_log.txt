@@ -1,0 +1,40 @@
+
+  [37;44m INFO [39;49m Running migrations.  
+
+  2025_12_18_000001_fix_activity_due_date_type [90m 125.56ms[39m [32;1mDONE[39;22m
+  2025_12_18_123823_add_is_muted_to_forum_member_table [90m 129.71ms[39m [32;1mDONE[39;22m
+  2025_12_18_154434_add_settings_to_users_table [90m 1 saat[39m [32;1mDONE[39;22m
+  2025_12_18_161806_add_attachment_type_to_post_attachments_table [90m 126.05ms[39m [32;1mDONE[39;22m
+  2025_12_19_074448_rename_plural_tables_to_singular [90m 10 saat[39m [32;1mDONE[39;22m
+  2025_12_19_111953_add_last_read_at_to_conversation_participant_table [90m 140.25ms[39m [32;1mDONE[39;22m
+  2025_12_19_120055_add_is_public_to_activity_table [90m 376.89ms[39m [32;1mDONE[39;22m
+  2025_12_19_131644_fix_lesson_assignment_foreign_keys [90m 934.42ms[39m [32;1mDONE[39;22m
+  2025_12_19_131832_fix_class_student_foreign_keys [90m 1 saat[39m [32;1mDONE[39;22m
+  2025_12_19_142421_create_email_verification_otp_table [90m 246.98ms[39m [32;1mDONE[39;22m
+  2025_12_19_143054_create_message_user_deleted_table [90m 912.56ms[39m [32;1mDONE[39;22m
+  2025_12_19_150901_rename_all_plural_tables_to_singular [90m 10 saat[39m [32;1mDONE[39;22m
+  2025_12_20_000000_add_code_to_badge_table [90m 2 saat[39m [32;1mDONE[39;22m
+  2025_12_20_094649_add_results_to_activity_submission_table [90m 131.93ms[39m [32;1mDONE[39;22m
+  2025_12_20_110710_drop_plural_duplicate_tables [90m 1 saat[39m [32;1mDONE[39;22m
+  2025_12_20_181100_update_activity_submission_for_public_access [90m 662.27ms[39m [32;1mDONE[39;22m
+  2025_12_20_230000_ensure_singular_tables [90m 639.18ms[39m [32;1mDONE[39;22m
+  2025_12_20_231500_add_progress_to_user_badge [90m 1 saat[39m [32;1mDONE[39;22m
+  2025_12_20_233000_add_status_to_user_badge_table [90m 974.91ms[39m [32;1mDONE[39;22m
+  2025_12_20_add_first_login_to_user_table [90m 743.53ms[39m [32;1mDONE[39;22m
+  2025_12_21_020353_add_name_bm_to_badge_category_table [90m 137.54ms[39m [32;1mDONE[39;22m
+  2025_12_21_022326_add_columns_to_badge_table [90m 2 saat[39m [32;1mDONE[39;22m
+  2025_12_21_022732_make_requirement_type_nullable_in_badge_table [90m 264.97ms[39m [32;1mDONE[39;22m
+  2025_12_24_170223_add_lesson_id_to_forum_post_table [90m 345.21ms[39m [32;1mDONE[39;22m
+  2025_12_25_095026_create_password_reset_tokens_table [90m 120.18ms[39m [32;1mDONE[39;22m
+  2025_12_25_115626_create_follows_table [90m 2 saat[39m [32;1mDONE[39;22m
+  2025_12_25_125416_add_shared_post_to_message_type_enum [90m 146.26ms[39m [32;1mDONE[39;22m
+  2025_12_30_041745_add_badge_privacy_to_user_table [90m 2 saat[39m [32;1mDONE[39;22m
+  2026_01_04_000001_create_missing_activity_assignment_table [90m 115.32ms[39m [32;1mDONE[39;22m
+  2026_01_04_000002_create_missing_activity_submission_table [90m 375.71ms[39m [32;1mDONE[39;22m
+  2026_01_06_000000_add_points_required_to_badge_table [90m 318.72ms[39m [32;1mDONE[39;22m
+  2026_01_06_014547_fix_duplicate_badge_categories [90m 2 saat[39m [32;1mDONE[39;22m
+  2026_01_06_085000_add_role_restriction_to_badge_category_table [90m 556.87ms[39m [32;1mDONE[39;22m
+  2026_01_07_000001_add_content_to_activity_table [90m 751.31ms[39m [32;1mDONE[39;22m
+  2026_01_07_111245_add_activity_link_to_badges_table [90m 3 saat[39m [32;1mDONE[39;22m
+  2026_01_08_205254_update_reaction_table_for_messages [90m 288.74ms[39m [32;1mDONE[39;22m
+

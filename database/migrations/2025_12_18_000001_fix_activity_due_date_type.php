@@ -8,15 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('activity_assignments', function (Blueprint $table) {
+        Schema::table('activity_assignment', function (Blueprint $table) {
             $table->dateTime('due_date')->nullable()->change();
         });
     }
 
     public function down(): void
     {
-        Schema::table('activity_assignments', function (Blueprint $table) {
-            $table->date('due_date')->nullable()->change();
+        Schema::table('activity_assignment', function (Blueprint $table) {
+            $table->string('due_date')->nullable()->change();
         });
     }
 };

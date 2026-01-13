@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('activity_assignments', function (Blueprint $table) {
+        Schema::table('activity_assignment', function (Blueprint $table) {
             $table->dateTime('due_date')->nullable()->after('status');
             $table->text('notes')->nullable()->after('due_date');
         });
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('activity_assignments', function (Blueprint $table) {
+        Schema::table('activity_assignment', function (Blueprint $table) {
             $table->dropColumn(['due_date', 'notes']);
         });
     }
