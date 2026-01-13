@@ -7,6 +7,9 @@ $app = require_once __DIR__.'/../bootstrap/app.php';
 try {
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
     
+    // FORCE DEBUG MODE to see the error
+    config(['app.debug' => true]);
+    
     // Simulate a GET request to /
     $request = Illuminate\Http\Request::create('/', 'GET');
     $response = $kernel->handle($request);
