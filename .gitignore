@@ -9,6 +9,7 @@
 /storage/framework/views/*
 /bootstrap/cache/*
 .env
+.env.docker
 .env.production
 .env.backup
 .env.local
