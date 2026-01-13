@@ -8,13 +8,16 @@ try {
     // 1. Resolve Kernel
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 
-    // 2. Force Debug Mode on the Application Instance directly
+    // 2. Bootstrap the application explicitly to load config
+    $kernel->bootstrap();
+
+    // 3. Force Debug Mode
     $app['config']->set('app.debug', true);
     
-    // 3. Capture Request
+    // 4. Capture Request
     $request = Illuminate\Http\Request::create('/', 'GET');
     
-    // 4. Handle Request
+    // 5. Handle Request
     $response = $kernel->handle($request);
     
     echo "<h1>Response Status: " . $response->getStatusCode() . "</h1>";
