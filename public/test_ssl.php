@@ -12,6 +12,7 @@ echo "<table border='1' cellpadding='10'>";
 
 echo "<tr><td><strong>APP_ENV</strong></td><td>" . config('app.env') . "</td></tr>";
 echo "<tr><td><strong>APP_URL (Config)</strong></td><td>" . config('app.url') . "</td></tr>";
+echo "<tr><td><strong>ASSET_URL (Config)</strong></td><td>" . config('app.asset_url') . "</td></tr>";
 echo "<tr><td><strong>Current URL</strong></td><td>" . $request->fullUrl() . "</td></tr>";
 echo "<tr><td><strong>Is Secure (HTTPS)?</strong></td><td>" . ($request->secure() ? 'YES ✅' : 'NO ❌') . "</td></tr>";
 echo "<tr><td><strong>Scheme</strong></td><td>" . $request->getScheme() . "</td></tr>";
