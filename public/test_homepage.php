@@ -5,26 +5,34 @@ require __DIR__.'/../vendor/autoload.php';
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
 try {
+    // 1. Resolve Kernel
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+    // 2. Force Debug Mode on the Application Instance directly
+    $app['config']->set('app.debug', true);
     
-    // FORCE DEBUG MODE to see the error
-    config(['app.debug' => true]);
-    
-    // Simulate a GET request to /
+    // 3. Capture Request
     $request = Illuminate\Http\Request::create('/', 'GET');
+    
+    // 4. Handle Request
     $response = $kernel->handle($request);
     
-    echo "<h1 style='color:green'>Homepage Route Works!</h1>";
-    echo "<p>Status Code: " . $response->getStatusCode() . "</p>";
-    echo "<hr>";
-    echo $response->getContent();
+    echo "<h1>Response Status: " . $response->getStatusCode() . "</h1>";
+    
+    if ($response->getStatusCode() == 500) {
+        echo "<div style='background:#fdd; padding:1em; border:1px solid red'>";
+        echo "<h2>Captured 500 Error Content:</h2>";
+        echo $response->getContent(); // This should contain the error stack trace
+        echo "</div>";
+    } else {
+        echo "<h2 style='color:green'>Success! Status " . $response->getStatusCode() . "</h2>";
+        // echo $response->getContent(); // Uncomment to see full page
+    }
     
     $kernel->terminate($request, $response);
     
 } catch (\Exception $e) {
-    echo "<h1 style='color:red'>Homepage Route Failed!</h1>";
-    echo "<h3>Error: " . get_class($e) . "</h3>";
-    echo "<pre>" . $e->getMessage() . "</pre>";
-    echo "<h4>File: " . $e->getFile() . " (Line " . $e->getLine() . ")</h4>";
-    echo "<details><summary>Stack Trace</summary><pre>" . $e->getTraceAsString() . "</pre></details>";
+    echo "<h1 style='color:red'>Uncaught Exception!</h1>";
+    echo "<h3>" . get_class($e) . ": " . $e->getMessage() . "</h3>";
+    echo "<pre>" . $e->getTraceAsString() . "</pre>";
 }
