@@ -44,13 +44,67 @@ git commit -m "Add Render deployment configuration"
 git push origin main
 ```
 
-### 2. Create New Service on Render
+### 2. Create Services on Render
+
+You have **two options** for deployment:
+
+#### Option A: Free Tier (No Payment Method Required) ⭐ RECOMMENDED FOR TESTING
+
+This method creates services manually and works with Render's free tier.
+
+**Step 1: Create Redis Service**
+
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click **"New +"** → **"Redis"**
+3. Configure:
+   - **Name**: `compuplay-redis`
+   - **Region**: Singapore (or your preferred region)
+   - **Plan**: **Free** (0 MB - 25 MB)
+   - **Maxmemory Policy**: `allkeys-lru`
+4. Click **"Create Redis"**
+5. Wait for it to be "Available" (takes ~1 minute)
+
+**Step 2: Create Web Service**
+
+1. Click **"New +"** → **"Web Service"**
+2. Connect your GitHub repository
+3. Configure:
+   - **Name**: `compuplay-app`
+   - **Region**: Singapore (same as Redis)
+   - **Branch**: `main`
+   - **Runtime**: **Docker**
+   - **Dockerfile Path**: `Dockerfile.render` ⚠️ IMPORTANT
+   - **Plan**: **Free** (512 MB RAM, sleeps after 15 min inactivity)
+   - **Docker Command**: Leave empty (uses Dockerfile's CMD)
+4. Click **"Create Web Service"** (don't deploy yet!)
+
+**Step 3: Link Redis to Web Service**
+
+1. In your `compuplay-app` service, go to **"Environment"** tab
+2. Add environment variable:
+   - **Key**: `REDIS_HOST`
+   - **Value**: Go to your `compuplay-redis` service → copy the **Internal Redis URL** (looks like `red-xxxxx`)
+3. Add another:
+   - **Key**: `REDIS_PORT`
+   - **Value**: `6379`
+
+Now proceed to **Step 3: Configure Environment Variables** below.
+
+---
+
+#### Option B: Blueprint (Requires Payment Method)
+
+This method uses the `render.yaml` file for automatic setup but requires a payment method on file.
 
 1. Go to [Render Dashboard](https://dashboard.render.com)
 2. Click **"New +"** → **"Blueprint"**
 3. Connect your GitHub repository
 4. Render will detect `render.yaml` automatically
 5. Click **"Apply"**
+
+> **Note**: Even if you select free plans, Render requires a payment method for Blueprint deployments.
+
+---
 
 ### 3. Configure Environment Variables
 
@@ -130,7 +184,15 @@ Check the build logs in Render dashboard. Common issues:
 
 ## 💰 Pricing
 
-- **Web Service (Starter)**: $7/month
+### Free Tier (Option A)
+- **Web Service (Free)**: 512 MB RAM, sleeps after 15 min inactivity, 750 hours/month
+- **Redis (Free)**: 25 MB storage
+- **Total**: **$0/month** ✅
+
+> **Note**: Free web services spin down after 15 minutes of inactivity and take ~30 seconds to wake up on the next request.
+
+### Paid Tier (Option B)
+- **Web Service (Starter)**: $7/month - Always on, 512 MB RAM
 - **Redis (Starter)**: Free
 - **Total**: ~$7/month
 
