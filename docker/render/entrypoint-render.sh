@@ -20,6 +20,12 @@ fi
 
 # Clear and cache configuration
 echo "Optimizing application..."
+
+# Ensure all Laravel framework directories exist
+mkdir -p storage/framework/{sessions,views,cache}
+mkdir -p storage/logs
+mkdir -p bootstrap/cache
+
 php artisan config:clear
 php artisan cache:clear
 php artisan route:clear
