@@ -7,7 +7,6 @@ use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\LinkPreviewController;
-use App\Http\Controllers\AIGeneratorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -152,16 +151,6 @@ Route::middleware('auth:web')->group(function () {
     // Lesson block editor routes
     Route::prefix('lessons')->group(function () {
         Route::post('/upload-image', [\App\Http\Controllers\LessonController::class, 'uploadImage']);
-    });
-
-    // AI Generator API routes - Teacher only
-    Route::prefix('ai-generator')->middleware('teacher')->group(function () {
-        Route::post('/slides', [AIGeneratorController::class, 'generateSlides']);
-        Route::post('/slides/export', [AIGeneratorController::class, 'exportSlides']);
-        Route::get('/slides/check-status', [AIGeneratorController::class, 'checkGenerationStatus']);
-
-        Route::post('/quiz', [AIGeneratorController::class, 'generateQuiz']);
-        Route::post('/quiz/export', [AIGeneratorController::class, 'exportQuiz']);
     });
 });
 

@@ -243,12 +243,10 @@
             const resultDiv = document.getElementById('slides-result');
             const container = document.getElementById('slides-container');
 
-            // Validate: topic is required ONLY when no document is uploaded
+            // Validate topic field is required
             const topicValue = topicInput.value.trim();
-            const documentFile = documentUpload.files[0];
-
-            if (!documentFile && !topicValue) {
-                alert('{{ __('Sila masukkan topik atau muat naik dokumen untuk menjana slaid.') }}');
+            if (!topicValue) {
+                alert('{{ __('Sila masukkan topik untuk menjana slaid.') }}');
                 topicInput.focus();
                 return;
             }
@@ -257,6 +255,7 @@
             const formData = new FormData(form);
 
             // Add document file if uploaded
+            const documentFile = documentUpload.files[0];
             if (documentFile) {
                 formData.append('document', documentFile);
 
