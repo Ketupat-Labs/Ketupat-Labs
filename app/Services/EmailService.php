@@ -34,7 +34,7 @@ class EmailService
     public static function sendOtpEmail(string $toEmail, string $otp): bool
     {
         try {
-            $scriptUrl = env('GOOGLE_SCRIPT_URL');
+            $scriptUrl = trim(env('GOOGLE_SCRIPT_URL', ''));
 
             if (empty($scriptUrl)) {
                 self::$lastErrorMessage = "GOOGLE_SCRIPT_URL is not set in environment variables.";
