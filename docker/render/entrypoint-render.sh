@@ -4,10 +4,13 @@ set -e
 echo "Starting CompuPlay Laravel Application on Render..."
 
 # Debug: Check broadcasting environment variables
+# Deployment trigger: 2026-01-14 - Fix Pusher config cache
 echo "=== Environment Check ==="
 echo "BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-NOT SET}"
 echo "PUSHER_APP_ID: ${PUSHER_APP_ID:-NOT SET}"
 echo "PUSHER_APP_KEY: ${PUSHER_APP_KEY:0:10}... (truncated)"
+echo "PUSHER_APP_SECRET: ${PUSHER_APP_SECRET:0:10}... (truncated)"
+echo "PUSHER_APP_CLUSTER: ${PUSHER_APP_CLUSTER:-NOT SET}"
 echo "========================="
 
 # Wait for MySQL to be ready (max 30 seconds)
