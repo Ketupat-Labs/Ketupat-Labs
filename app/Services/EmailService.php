@@ -26,7 +26,12 @@ class EmailService
             $mail->SMTPAuth   = true;
             $mail->Username   = env('MAIL_USERNAME'); // Gmail address
             $mail->Password   = env('MAIL_PASSWORD'); // Gmail App Password
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // Use STARTTLS
+            $encryption = env('MAIL_ENCRYPTION', 'tls');
+            if ($encryption === 'ssl') {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            } else {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            }
             $mail->Port       = env('MAIL_PORT', 587);
             $mail->CharSet    = 'UTF-8';
             

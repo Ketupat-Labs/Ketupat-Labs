@@ -63,7 +63,10 @@ class AuthController extends Controller
             $emailSent = EmailService::sendOtpEmail($request->email, $otp);
             if (!$emailSent) {
                 Log::error('Failed to send OTP email to: ' . $request->email);
-                // Continue even if email fails (for development)
+                return response()->json([
+                    'status' => 500,
+                    'message' => 'Gagal menghantar emel OTP. Sila semak alamat emel anda atau cuba lagi kemudian.',
+                ], 500);
             }
 
             return response()->json([
