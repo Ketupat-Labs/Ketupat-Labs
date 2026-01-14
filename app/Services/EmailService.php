@@ -23,7 +23,9 @@ class EmailService
     }
 
     /**
-     * Send OTP email using SendGrid Web API
+     * Send OTP email using Google Apps Script Bridge
+     * 
+     * This avoids SMTP blocks on Render by using HTTPS.
      *
      * @param string $toEmail
      * @param string $otp
@@ -32,92 +34,39 @@ class EmailService
     public static function sendOtpEmail(string $toEmail, string $otp): bool
     {
         try {
-            $apiKey = env('SENDGRID_API_KEY');
-            $fromEmail = env('MAIL_FROM_ADDRESS', 'ketupatlabs@gmail.com');
-            $fromName = env('MAIL_FROM_NAME', 'Ketupat Labs');
+            $scriptUrl = env('GOOGLE_SCRIPT_URL');
 
-            if (empty($apiKey)) {
-                self::$lastErrorMessage = "SENDGRID_API_KEY is not set in environment variables.";
+            if (empty($scriptUrl)) {
+                self::$lastErrorMessage = "GOOGLE_SCRIPT_URL is not set in environment variables.";
                 Log::error('EmailService: ' . self::$lastErrorMessage);
                 return false;
             }
 
-            // Find logo path
-            $baseDir = base_path();
-            $possiblePaths = [
-                $baseDir . '/public/assets/images/LOGOCompuPlay.png',
-                public_path('assets/images/LOGOCompuPlay.png'),
-            ];
-            
-            $logoPath = null;
-            $logoCid = 'logo-compuplay';
-            $attachments = [];
+            Log::info("EmailService: Attempting to send OTP email to $toEmail via Google Script Bridge");
 
-            foreach ($possiblePaths as $path) {
-                if ($path && file_exists($path)) {
-                    $logoPath = $path;
-                    break;
-                }
-            }
-
-            // Prepare inline attachment for SendGrid if logo exists
-            if ($logoPath && file_exists($logoPath)) {
-                $content = base64_encode(file_get_contents($logoPath));
-                $attachments[] = [
-                    'content' => $content,
-                    'type' => 'image/png',
-                    'filename' => 'logo.png',
-                    'disposition' => 'inline',
-                    'content_id' => $logoCid
-                ];
-                Log::info('EmailService: Logo prepared for SendGrid inline attachment.');
-            }
-
-            $appUrl = env('APP_URL', 'http://localhost:8000');
-            $logoUrl = $appUrl . '/assets/images/LOGOCompuPlay.png';
-            $htmlBody = self::getEmailTemplate($otp, $logoPath ? $logoCid : null, $logoUrl);
-
-            // SendGrid API Payload
-            $payload = [
-                'personalizations' => [
-                    [
-                        'to' => [['email' => $toEmail]],
-                        'subject' => 'Sahkan alamat emel anda - CompuPlay'
-                    ]
-                ],
-                'from' => [
-                    'email' => $fromEmail,
-                    'name' => $fromName
-                ],
-                'content' => [
-                    [
-                        'type' => 'text/html',
-                        'value' => $htmlBody
-                    ]
-                ]
-            ];
-
-            if (!empty($attachments)) {
-                $payload['attachments'] = $attachments;
-            }
-
-            Log::info("EmailService: Attempting to send OTP email to $toEmail via SendGrid API");
-
-            $response = Http::withToken($apiKey)
-                ->post('https://api.sendgrid.com/v3/mail/send', $payload);
+            $response = Http::post($scriptUrl, [
+                'to' => $toEmail,
+                'otp' => $otp
+            ]);
 
             if ($response->successful()) {
-                Log::info('EmailService: OTP email sent successfully via SendGrid.');
-                return true;
+                $data = $response->json();
+                if (isset($data['status']) && $data['status'] === 'success') {
+                    Log::info('EmailService: OTP email sent successfully via Google Script.');
+                    return true;
+                } else {
+                    self::$lastErrorMessage = "Google Script Response Error: " . ($data['message'] ?? 'Unknown error');
+                    Log::error('EmailService: ' . self::$lastErrorMessage);
+                    return false;
+                }
             } else {
-                self::$lastErrorMessage = "SendGrid API Error: " . $response->status() . " | " . $response->body();
+                self::$lastErrorMessage = "Google Script Connection Error: " . $response->status();
                 Log::error('EmailService: ' . self::$lastErrorMessage);
                 return false;
             }
         } catch (\Throwable $e) {
             self::$lastErrorMessage = "EmailService Exception: " . $e->getMessage();
             Log::error('EmailService: ' . self::$lastErrorMessage);
-            Log::error('Stack Trace: ' . $e->getTraceAsString());
             return false;
         }
     }

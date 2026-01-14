@@ -87,12 +87,8 @@ services:
         sync: false # Set in Render dashboard (secret - App Password)
       - key: MAIL_ENCRYPTION
         value: tls
-      - key: MAIL_FROM_ADDRESS
-        value: ketupatlabs@gmail.com
-      - key: MAIL_FROM_NAME
-        value: Ketupat Labs
-      - key: SENDGRID_API_KEY
-        sync: false # Set in Render dashboard (starts with SG.)
+      - key: GOOGLE_SCRIPT_URL
+        sync: false # Set in Render dashboard (Google Apps Script Web App URL)
     
     healthCheckPath: /
     autoDeploy: true # Auto-deploy on git push

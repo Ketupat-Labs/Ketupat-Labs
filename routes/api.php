@@ -30,13 +30,8 @@ Route::get('/auth/test-email', function (Request $request) {
         'success' => $result,
         'message' => $result ? "Emel ujian dihantar ke $email" : "Gagal menghantar emel ujian ke $email",
         'error_detail' => \App\Services\EmailService::getLastError(),
-        'config_seen' => [
-            'from_address' => env('MAIL_FROM_ADDRESS'),
-            'from_name' => env('MAIL_FROM_NAME'),
-            'app_url' => env('APP_URL'),
-        ],
-        'sendgrid_api_key_exists' => !empty(env('SENDGRID_API_KEY')),
-        'method' => 'SendGrid Web API (HTTPS)',
+        'google_script_url_exists' => !empty(env('GOOGLE_SCRIPT_URL')),
+        'method' => 'Google Apps Script Bridge (HTTPS)',
         'php_version' => PHP_VERSION,
     ]);
 });
