@@ -20,27 +20,42 @@ class EmailService
         $mail = new PHPMailer(true);
 
         try {
+            // Check essential configuration
+            $host = env('MAIL_HOST', 'smtp.gmail.com');
+            $username = env('MAIL_USERNAME');
+            $password = env('MAIL_PASSWORD');
+            $encryption = env('MAIL_ENCRYPTION', 'tls');
+            $port = env('MAIL_PORT', 587);
+
+            if (empty($username) || empty($password)) {
+                Log::error('EmailService: MAIL_USERNAME or MAIL_PASSWORD is not set in environment variables.');
+                return false;
+            }
+
             // Server settings
             $mail->isSMTP();
-            $mail->Host       = env('MAIL_HOST', 'smtp.gmail.com');
+            $mail->Host       = $host;
             $mail->SMTPAuth   = true;
-            $mail->Username   = env('MAIL_USERNAME'); // Gmail address
-            $mail->Password   = env('MAIL_PASSWORD'); // Gmail App Password
-            $encryption = env('MAIL_ENCRYPTION', 'tls');
+            $mail->Username   = $username;
+            $mail->Password   = $password;
+            
             if ($encryption === 'ssl') {
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             } else {
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             }
-            $mail->Port       = env('MAIL_PORT', 587);
+            $mail->Port       = $port;
             $mail->CharSet    = 'UTF-8';
             
+            // Log connection attempt details (non-sensitive)
+            Log::info("EmailService: Attempting to send OTP email to $toEmail using $host:$port ($encryption)");
+
             // Enable verbose debug output (optional, for troubleshooting)
             // $mail->SMTPDebug = 2; // Uncomment for debugging
             $mail->SMTPDebug = 0; // 0 = off, 1 = client, 2 = client and server
 
             // Recipients
-            $fromAddress = env('MAIL_FROM_ADDRESS', env('MAIL_USERNAME'));
+            $fromAddress = env('MAIL_FROM_ADDRESS', $username);
             $fromName = env('MAIL_FROM_NAME', 'Ketupat Labs');
             $mail->setFrom($fromAddress, $fromName);
             $mail->addAddress($toEmail);
@@ -84,24 +99,22 @@ class EmailService
                 }
             }
             
-            // Embed logo as attachment using PHPMailer's addEmbeddedImage (more reliable than base64)
+            // Embed logo as attachment using PHPMailer's addEmbeddedImage
             if ($logoPath && file_exists($logoPath)) {
                 try {
                     $mail->addEmbeddedImage($logoPath, $logoCid, 'logo.png', 'base64', 'image/png');
                     Log::info('Logo embedded as attachment with CID: ' . $logoCid);
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     Log::error('Failed to embed logo: ' . $e->getMessage());
                     $logoPath = null; // Fallback to URL if embedding fails
                 }
-            } else {
-                Log::warning('Logo not found in any of the expected paths');
             }
-
-            // Get app URL for absolute logo URL (fallback if embedding fails)
+            
+            // Get app URL for absolute logo URL
             $appUrl = env('APP_URL', 'http://localhost:8000');
             $logoUrl = $appUrl . '/assets/images/LOGOCompuPlay.png';
 
-            // HTML email content - pass CID if logo was embedded, otherwise use URL
+            // HTML email content
             $htmlBody = self::getEmailTemplate($otp, $logoPath ? $logoCid : null, $logoUrl);
             
             // Plain text fallback
@@ -121,9 +134,10 @@ class EmailService
             $mail->send();
             Log::info('OTP email sent successfully to: ' . $toEmail);
             return true;
-        } catch (Exception $e) {
-            Log::error('PHPMailer Error: ' . $mail->ErrorInfo);
-            Log::error('Exception: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('EmailService Error: ' . $e->getMessage());
+            Log::error('PHPMailer Detail: ' . ($mail->ErrorInfo ?? 'No detailed error information available.'));
+            Log::error('Stack Trace: ' . $e->getTraceAsString());
             return false;
         }
     }

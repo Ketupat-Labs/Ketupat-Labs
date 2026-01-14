@@ -62,10 +62,11 @@ class AuthController extends Controller
             // Send OTP email using PHPMailer with Gmail SMTP
             $emailSent = EmailService::sendOtpEmail($request->email, $otp);
             if (!$emailSent) {
-                Log::error('Failed to send OTP email to: ' . $request->email);
+                Log::error('Registration Error: Failed to send OTP email to ' . $request->email);
                 return response()->json([
                     'status' => 500,
-                    'message' => 'Gagal menghantar emel OTP. Sila semak alamat emel anda atau cuba lagi kemudian.',
+                    'message' => 'Gagal menghantar emel pengesahan. Sila semak alamat emel anda atau cuba lagi kemudian.',
+                    'debug_message' => config('app.debug') ? 'Sila semak logs untuk ralat SMTP terperinci.' : null,
                 ], 500);
             }
 
@@ -77,12 +78,14 @@ class AuthController extends Controller
                     'requires_verification' => true,
                 ],
             ], 200);
-        } catch (\Exception $e) {
-            Log::error('Registration error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Registration breakdown: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'status' => 500,
-                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Ralat sistem berlaku semasa pendaftaran. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error',
             ], 500);
         }
     }
@@ -167,14 +170,16 @@ class AuthController extends Controller
                     'role' => $ui_role,
                 ],
             ], 200);
-        } catch (\Exception $e) {
-            Log::error('OTP verification error: ' . $e->getMessage());
-            return response()->json([
-                'status' => 500,
-                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
-        }
+        } catch (\Throwable $e) {
+        Log::error('OTP verification breakdown: ' . $e->getMessage());
+        Log::error('Trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'status' => 500,
+            'message' => 'Ralat sistem berlaku semasa pengesahan. Sila cuba lagi kemudian.',
+            'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error',
+        ], 500);
+    }
     }
     
     public function resendOtp(Request $request)
@@ -227,12 +232,14 @@ class AuthController extends Controller
                 'status' => 200,
                 'message' => 'Kod pengesahan baru telah dihantar ke emel anda.',
             ], 200);
-        } catch (\Exception $e) {
-            Log::error('Resend OTP error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Resend OTP breakdown: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'status' => 500,
-                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Ralat sistem berlaku semasa menghantar semula kod. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error',
             ], 500);
         }
     }
@@ -318,17 +325,14 @@ class AuthController extends Controller
                     'avatar_url' => $user->avatar_url,
                 ],
             ], 200);
-        } catch (\Exception $e) {
-            // Log the error for debugging
-            Log::error('Login error: ' . $e->getMessage(), [
-                'exception' => $e,
-                'trace' => $e->getTraceAsString()
-            ]);
+        } catch (\Throwable $e) {
+            Log::error('Login breakdown: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'status' => 500,
-                'message' => 'Ralat pelayan. Sila cuba lagi kemudian.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Ralat sistem berlaku semasa log masuk. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error',
             ], 500);
         }
     }
@@ -427,12 +431,14 @@ class AuthController extends Controller
                     'message' => 'Gagal menghantar pautan set semula. Sila cuba lagi kemudian.',
                 ], 400);
             }
-        } catch (\Exception $e) {
-            Log::error('Password reset link error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Password reset link breakdown: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'status' => 500,
-                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Ralat sistem berlaku semasa menghantar pautan set semula. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error',
             ], 500);
         }
     }
@@ -472,14 +478,15 @@ class AuthController extends Controller
                     'message' => 'Token tidak sah atau telah tamat tempoh. Sila minta pautan set semula baharu.',
                 ], 400);
             }
-        } catch (\Exception $e) {
-            Log::error('Password reset error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Password reset breakdown: ' . $e->getMessage());
+            Log::error('Trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'status' => 500,
-                'message' => 'Ralat berlaku. Sila cuba lagi kemudian.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'message' => 'Ralat sistem berlaku semasa menetapkan semula kata laluan. Sila cuba lagi kemudian.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error',
             ], 500);
         }
     }
 }
-
