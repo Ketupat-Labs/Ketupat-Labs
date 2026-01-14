@@ -58,21 +58,17 @@ services:
       - key: QUEUE_CONNECTION
         value: sync # Change to 'redis' if you add a worker
       
-      # Broadcasting (Laravel Reverb)
+      # Broadcasting (Pusher)
       - key: BROADCAST_CONNECTION
-        value: reverb
-      - key: REVERB_APP_ID
-        value: compuplay
-      - key: REVERB_APP_KEY
+        value: pusher
+      - key: PUSHER_APP_ID
         sync: false # Set in Render dashboard
-      - key: REVERB_APP_SECRET
-        sync: false # Set in Render dashboard (secret)
-      - key: REVERB_HOST
-        value: localhost
-      - key: REVERB_PORT
-        value: 8080
-      - key: REVERB_SCHEME
-        value: http
+      - key: PUSHER_APP_KEY
+        sync: false # Set in Render dashboard
+      - key: PUSHER_APP_SECRET
+        sync: false # Set in Render dashboard
+      - key: PUSHER_APP_CLUSTER
+        sync: false # Set in Render dashboard (e.g., ap1)
       
       # Mail Configuration
       - key: MAIL_MAILER
