@@ -3,11 +3,13 @@ set -e
 
 echo "Starting CompuPlay Laravel Application on Render..."
 
-# Wait for MySQL to be ready
-echo "Waiting for MySQL..."
-until php artisan db:show 2>/dev/null; do
+# Wait for MySQL to be ready (max 30 seconds)
+echo "Waiting for MySQL (max 30s)..."
+COUNTER=0
+until php artisan db:show 2>/dev/null || [ $COUNTER -eq 15 ]; do
     echo "MySQL is unavailable - sleeping"
     sleep 2
+    let COUNTER=COUNTER+1
 done
 
 echo "MySQL is up - executing commands"
@@ -53,6 +55,11 @@ chown -R www-data:www-data /var/www/html/storage
 chown -R www-data:www-data /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage
 chmod -R 775 /var/www/html/bootstrap/cache
+
+# Set Nginx port from environment variable (default 10000)
+PORT=${PORT:-10000}
+echo "Configuring Nginx to listen on port $PORT..."
+sed -i "s/listen 10000;/listen $PORT;/g" /etc/nginx/http.d/default.conf
 
 echo "Application ready!"
 

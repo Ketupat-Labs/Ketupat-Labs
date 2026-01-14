@@ -8,7 +8,7 @@ services:
     runtime: docker
     plan: starter # Change to 'standard' or higher for production
     region: singapore # Change to your preferred region
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./Dockerfile.render
     dockerContext: .
     envVars:
       - key: APP_NAME
