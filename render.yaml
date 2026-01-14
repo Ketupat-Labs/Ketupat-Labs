@@ -91,6 +91,8 @@ services:
         value: ketupatlabs@gmail.com
       - key: MAIL_FROM_NAME
         value: Ketupat Labs
+      - key: SENDGRID_API_KEY
+        sync: false # Set in Render dashboard (starts with SG.)
     
     healthCheckPath: /
     autoDeploy: true # Auto-deploy on git push

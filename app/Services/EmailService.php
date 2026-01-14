@@ -2,9 +2,8 @@
 
 namespace App\Services;
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class EmailService
 {
@@ -24,7 +23,7 @@ class EmailService
     }
 
     /**
-     * Send OTP email using Gmail SMTP
+     * Send OTP email using SendGrid Web API
      *
      * @param string $toEmail
      * @param string $otp
@@ -32,140 +31,92 @@ class EmailService
      */
     public static function sendOtpEmail(string $toEmail, string $otp): bool
     {
-        $mail = new PHPMailer(true);
-
         try {
-            // Check essential configuration
-            $host = env('MAIL_HOST', 'smtp.gmail.com');
-            $username = env('MAIL_USERNAME');
-            $password = env('MAIL_PASSWORD');
-            $encryption = env('MAIL_ENCRYPTION', 'tls');
-            $port = env('MAIL_PORT', 587);
+            $apiKey = env('SENDGRID_API_KEY');
+            $fromEmail = env('MAIL_FROM_ADDRESS', 'ketupatlabs@gmail.com');
+            $fromName = env('MAIL_FROM_NAME', 'Ketupat Labs');
 
-            if (empty($username) || empty($password)) {
-                Log::error('EmailService: MAIL_USERNAME or MAIL_PASSWORD is not set in environment variables.');
+            if (empty($apiKey)) {
+                self::$lastErrorMessage = "SENDGRID_API_KEY is not set in environment variables.";
+                Log::error('EmailService: ' . self::$lastErrorMessage);
                 return false;
             }
 
-            // Server settings
-            $mail->isSMTP();
-            $mail->Host       = $host;
-            $mail->SMTPAuth   = true;
-            $mail->Username   = $username;
-            $mail->Password   = $password;
-            
-            $encryption = strtolower($encryption);
-            if ($encryption === 'ssl' || $port == 465) {
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-            } else {
-                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            }
-            
-            // Disable SSL peer verification for better compatibility in container environments
-            $mail->SMTPOptions = array(
-                'ssl' => array(
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                )
-            );
-            
-            $mail->Port       = $port;
-            $mail->CharSet    = 'UTF-8';
-            
-            // Log connection attempt details (non-sensitive)
-            Log::info("EmailService: Attempting to send OTP email to $toEmail using $host:$port ($encryption)");
-
-            // Enable verbose debug output (optional, for troubleshooting)
-            // $mail->SMTPDebug = 2; // Uncomment for debugging
-            $mail->SMTPDebug = 0; // 0 = off, 1 = client, 2 = client and server
-
-            // Recipients
-            $fromAddress = env('MAIL_FROM_ADDRESS', $username);
-            $fromName = env('MAIL_FROM_NAME', 'Ketupat Labs');
-            $mail->setFrom($fromAddress, $fromName);
-            $mail->addAddress($toEmail);
-
-            // Find logo path - try multiple methods
+            // Find logo path
             $baseDir = base_path();
             $possiblePaths = [
                 $baseDir . '/public/assets/images/LOGOCompuPlay.png',
                 public_path('assets/images/LOGOCompuPlay.png'),
-                __DIR__ . '/../../public/assets/images/LOGOCompuPlay.png',
             ];
             
             $logoPath = null;
-            $logoCid = 'logo-compuplay'; // Content-ID for embedded image
-            
-            // Try each possible path
+            $logoCid = 'logo-compuplay';
+            $attachments = [];
+
             foreach ($possiblePaths as $path) {
-                $resolvedPath = $path ? realpath($path) : false;
-                if ($resolvedPath && file_exists($resolvedPath)) {
-                    $logoPath = $resolvedPath;
-                    Log::info('Logo found at: ' . $logoPath);
+                if ($path && file_exists($path)) {
+                    $logoPath = $path;
                     break;
                 }
             }
-            
-            // If PNG not found, try JPG
-            if (!$logoPath) {
-                $altPaths = [
-                    $baseDir . '/public/assets/images/LogoCompuPlay.jpg',
-                    public_path('assets/images/LogoCompuPlay.jpg'),
-                    __DIR__ . '/../../public/assets/images/LogoCompuPlay.jpg',
-                ];
-                
-                foreach ($altPaths as $altPath) {
-                    $resolvedAltPath = $altPath ? realpath($altPath) : false;
-                    if ($resolvedAltPath && file_exists($resolvedAltPath)) {
-                        $logoPath = $resolvedAltPath;
-                        Log::info('Alternative logo found at: ' . $logoPath);
-                        break;
-                    }
-                }
-            }
-            
-            // Embed logo as attachment using PHPMailer's addEmbeddedImage
+
+            // Prepare inline attachment for SendGrid if logo exists
             if ($logoPath && file_exists($logoPath)) {
-                try {
-                    $mail->addEmbeddedImage($logoPath, $logoCid, 'logo.png', 'base64', 'image/png');
-                    Log::info('Logo embedded as attachment with CID: ' . $logoCid);
-                } catch (\Exception $e) {
-                    Log::error('Failed to embed logo: ' . $e->getMessage());
-                    $logoPath = null; // Fallback to URL if embedding fails
-                }
+                $content = base64_encode(file_get_contents($logoPath));
+                $attachments[] = [
+                    'content' => $content,
+                    'type' => 'image/png',
+                    'filename' => 'logo.png',
+                    'disposition' => 'inline',
+                    'content_id' => $logoCid
+                ];
+                Log::info('EmailService: Logo prepared for SendGrid inline attachment.');
             }
-            
-            // Get app URL for absolute logo URL
+
             $appUrl = env('APP_URL', 'http://localhost:8000');
             $logoUrl = $appUrl . '/assets/images/LOGOCompuPlay.png';
-
-            // HTML email content
             $htmlBody = self::getEmailTemplate($otp, $logoPath ? $logoCid : null, $logoUrl);
-            
-            // Plain text fallback
-            $textBody = "Sahkan alamat emel anda\n\n";
-            $textBody .= "Anda perlu mengesahkan alamat emel anda untuk terus menggunakan akaun CompuPlay anda.\n";
-            $textBody .= "Masukkan kod berikut untuk mengesahkan alamat emel anda:\n\n";
-            $textBody .= "{$otp}\n\n";
-            $textBody .= "Kod ini akan tamat tempoh dalam 10 minit.\n\n";
-            $textBody .= "Jika anda tidak meminta kod ini, sila abaikan e-mel ini.";
 
-            // Content
-            $mail->isHTML(true);
-            $mail->Subject = 'Sahkan alamat emel anda - CompuPlay';
-            $mail->Body    = $htmlBody;
-            $mail->AltBody = $textBody;
+            // SendGrid API Payload
+            $payload = [
+                'personalizations' => [
+                    [
+                        'to' => [['email' => $toEmail]],
+                        'subject' => 'Sahkan alamat emel anda - CompuPlay'
+                    ]
+                ],
+                'from' => [
+                    'email' => $fromEmail,
+                    'name' => $fromName
+                ],
+                'content' => [
+                    [
+                        'type' => 'text/html',
+                        'value' => $htmlBody
+                    ]
+                ]
+            ];
 
-            $mail->send();
-            Log::info('OTP email sent successfully to: ' . $toEmail);
-            return true;
+            if (!empty($attachments)) {
+                $payload['attachments'] = $attachments;
+            }
+
+            Log::info("EmailService: Attempting to send OTP email to $toEmail via SendGrid API");
+
+            $response = Http::withToken($apiKey)
+                ->post('https://api.sendgrid.com/v3/mail/send', $payload);
+
+            if ($response->successful()) {
+                Log::info('EmailService: OTP email sent successfully via SendGrid.');
+                return true;
+            } else {
+                self::$lastErrorMessage = "SendGrid API Error: " . $response->status() . " | " . $response->body();
+                Log::error('EmailService: ' . self::$lastErrorMessage);
+                return false;
+            }
         } catch (\Throwable $e) {
-            $errorInfo = ($mail->ErrorInfo ?? 'No detailed error information available.');
-            self::$lastErrorMessage = "PHPMailer Error: " . $e->getMessage() . " | Detail: " . $errorInfo;
-            
-            Log::error('EmailService Error: ' . $e->getMessage());
-            Log::error('PHPMailer Detail: ' . $errorInfo);
+            self::$lastErrorMessage = "EmailService Exception: " . $e->getMessage();
+            Log::error('EmailService: ' . self::$lastErrorMessage);
             Log::error('Stack Trace: ' . $e->getTraceAsString());
             return false;
         }

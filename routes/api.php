@@ -31,14 +31,12 @@ Route::get('/auth/test-email', function (Request $request) {
         'message' => $result ? "Emel ujian dihantar ke $email" : "Gagal menghantar emel ujian ke $email",
         'error_detail' => \App\Services\EmailService::getLastError(),
         'config_seen' => [
-            'host' => env('MAIL_HOST'),
-            'port' => env('MAIL_PORT'),
-            'username' => env('MAIL_USERNAME'),
-            'encryption' => env('MAIL_ENCRYPTION'),
             'from_address' => env('MAIL_FROM_ADDRESS'),
+            'from_name' => env('MAIL_FROM_NAME'),
             'app_url' => env('APP_URL'),
         ],
-        'env_password_exists' => !empty(env('MAIL_PASSWORD')),
+        'sendgrid_api_key_exists' => !empty(env('SENDGRID_API_KEY')),
+        'method' => 'SendGrid Web API (HTTPS)',
         'php_version' => PHP_VERSION,
     ]);
 });
