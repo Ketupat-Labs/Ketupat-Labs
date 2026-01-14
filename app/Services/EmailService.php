@@ -1,5 +1,3 @@
-<?php
-
 namespace App\Services;
 
 use PHPMailer\PHPMailer\PHPMailer;
@@ -8,6 +6,21 @@ use Illuminate\Support\Facades\Log;
 
 class EmailService
 {
+    /**
+     * Store the last error message for diagnostics
+     * @var string|null
+     */
+    public static $lastErrorMessage = null;
+
+    /**
+     * Get the last error message
+     * @return string|null
+     */
+    public static function getLastError(): ?string
+    {
+        return self::$lastErrorMessage;
+    }
+
     /**
      * Send OTP email using Gmail SMTP
      *
@@ -135,8 +148,11 @@ class EmailService
             Log::info('OTP email sent successfully to: ' . $toEmail);
             return true;
         } catch (\Throwable $e) {
+            $errorInfo = ($mail->ErrorInfo ?? 'No detailed error information available.');
+            self::$lastErrorMessage = "PHPMailer Error: " . $e->getMessage() . " | Detail: " . $errorInfo;
+            
             Log::error('EmailService Error: ' . $e->getMessage());
-            Log::error('PHPMailer Detail: ' . ($mail->ErrorInfo ?? 'No detailed error information available.'));
+            Log::error('PHPMailer Detail: ' . $errorInfo);
             Log::error('Stack Trace: ' . $e->getTraceAsString());
             return false;
         }

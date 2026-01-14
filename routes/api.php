@@ -29,12 +29,17 @@ Route::get('/auth/test-email', function (Request $request) {
     return response()->json([
         'success' => $result,
         'message' => $result ? "Emel ujian dihantar ke $email" : "Gagal menghantar emel ujian ke $email",
-        'debug_info' => config('app.debug') ? [
+        'error_detail' => \App\Services\EmailService::getLastError(),
+        'config_seen' => [
             'host' => env('MAIL_HOST'),
             'port' => env('MAIL_PORT'),
-            'user' => env('MAIL_USERNAME'),
+            'username' => env('MAIL_USERNAME'),
             'encryption' => env('MAIL_ENCRYPTION'),
-        ] : 'Debug info disabled'
+            'from_address' => env('MAIL_FROM_ADDRESS'),
+            'app_url' => env('APP_URL'),
+        ],
+        'env_password_exists' => !empty(env('MAIL_PASSWORD')),
+        'php_version' => PHP_VERSION,
     ]);
 });
 
