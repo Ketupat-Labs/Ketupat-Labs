@@ -3,10 +3,17 @@ set -e
 
 echo "Starting CompuPlay Laravel Application on Render..."
 
+# Debug: Check broadcasting environment variables
+echo "=== Environment Check ==="
+echo "BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-NOT SET}"
+echo "PUSHER_APP_ID: ${PUSHER_APP_ID:-NOT SET}"
+echo "PUSHER_APP_KEY: ${PUSHER_APP_KEY:0:10}... (truncated)"
+echo "========================="
+
 # Wait for MySQL to be ready (max 30 seconds)
 echo "Waiting for MySQL (max 30s)..."
 COUNTER=0
-until php artisan db:show 2>/dev/null || [ $COUNTER -eq 15 ]; do
+until php -r "new PDO('mysql:host='.\$_ENV['DB_HOST'].';port='.\$_ENV['DB_PORT'].';dbname='.\$_ENV['DB_DATABASE'], \$_ENV['DB_USERNAME'], \$_ENV['DB_PASSWORD']);" 2>/dev/null || [ $COUNTER -eq 15 ]; do
     echo "MySQL is unavailable - sleeping"
     sleep 2
     let COUNTER=COUNTER+1
