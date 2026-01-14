@@ -54,11 +54,22 @@ class EmailService
             $mail->Username   = $username;
             $mail->Password   = $password;
             
-            if ($encryption === 'ssl') {
+            $encryption = strtolower($encryption);
+            if ($encryption === 'ssl' || $port == 465) {
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             } else {
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             }
+            
+            // Disable SSL peer verification for better compatibility in container environments
+            $mail->SMTPOptions = array(
+                'ssl' => array(
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                )
+            );
+            
             $mail->Port       = $port;
             $mail->CharSet    = 'UTF-8';
             
