@@ -15,6 +15,29 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/auth/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// Temporary Email Diagnostic Route
+Route::get('/auth/test-email', function (Request $request) {
+    $email = $request->query('email');
+    if (!$email) {
+        return response()->json(['error' => 'Sila masukkan parameter emel (?email=...)'], 400);
+    }
+    
+    $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+    $result = \App\Services\EmailService::sendOtpEmail($email, $otp);
+    
+    return response()->json([
+        'success' => $result,
+        'message' => $result ? "Emel ujian dihantar ke $email" : "Gagal menghantar emel ujian ke $email",
+        'debug_info' => config('app.debug') ? [
+            'host' => env('MAIL_HOST'),
+            'port' => env('MAIL_PORT'),
+            'user' => env('MAIL_USERNAME'),
+            'encryption' => env('MAIL_ENCRYPTION'),
+        ] : 'Debug info disabled'
+    ]);
+});
+
 Route::post('/auth/forgot-password', [AuthController::class, 'sendPasswordResetLink']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
