@@ -59,9 +59,23 @@ services:
         value: sync # Change to 'redis' if you add a worker
       
       # Broadcasting (Pusher)
-      # Note: All Pusher variables are set in Render Dashboard only
       - key: BROADCAST_CONNECTION
         value: pusher
+      # Pusher credentials - these MUST be set in Render Dashboard
+      # The 'sync: false' tells Render to use Dashboard values
+      - key: PUSHER_APP_ID
+        sync: false
+      - key: PUSHER_APP_KEY
+        sync: false
+      - key: PUSHER_APP_SECRET
+        sync: false
+      - key: PUSHER_APP_CLUSTER
+        sync: false
+      # VITE variables for frontend
+      - key: VITE_PUSHER_APP_KEY
+        sync: false
+      - key: VITE_PUSHER_APP_CLUSTER
+        sync: false
       
       # Mail Configuration
       - key: MAIL_MAILER
