@@ -7,7 +7,7 @@
 <div id="ketupat-chatbot" class="fixed bottom-6 right-6 z-50">
     <!-- Chatbot Button -->
     <button id="chatbot-toggle"
-            class="bg-gradient-to-r from-[#F26430] to-[#FF8C42] text-white rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center hover:scale-110"
+            class="bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center hover:scale-110"
             onclick="toggleChatbot()"
             aria-label="Open Ketupat Chatbot">
         <i class="fas fa-robot text-lg" aria-hidden="true"></i>
@@ -18,10 +18,10 @@
          class="hidden absolute bottom-16 right-0 w-80 h-[450px] bg-white rounded-lg shadow-2xl flex flex-col border border-gray-200"
          style="z-index: 9999;">
         <!-- Header -->
-        <div class="bg-gradient-to-r from-[#F26430] to-[#FF8C42] text-white p-3 rounded-t-lg flex items-center justify-between">
+        <div class="bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white p-3 rounded-t-lg flex items-center justify-between">
             <div class="flex items-center space-x-2">
                 <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                    <i class="fas fa-robot text-[#F26430] text-sm"></i>
+                    <i class="fas fa-robot text-[#F97316] text-sm"></i>
                 </div>
                 <div>
                     <h3 class="font-bold text-base">{{ __('Ask Ketupat') }}</h3>
@@ -38,7 +38,7 @@
         <!-- Messages Container -->
         <div id="chatbot-messages" class="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
             <div class="flex items-start space-x-2">
-                <div class="w-7 h-7 bg-[#F26430] rounded-full flex items-center justify-center flex-shrink-0">
+                <div class="w-7 h-7 bg-[#F97316] rounded-full flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-robot text-white text-xs"></i>
                 </div>
                 <div class="flex-1">
@@ -58,12 +58,12 @@
                 <input type="text"
                        id="chatbot-input"
                        placeholder="{{ __('Taip mesej anda...') }}"
-                       class="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F26430] focus:border-transparent"
+                       class="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent"
                        autocomplete="off"
                        style="pointer-events: auto !important; z-index: 1;">
                 <button type="submit"
                         id="chatbot-send-btn"
-                        class="bg-[#F26430] hover:bg-[#FF8C42] text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="bg-[#F97316] hover:bg-[#EA580C] text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         style="pointer-events: auto !important; z-index: 1;">
                     <i class="fas fa-paper-plane text-sm"></i>
                 </button>
@@ -308,7 +308,7 @@
         if (sender === 'user') {
             messageDiv.innerHTML = `
                 <div class="flex-1 flex justify-end">
-                    <div class="bg-[#F26430] text-white rounded-lg p-3 shadow-sm max-w-[80%]">
+                    <div class="bg-[#F97316] text-white rounded-lg p-3 shadow-sm max-w-[80%]">
                         <p class="text-sm">${escapeHtml(text)}</p>
                     </div>
                 </div>
@@ -316,7 +316,7 @@
         } else {
             const errorClass = isError ? 'border-red-300 bg-red-50' : '';
             messageDiv.innerHTML = `
-                <div class="w-8 h-8 bg-[#F26430] rounded-full flex items-center justify-center flex-shrink-0">
+                <div class="w-8 h-8 bg-[#F97316] rounded-full flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-robot text-white text-xs"></i>
                 </div>
                 <div class="flex-1">
@@ -338,7 +338,7 @@
         typingDiv.id = 'typing-indicator';
         typingDiv.className = 'flex items-start space-x-2 chatbot-message';
         typingDiv.innerHTML = `
-            <div class="w-8 h-8 bg-[#F26430] rounded-full flex items-center justify-center flex-shrink-0">
+            <div class="w-8 h-8 bg-[#F97316] rounded-full flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-robot text-white text-xs"></i>
             </div>
             <div class="flex-1">

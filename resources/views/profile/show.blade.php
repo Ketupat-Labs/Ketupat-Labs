@@ -297,69 +297,6 @@
     <link rel="stylesheet" href="{{ asset('Forum/CSS/forum.css') }}">
     
     <!-- Override forum.css global styles that affect the profile page -->
-    <style>
-        /* Reset forum.css global body styles that conflict with profile page */
-        body {
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif !important;
-            background-color: #f9fafb !important;
-            color: #1f2937 !important;
-            line-height: 1.5 !important;
-        }
-        
-        /* Ensure the main layout structure is correct */
-        .min-h-screen {
-            display: block !important;
-        }
-        
-        .min-h-screen > div {
-            display: block !important;
-        }
-        
-        /* Ensure main content area is not affected by forum flex layouts */
-        main {
-            display: block !important;
-            width: 100% !important;
-        }
-        
-        /* Hide any sidebar elements that forum.css might create (only allow in saved posts) */
-        aside.reddit-sidebar:not(#savedPostsContent aside),
-        .reddit-sidebar:not(#savedPostsContent .reddit-sidebar),
-        .reddit-sidebar-right:not(#savedPostsContent .reddit-sidebar-right),
-        .reddit-container:not(#savedPostsContent .reddit-container),
-        .reddit-main:not(#savedPostsContent .reddit-main) {
-            display: none !important;
-        }
-        
-        /* Ensure profile page content container is properly sized */
-        .max-w-7xl {
-            width: 100% !important;
-            max-width: 1280px !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-            padding-left: 1.5rem !important;
-            padding-right: 1.5rem !important;
-        }
-        
-        /* Ensure profile page content container is properly sized */
-        .max-w-7xl {
-            width: 100% !important;
-            max-width: 1280px !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-            padding-left: 1.5rem !important;
-            padding-right: 1.5rem !important;
-        }
-        
-        /* Prevent forum.css from creating flex layouts that break profile page */
-        .min-h-screen,
-        .min-h-screen > div,
-        main {
-            flex-direction: column !important;
-        }
-    </style>
-    
-    <!-- Include Forum JS for post rendering functions -->
-    <script src="{{ asset('Forum/JS/forum.js') }}"></script>
     <script src="{{ asset('assets/js/profile.js') }}"></script>
     
     <script>

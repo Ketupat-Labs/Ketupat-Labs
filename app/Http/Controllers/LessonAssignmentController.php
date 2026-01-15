@@ -84,8 +84,11 @@ class LessonAssignmentController extends Controller
         // --- ACTIVITY / CALENDAR LOGIC ---
         $month = $request->get('month', date('n'));
         $year = $request->get('year', date('Y'));
-        $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
-        $firstDayOfMonth = date('w', strtotime("$year-$month-01"));
+        
+        // Fix: Use Carbon instead of cal_days_in_month to avoid 500 error if calendar extension missing
+        $date = \Carbon\Carbon::createFromDate($year, $month, 1);
+        $daysInMonth = $date->daysInMonth;
+        $firstDayOfMonth = $date->dayOfWeek; // 0 (Sunday) to 6 (Saturday)
 
         // Activities (Split by Type)
         $games = \App\Models\Activity::where('teacher_id', $user->id)->where('type', 'Game')->get();
@@ -104,6 +107,9 @@ class LessonAssignmentController extends Controller
                 ->get();
 
             foreach ($actAssignments as $aa) {
+                // Fix: Check if activity exists to prevent 500 error
+                if (!$aa->activity) continue;
+                
                 $events[] = [
                     'title' => $aa->activity->title . ' (' . $aa->classroom->name . ')', // Append class name for context
                     'start' => $aa->due_date,
