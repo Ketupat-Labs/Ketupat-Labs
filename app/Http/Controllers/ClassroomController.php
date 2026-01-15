@@ -246,12 +246,52 @@ class ClassroomController extends Controller
                 }
             }
 
-            // Add student to group chat if it exists for this classroom
+            // Add student to group chat - create if it doesn't exist
             $groupChat = $classroom->getClassroomGroupChat();
-            if ($groupChat) {
-                if (!$groupChat->participants()->where('user_id', $student->id)->exists()) {
-                    $groupChat->participants()->attach($student->id);
+            if (!$groupChat) {
+                // Group chat doesn't exist, create it now
+                \Illuminate\Support\Facades\Log::warning('[Classroom] Group chat missing for classroom, creating now', [
+                    'classroom_id' => $classroom->id,
+                    'classroom_name' => $classroom->name,
+                ]);
+                
+                try {
+                    $groupChatName = $classroom->name;
+                    if ($classroom->subject) {
+                        $groupChatName .= ' ' . $classroom->subject;
+                    }
+                    if ($classroom->year) {
+                        $groupChatName .= ' ' . $classroom->year;
+                    }
+                    
+                    $groupChat = \App\Models\Conversation::create([
+                        'type' => 'group',
+                        'name' => $groupChatName,
+                        'created_by' => $classroom->teacher_id,
+                    ]);
+                    
+                    // Add teacher as participant
+                    $groupChat->participants()->attach($classroom->teacher_id);
+                    
+                    \Illuminate\Support\Facades\Log::info('[Classroom] Group chat created successfully', [
+                        'conversation_id' => $groupChat->id,
+                    ]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('[Classroom] Failed to create group chat', [
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Continue without group chat
+                    $groupChat = null;
                 }
+            }
+            
+            // Add student to group chat if it exists
+            if ($groupChat && !$groupChat->participants()->where('user_id', $student->id)->exists()) {
+                $groupChat->participants()->attach($student->id);
+                \Illuminate\Support\Facades\Log::info('[Classroom] Student added to group chat', [
+                    'student_id' => $student->id,
+                    'conversation_id' => $groupChat->id,
+                ]);
             }
 
             // Backfill existing assignments for this student
@@ -283,7 +323,26 @@ class ClassroomController extends Controller
         if (!$user || $user->role !== 'teacher')
             abort(403);
 
+        // Remove student from classroom
         $classroom->students()->detach($studentId);
+        
+        // Remove student from group chat if it exists
+        $groupChat = $classroom->getClassroomGroupChat();
+        if ($groupChat) {
+            $groupChat->participants()->detach($studentId);
+            \Illuminate\Support\Facades\Log::info('[Classroom] Student removed from group chat', [
+                'student_id' => $studentId,
+                'conversation_id' => $groupChat->id,
+            ]);
+        }
+        
+        // Remove student from forum if it exists
+        $forum = \App\Models\Forum::where('class_id', $classroom->id)->first();
+        if ($forum) {
+            $forum->members()->detach($studentId);
+            $forum->member_count = $forum->members()->count();
+            $forum->save();
+        }
 
         return back()->with('success', 'Student removed successfully.');
     }

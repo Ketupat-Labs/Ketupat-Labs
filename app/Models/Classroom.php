@@ -50,31 +50,73 @@ class Classroom extends Model
 
         // Create group chat when classroom is created
         static::created(function ($classroom) {
-            // Generate group chat name: class name + subject + year
-            $groupChatName = $classroom->name;
-            if ($classroom->subject) {
-                $groupChatName .= ' ' . $classroom->subject;
-            }
-            if ($classroom->year) {
-                $groupChatName .= ' ' . $classroom->year;
-            }
-
-            // Create group chat
-            $conversation = \App\Models\Conversation::create([
-                'type' => 'group',
-                'name' => $groupChatName,
-                'created_by' => $classroom->teacher_id,
-            ]);
-
-            // Add teacher as participant
-            $conversation->participants()->attach($classroom->teacher_id);
-
-            // Add all existing students as participants (if any)
-            $students = $classroom->students;
-            foreach ($students as $student) {
-                if (!$conversation->participants()->where('user_id', $student->id)->exists()) {
-                    $conversation->participants()->attach($student->id);
+            try {
+                \Illuminate\Support\Facades\Log::info('[Classroom] Creating group chat for classroom', [
+                    'classroom_id' => $classroom->id,
+                    'classroom_name' => $classroom->name,
+                    'teacher_id' => $classroom->teacher_id,
+                ]);
+                
+                // Generate group chat name: class name + subject + year
+                $groupChatName = $classroom->name;
+                if ($classroom->subject) {
+                    $groupChatName .= ' ' . $classroom->subject;
                 }
+                if ($classroom->year) {
+                    $groupChatName .= ' ' . $classroom->year;
+                }
+
+                \Illuminate\Support\Facades\Log::info('[Classroom] Group chat name', ['name' => $groupChatName]);
+
+                // Use a transaction to ensure atomicity
+                \Illuminate\Support\Facades\DB::transaction(function () use ($classroom, $groupChatName) {
+                    // Create group chat
+                    $conversation = \App\Models\Conversation::create([
+                        'type' => 'group',
+                        'name' => $groupChatName,
+                        'created_by' => $classroom->teacher_id,
+                    ]);
+
+                    \Illuminate\Support\Facades\Log::info('[Classroom] Group chat created', [
+                        'conversation_id' => $conversation->id,
+                        'conversation_name' => $conversation->name,
+                    ]);
+
+                    // Add teacher as participant
+                    $conversation->participants()->attach($classroom->teacher_id);
+                    \Illuminate\Support\Facades\Log::info('[Classroom] Teacher added to group chat', [
+                        'teacher_id' => $classroom->teacher_id,
+                    ]);
+
+                    // Add all existing students as participants (if any)
+                    $students = $classroom->students;
+                    if ($students->count() > 0) {
+                        \Illuminate\Support\Facades\Log::info('[Classroom] Adding students to group chat', [
+                            'student_count' => $students->count(),
+                        ]);
+                        
+                        foreach ($students as $student) {
+                            if (!$conversation->participants()->where('user_id', $student->id)->exists()) {
+                                $conversation->participants()->attach($student->id);
+                            }
+                        }
+                        
+                        \Illuminate\Support\Facades\Log::info('[Classroom] Students added to group chat');
+                    } else {
+                        \Illuminate\Support\Facades\Log::info('[Classroom] No students to add to group chat');
+                    }
+                });
+                
+                \Illuminate\Support\Facades\Log::info('[Classroom] Group chat creation completed successfully');
+            } catch (\Exception $e) {
+                // Log error but don't fail classroom creation
+                \Illuminate\Support\Facades\Log::error('[Classroom] Failed to create group chat', [
+                    'classroom_id' => $classroom->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                
+                // Don't throw - we don't want to fail classroom creation if group chat fails
             }
         });
     }

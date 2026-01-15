@@ -33,27 +33,27 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/login';
         return;
     }
-    
+
     // Remove any existing emoji picker containers
     const existingPicker = document.getElementById('emojiPickerContainer');
     if (existingPicker) {
         existingPicker.remove();
     }
-    
+
     // Clear old message caches on page load
     clearOldMessageCaches();
-    
+
     initNavigation();
     loadNavigationUserInfo();
     initEventListeners();
     loadConversations();
-    
+
     // Listen for echoReady event before connecting WebSocket
     window.addEventListener('echoReady', () => {
         console.log('echoReady event received in messaging.js, connecting WebSocket...');
         connectWebSocket();
     });
-    
+
     // Also try to connect immediately (in case Echo is already ready)
     // And set a timeout as fallback
     setTimeout(() => {
@@ -62,20 +62,20 @@ document.addEventListener('DOMContentLoaded', () => {
             connectWebSocket();
         }
     }, 500);
-    
+
     loadPinnedMessages();
-    
+
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
         messageInput.addEventListener('input', autoResizeTextarea);
     }
-    
+
     // Handle shared post link
     handleSharedPost();
-    
+
     // Initialize inactive timeout tracking
     initInactiveTimeout();
-    
+
     // Track user activity
     trackUserActivity();
 });
@@ -84,14 +84,14 @@ async function handleSharedPost() {
     const urlParams = new URLSearchParams(window.location.search);
     const conversationId = urlParams.get('conversation');
     const shareUrl = urlParams.get('share');
-    
+
     if (conversationId) {
         // Wait for conversations to load
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         // Select the conversation
         await selectConversation(parseInt(conversationId));
-        
+
         if (shareUrl) {
             // Pre-fill the message input with the shared post link
             const messageInput = document.getElementById('messageInput');
@@ -102,7 +102,7 @@ async function handleSharedPost() {
                 messageInput.focus();
             }
         }
-        
+
         // Clean up URL parameters
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
@@ -117,9 +117,9 @@ function initEventListeners() {
             sendMessage();
         }
     });
-    
+
     document.getElementById('messageInput').addEventListener('input', handleTyping);
-    
+
     // Prevent context menu on white area (chat messages container)
     const chatMessagesContainer = document.getElementById('chatMessages');
     if (chatMessagesContainer) {
@@ -131,23 +131,23 @@ function initEventListeners() {
             }
         });
     }
-    
+
     document.getElementById('btnAttach').addEventListener('click', () => {
         document.getElementById('fileInput').click();
     });
     document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-    
+
     document.getElementById('btnCreateConversation').addEventListener('click', openCreateConversationModal);
     document.getElementById('closeConversationModal').addEventListener('click', closeCreateConversationModal);
     document.getElementById('cancelConversationModal').addEventListener('click', closeCreateConversationModal);
-    
+
     document.getElementById('closeDMModal').addEventListener('click', closeCreateDMModal);
     document.getElementById('cancelDMModal').addEventListener('click', closeCreateDMModal);
-    
+
     document.getElementById('closeGroupModal').addEventListener('click', closeCreateGroupModal);
     document.getElementById('cancelGroupModal').addEventListener('click', closeCreateGroupModal);
     document.getElementById('createGroupForm').addEventListener('submit', createGroupChat);
-    
+
     // Search members functionality (for group chat)
     const searchMembersInput = document.getElementById('searchMembers');
     if (searchMembersInput) {
@@ -160,7 +160,7 @@ function initEventListeners() {
             }, 300); // Debounce search
         });
     }
-    
+
     // Search DM users functionality
     const dmSearchUsersInput = document.getElementById('dmSearchUsers');
     if (dmSearchUsersInput) {
@@ -173,12 +173,12 @@ function initEventListeners() {
             }, 300); // Debounce search
         });
     }
-    
+
     document.getElementById('searchConversations').addEventListener('input', searchConversations);
     document.getElementById('sortConversations').addEventListener('change', loadConversations);
-    
+
     document.getElementById('btnCloseInfo').addEventListener('click', closeInfoSidebar);
-    
+
     // Search messages
     document.getElementById('btnSearchMessages').addEventListener('click', openSearchMessages);
     document.getElementById('btnCloseSearch').addEventListener('click', closeSearchMessages);
@@ -189,10 +189,10 @@ function initEventListeners() {
             performMessageSearch();
         }
     });
-    
+
     // Archive conversation
     document.getElementById('btnArchiveConversation').addEventListener('click', archiveCurrentConversation);
-    
+
     // Conversation tabs
     document.getElementById('tabActive').addEventListener('click', () => switchTab('active'));
     document.getElementById('tabArchived').addEventListener('click', () => switchTab('archived'));
@@ -279,13 +279,13 @@ async function loadConversations() {
             window.location.href = '/login';
             return;
         }
-        
+
         // Load based on current tab
         if (messagingState.currentTab === 'archived') {
             await loadArchivedConversations();
             return;
         }
-        
+
         const sortElement = document.getElementById('sortConversations');
         const sort = sortElement ? sortElement.value : 'recent';
         const response = await fetch(`/api/messaging/conversations?sort=${sort}`, {
@@ -297,13 +297,13 @@ async function loadConversations() {
             },
             credentials: 'include'
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 || data.status === 401) {
             // 200 = success, 401 = unauthorized (will redirect)
             if (data.status === 401) {
@@ -331,12 +331,12 @@ async function loadConversations() {
 
 function renderConversations() {
     const container = document.getElementById('conversationsList');
-    
+
     if (!messagingState.conversations || messagingState.conversations.length === 0) {
         container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; font-size: 14px;">Tiada perbualan lagi. Mulakan perbualan baharu dengan pengguna lain.</div>';
         return;
     }
-    
+
     container.innerHTML = messagingState.conversations.map(conv => {
         // Handle friend-only entries (no conversation ID yet)
         let conversationId;
@@ -347,24 +347,24 @@ function renderConversations() {
         } else {
             conversationId = 'null';
         }
-        
+
         const isActive = conv.id === messagingState.currentConversationId;
-        
+
         return `
         <div class="conversation-item ${isActive ? 'active' : ''}" 
              onclick="selectConversation(${conversationId})">
             <div class="conversation-avatar ${conv.other_avatar ? '' : ''}">
-                ${conv.other_avatar ? 
-                    `<img src="${escapeHtml(conv.other_avatar)}" alt="${escapeHtml(conv.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                ${conv.other_avatar ?
+                `<img src="${escapeHtml(conv.other_avatar)}" alt="${escapeHtml(conv.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                      <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
                         ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
                      </div>` :
-                    conv.type === 'group' ? 
-                        '<i class="fas fa-users"></i>' :
-                        `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                conv.type === 'group' ?
+                    '<i class="fas fa-users"></i>' :
+                    `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
                             ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
                          </div>`
-                }
+            }
             </div>
             <div class="conversation-details">
                 <div class="conversation-header">
@@ -406,9 +406,9 @@ async function unarchiveConversation(conversationId) {
                 archive: false
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             await loadArchivedConversations();
         } else {
@@ -423,97 +423,97 @@ async function unarchiveConversation(conversationId) {
 async function selectConversation(conversationId) {
     // Handle friend-only entries (string format: 'friend_123')
     let actualConversationId = conversationId;
-    
+
     if (typeof conversationId === 'string' && conversationId.startsWith('friend_')) {
         const friendUserId = parseInt(conversationId.replace('friend_', ''));
-        const conversation = messagingState.conversations.find(c => 
+        const conversation = messagingState.conversations.find(c =>
             c.is_friend_only && c.other_user_id === friendUserId
         );
-        
+
         if (conversation && conversation.other_user_id) {
-        // This is a friend without a conversation, create one first
-        try {
-            const response = await fetch('/api/messaging/conversation/direct', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    user_id: conversation.other_user_id
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.status === 200 && data.data && data.data.conversation_id) {
-                // Reload conversations to get the new conversation
-                await loadConversations();
-                // Select the newly created conversation
-                actualConversationId = data.data.conversation_id;
-            } else {
-                alert(data.message || 'Failed to create conversation');
+            // This is a friend without a conversation, create one first
+            try {
+                const response = await fetch('/api/messaging/conversation/direct', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        user_id: conversation.other_user_id
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 200 && data.data && data.data.conversation_id) {
+                    // Reload conversations to get the new conversation
+                    await loadConversations();
+                    // Select the newly created conversation
+                    actualConversationId = data.data.conversation_id;
+                } else {
+                    alert(data.message || 'Failed to create conversation');
+                    return;
+                }
+            } catch (error) {
+                console.error('Error creating conversation:', error);
+                alert('Failed to create conversation');
                 return;
             }
-        } catch (error) {
-            console.error('Error creating conversation:', error);
-            alert('Failed to create conversation');
-            return;
-        }
         } else {
             return; // Friend not found
         }
     }
-    
+
     // Leave previous conversation
     if (messagingState.currentConversationId) {
         leaveConversation(messagingState.currentConversationId);
     }
-    
+
     messagingState.currentConversationId = actualConversationId;
-    
+
     // Clear messages and cache immediately when switching conversations
     messagingState.messages = [];
     messageElementsCache.clear();
     lastRenderedMessageIds.clear();
-    
+
     // Clear the messages container immediately
     const chatMessagesContainer = document.getElementById('chatMessages');
     if (chatMessagesContainer) {
         chatMessagesContainer.innerHTML = '';
     }
-    
+
     // Get conversation data from cache for instant UI update
     const cachedConversation = messagingState.conversations.find(c => c.id === actualConversationId);
-    
+
     // INSTANT UI UPDATE: Show conversation header immediately from cached data
     if (cachedConversation) {
         loadConversationDetailsFromCache(cachedConversation);
     }
-    
+
     // Show loading state for messages
     showMessagesLoading();
-    
+
     // Show input container immediately
     document.getElementById('chatInputContainer').style.display = 'block';
     document.getElementById('chatActionsBar').style.display = 'flex';
-    
+
     // Update conversation list highlight
     renderConversations();
-    
+
     // Join new conversation via WebSocket immediately
     joinConversation(actualConversationId);
-    
+
     // Clear typing indicators
     messagingState.typingUsers.clear();
     messagingState.typingUserNames.clear();
     updateTypingIndicatorDisplay();
-    
+
     // Close search if open
     closeSearchMessages();
-    
+
     // Load messages in background (non-blocking)
     loadMessages(actualConversationId).then(() => {
         // After messages load, update conversation details with fresh data
@@ -527,7 +527,7 @@ async function selectConversation(conversationId) {
 }
 
 function scrollToBottom(smooth = false) {
-        const messagesContainer = document.getElementById('chatMessages');
+    const messagesContainer = document.getElementById('chatMessages');
     if (messagesContainer) {
         if (smooth) {
             messagesContainer.scrollTo({
@@ -535,7 +535,7 @@ function scrollToBottom(smooth = false) {
                 behavior: 'smooth'
             });
         } else {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
     }
 }
@@ -553,18 +553,18 @@ function getCachedMessages(conversationId) {
         const cacheKey = getMessageCacheKey(conversationId);
         const cached = localStorage.getItem(cacheKey);
         if (!cached) return null;
-        
+
         const cacheData = JSON.parse(cached);
         const now = Date.now();
         const cacheAge = now - cacheData.timestamp;
         const expiryMs = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
-        
+
         // Check if cache is expired
         if (cacheAge > expiryMs) {
             localStorage.removeItem(cacheKey);
             return null;
         }
-        
+
         return cacheData.messages || null;
     } catch (error) {
         console.error('Error reading message cache:', error);
@@ -600,7 +600,7 @@ function clearOldMessageCaches() {
         const now = Date.now();
         const expiryMs = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
         const keysToRemove = [];
-        
+
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith(MESSAGE_CACHE_PREFIX)) {
@@ -616,7 +616,7 @@ function clearOldMessageCaches() {
                 }
             }
         }
-        
+
         keysToRemove.forEach(key => localStorage.removeItem(key));
     } catch (error) {
         console.error('Error clearing old caches:', error);
@@ -628,10 +628,10 @@ function updateMessageInCache(conversationId, message) {
         const cacheKey = getMessageCacheKey(conversationId);
         const cached = localStorage.getItem(cacheKey);
         if (!cached) return;
-        
+
         const cacheData = JSON.parse(cached);
         const messages = cacheData.messages || [];
-        
+
         // Check if message already exists
         const existingIndex = messages.findIndex(m => m.id === message.id);
         if (existingIndex >= 0) {
@@ -645,7 +645,7 @@ function updateMessageInCache(conversationId, message) {
                 return new Date(a.created_at) - new Date(b.created_at);
             });
         }
-        
+
         cacheData.messages = messages;
         cacheData.timestamp = Date.now();
         localStorage.setItem(cacheKey, JSON.stringify(cacheData));
@@ -659,10 +659,10 @@ function removeMessageFromCache(conversationId, messageId) {
         const cacheKey = getMessageCacheKey(conversationId);
         const cached = localStorage.getItem(cacheKey);
         if (!cached) return;
-        
+
         const cacheData = JSON.parse(cached);
         const messages = (cacheData.messages || []).filter(m => m.id !== messageId);
-        
+
         cacheData.messages = messages;
         cacheData.timestamp = Date.now();
         localStorage.setItem(cacheKey, JSON.stringify(cacheData));
@@ -684,26 +684,26 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
     try {
         // Prevent rapid reloads (throttle to max once per 2 seconds for same conversation)
         const now = Date.now();
-        if (!forceReload && page === 1 && messagingState.lastMessageLoadTime && 
+        if (!forceReload && page === 1 && messagingState.lastMessageLoadTime &&
             messagingState.lastMessageLoadTime.conversationId === conversationId &&
             (now - messagingState.lastMessageLoadTime.timestamp) < 2000) {
             console.log('Skipping rapid reload for conversation', conversationId);
             return;
         }
-        
+
         // For page 1, try to load from cache first
         if (page === 1 && !forceReload) {
             const cachedMessages = getCachedMessages(conversationId);
             if (cachedMessages && cachedMessages.length > 0) {
                 // Load from cache immediately
                 messagingState.messages = cachedMessages;
-                
+
                 // Double-check conversation ID before rendering
                 if (messagingState.currentConversationId === conversationId) {
                     renderMessages();
                     hideMessagesLoading();
                     scrollToBottom();
-                    
+
                     // Still fetch from server in background to get latest messages
                     // This ensures we have the most up-to-date data
                     // But only if WebSocket is not connected (to avoid duplicate updates)
@@ -722,14 +722,14 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
                 }
             }
         }
-        
+
         // Check if this is a group conversation to request members
         const conversation = messagingState.conversations.find(c => c.id === conversationId);
         const isGroup = conversation && conversation.type === 'group';
         const loadMembers = isGroup && page === 1; // Only load members on first page
-        
+
         const url = `/api/messaging/conversation/${conversationId}/messages?page=${page}${loadMembers ? '&load_members=true' : ''}`;
-        
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -740,20 +740,20 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
             credentials: 'include'
         });
         const data = await response.json();
-        
+
         // Hide loading state
         hideMessagesLoading();
-        
+
         // CRITICAL: Check if conversation ID still matches current conversation
         // This prevents race conditions where old API calls overwrite new conversation messages
         if (messagingState.currentConversationId !== conversationId) {
             console.log(`Ignoring messages for conversation ${conversationId} - current conversation is ${messagingState.currentConversationId}`);
             return;
         }
-        
+
         if (data.status === 200) {
             const newMessages = data.data.messages || [];
-            
+
             if (page === 1) {
                 // Reverse messages since API returns DESC (newest first), but we want oldest first for display
                 messagingState.messages = newMessages.reverse();
@@ -769,12 +769,12 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
                     return; // Don't update if conversation changed
                 }
             }
-            
+
             // Double-check conversation ID before rendering
             if (messagingState.currentConversationId !== conversationId) {
                 return;
             }
-            
+
             // Remove duplicates based on message ID
             const uniqueMessages = [];
             const seenIds = new Set();
@@ -785,17 +785,17 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
                 }
             }
             messagingState.messages = uniqueMessages;
-            
+
             // Sort by created_at to ensure correct order
             messagingState.messages.sort((a, b) => {
                 return new Date(a.created_at) - new Date(b.created_at);
             });
-            
+
             // Update cache with deduplicated and sorted messages
             if (page === 1) {
                 saveMessagesToCache(conversationId, messagingState.messages);
             }
-            
+
             // Final check before rendering
             if (messagingState.currentConversationId === conversationId) {
                 // Always render if there are no messages (to show empty state)
@@ -804,23 +804,23 @@ async function loadMessages(conversationId, page = 1, forceReload = false) {
                 const previousMessageIds = new Set(Array.from(lastRenderedMessageIds));
                 const messagesChanged = currentMessageIds.size !== previousMessageIds.size ||
                     Array.from(currentMessageIds).some(id => !previousMessageIds.has(id));
-                
+
                 // Always render if no messages (to show empty state) or if messages changed
                 if (messagingState.messages.length === 0 || messagesChanged || page !== 1) {
                     renderMessages();
                 }
-                
+
                 // Store participants for typing indicator
                 if (data.data.conversation && data.data.conversation.members) {
-                    messagingState.participants = Array.isArray(data.data.conversation.members) 
-                        ? data.data.conversation.members 
+                    messagingState.participants = Array.isArray(data.data.conversation.members)
+                        ? data.data.conversation.members
                         : [];
                 }
-                
+
                 if (data.data.conversation && data.data.conversation.type === 'group') {
                     loadGroupInfo(data.data.conversation);
                 }
-                
+
                 // Update last load time
                 messagingState.lastMessageLoadTime = {
                     conversationId: conversationId,
@@ -859,7 +859,7 @@ let lastRenderedMessageIds = new Set();
 function showMessagesLoading() {
     const container = document.getElementById('chatMessages');
     if (!container) return;
-    
+
     container.innerHTML = `
         <div style="display: flex; justify-content: center; align-items: center; padding: 40px; min-height: 200px;">
             <div style="text-align: center;">
@@ -880,7 +880,7 @@ function showMessagesLoading() {
 function hideMessagesLoading() {
     const container = document.getElementById('chatMessages');
     if (!container) return;
-    
+
     // If container shows loading spinner, ensure it gets cleared
     // renderMessages() will be called to show messages or empty state
     // This is a safety check - renderMessages() should always be called after hideMessagesLoading()
@@ -888,9 +888,9 @@ function hideMessagesLoading() {
 
 function renderMessages() {
     const container = document.getElementById('chatMessages');
-    
+
     if (!container) return;
-    
+
     // Filter messages to only show messages for current conversation
     // This is a safety check in case messages array contains messages from different conversations
     const currentConversationId = messagingState.currentConversationId;
@@ -902,60 +902,60 @@ function renderMessages() {
         // Otherwise, assume it's for current conversation (for backward compatibility)
         return true;
     });
-    
+
     if (filteredMessages.length === 0) {
         container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; margin-top: auto;">Tiada mesej lagi. Mulakan perbualan!</div>';
         messageElementsCache.clear();
         lastRenderedMessageIds.clear();
         return;
     }
-    
+
     // Use filtered messages for rendering
     const messagesToRender = filteredMessages;
-    
+
     // Store scroll position before rendering
     const wasAtBottom = isScrolledToBottom(container);
     const previousScrollHeight = container.scrollHeight;
-    
+
     const currentUserId = getCurrentUserId();
     const currentMessageIds = new Set(messagesToRender.map(m => m.id));
-    
+
     // Check if we can do incremental update (only new messages added)
     const hasRemovedMessages = Array.from(lastRenderedMessageIds).some(id => !currentMessageIds.has(id));
-    
+
     // If messages were removed or order changed, do full re-render
     if (hasRemovedMessages || messagesToRender.length !== lastRenderedMessageIds.size) {
         messageElementsCache.clear();
         lastRenderedMessageIds.clear();
     }
-    
+
     // Use DocumentFragment for better performance
     const fragment = document.createDocumentFragment();
     const tempDiv = document.createElement('div');
-    
+
     // Pre-calculate dates to avoid repeated parsing
     const messageDates = messagesToRender.map(msg => ({
         msg,
         date: new Date(msg.created_at),
         timestamp: new Date(msg.created_at).getTime()
     }));
-    
+
     // Render messages efficiently
     messageDates.forEach(({ msg, timestamp }, index) => {
         // Check cache first
         let messageElement = messageElementsCache.get(msg.id);
-        
+
         if (!messageElement) {
             // Compare as integers to handle string/number type mismatches
             const isOwn = parseInt(msg.sender_id) === parseInt(currentUserId);
             const prevMsgData = index > 0 ? messageDates[index - 1] : null;
-            const isGrouped = prevMsgData && 
-                             prevMsgData.msg.sender_id === msg.sender_id &&
-                             (timestamp - prevMsgData.timestamp) < 300000; // 5 minutes
-            
+            const isGrouped = prevMsgData &&
+                prevMsgData.msg.sender_id === msg.sender_id &&
+                (timestamp - prevMsgData.timestamp) < 300000; // 5 minutes
+
             // Check if message is selected
             const isSelected = messagingState.isSelectionMode && messagingState.selectedMessages.has(msg.id);
-            
+
             // Build message HTML
             const messageHtml = `
                 <div class="message-group ${isSelected ? 'message-selected' : ''} ${messagingState.isSelectionMode ? 'selection-mode' : ''} ${isOwn ? 'message-own-group' : ''}" 
@@ -968,38 +968,38 @@ function renderMessages() {
                     <div class="message ${isOwn ? 'own' : ''}">
                         ${!isGrouped ? `
                             <div class="message-avatar" ${!isOwn && !messagingState.isSelectionMode ? `onclick="event.stopPropagation(); openDirectMessage(${msg.sender_id})" style="cursor: pointer;" title="Click to message ${escapeHtml(msg.full_name || msg.username || 'user')}"` : ''}>
-                                ${msg.avatar_url ? 
-                                    `<img src="${escapeHtml(msg.avatar_url)}" alt="${escapeHtml(msg.username || '')}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                ${msg.avatar_url ?
+                        `<img src="${escapeHtml(msg.avatar_url)}" alt="${escapeHtml(msg.username || '')}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                      <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
                                         ${msg.username ? escapeHtml(msg.username.charAt(0).toUpperCase()) : '?'}
                                      </div>` :
-                                    `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+                        `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
                                         ${msg.username ? escapeHtml(msg.username.charAt(0).toUpperCase()) : '?'}
                                      </div>`
-                                }
+                    }
                             </div>
                         ` : '<div class="message-avatar" style="visibility: hidden; width: 34px;"></div>'}
                         <div class="message-content">
                             ${!isGrouped && !isOwn ? `<div style="font-size: 12px; color: #666; margin-bottom: 5px;">${escapeHtml(msg.full_name || msg.username || 'Unknown')}</div>` : ''}
                             <div class="message-bubble ${msg.message_type === 'shared_post' ? 'has-shared-post' : ''}" ${messagingState.isSelectionMode ? '' : `oncontextmenu="event.preventDefault(); event.stopPropagation(); showMessageContextMenu(event, ${msg.id}, ${isOwn ? 'true' : 'false'})"`}>
-                                ${msg.message_type === 'text' ? 
-                                    `<div>${formatMessageContent(msg.content)}</div>` :
-                                    msg.message_type === 'shared_post' && msg.attachment_url ?
-                                    `<div id="shared-post-${msg.id}" class="shared-post-container" style="min-width: 220px; max-width: 350px; width: 100%;">Loading post preview...</div>` :
-                                    msg.message_type === 'image' && msg.attachment_url ?
-                                    `<div class="message-image-container" style="max-width: 400px; max-height: 400px; border-radius: 8px; overflow: hidden; cursor: pointer;" onclick="window.open('${escapeHtml(msg.attachment_url)}', '_blank');">
+                                ${msg.message_type === 'text' ?
+                    `<div>${formatMessageContent(msg.content)}</div>` :
+                    msg.message_type === 'shared_post' && msg.attachment_url ?
+                        `<div id="shared-post-${msg.id}" class="shared-post-container" style="min-width: 220px; max-width: 350px; width: 100%;">Loading post preview...</div>` :
+                        msg.message_type === 'image' && msg.attachment_url ?
+                            `<div class="message-image-container" style="max-width: 400px; max-height: 400px; border-radius: 8px; overflow: hidden; cursor: pointer;" onclick="window.open('${escapeHtml(msg.attachment_url)}', '_blank');">
                                         <img src="${escapeHtml(msg.attachment_url)}" alt="${escapeHtml(msg.attachment_name || 'Image')}" style="width: 100%; height: auto; display: block;" onerror="this.parentElement.innerHTML='<div style=\\'padding: 20px; text-align: center; color: #999;\\'><i class=\\'fas fa-image\\'></i><br>Image not available</div>';">
                                         ${msg.content ? `<div style="padding: 8px; background: rgba(0,0,0,0.05); font-size: 0.9rem; color: #333;">${formatMessageContent(msg.content)}</div>` : ''}
                                     </div>` :
-                                    msg.message_type === 'link' && msg.attachment_url ?
-                                    renderLinkPreview(msg) :
-                                    `<div class="message-attachment">
+                            msg.message_type === 'link' && msg.attachment_url ?
+                                renderLinkPreview(msg) :
+                                `<div class="message-attachment">
                                         <a href="${escapeHtml(msg.attachment_url)}" target="_blank" class="attachment-file">
                                             <i class="fas ${getFileIcon(msg.attachment_name)}"></i>
                                             <span>${escapeHtml(msg.attachment_name || '')}</span>
                                         </a>
                                     </div>`
-                                }
+                }
                             </div>
                             <div class="message-meta">
                                 ${msg.is_edited ? '<span class="message-edited">edited</span>' : ''}
@@ -1010,7 +1010,7 @@ function renderMessages() {
                     </div>
                 </div>
             `;
-            
+
             tempDiv.innerHTML = messageHtml;
             messageElement = tempDiv.firstElementChild;
             messageElementsCache.set(msg.id, messageElement.cloneNode(true));
@@ -1018,14 +1018,14 @@ function renderMessages() {
             // Use cached element
             messageElement = messageElement.cloneNode(true);
         }
-        
+
         fragment.appendChild(messageElement);
     });
-    
+
     // Clear container and append fragment (single DOM operation)
     container.innerHTML = '';
     container.appendChild(fragment);
-    
+
     // Load shared post previews asynchronously after DOM is updated
     setTimeout(() => {
         messagesToRender.forEach(msg => {
@@ -1068,10 +1068,10 @@ function renderMessages() {
             }
         });
     }, 100); // Small delay to ensure DOM is ready
-    
+
     // Update cache tracking
     lastRenderedMessageIds = new Set(currentMessageIds);
-    
+
     // Restore scroll position or scroll to bottom
     if (wasAtBottom) {
         // User was at bottom, scroll to new bottom
@@ -1119,12 +1119,12 @@ async function fetchLinkPreview(url) {
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const content = input.value.trim();
-    
+
     if (!content || !messagingState.currentConversationId) return;
-    
+
     const sendBtn = document.getElementById('btnSend');
     sendBtn.disabled = true;
-    
+
     try {
         // Check if message contains a URL
         const url = extractUrl(content);
@@ -1132,13 +1132,13 @@ async function sendMessage() {
         let messageType = 'text';
         let attachmentUrl = null;
         let attachmentName = null;
-        
+
         if (url) {
             // Fetch link preview
             const originalBtnContent = sendBtn.innerHTML;
             sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             linkPreview = await fetchLinkPreview(url);
-            
+
             if (linkPreview && linkPreview.title) {
                 messageType = 'link';
                 attachmentUrl = JSON.stringify(linkPreview);
@@ -1146,7 +1146,7 @@ async function sendMessage() {
             }
             sendBtn.innerHTML = originalBtnContent;
         }
-        
+
         // Include reply context if replying
         let replyContext = null;
         if (messagingState.replyingTo) {
@@ -1156,7 +1156,7 @@ async function sendMessage() {
                 content_preview: messagingState.replyingTo.content.substring(0, 100)
             };
         }
-        
+
         const response = await fetch('/api/messaging/send', {
             method: 'POST',
             headers: {
@@ -1174,19 +1174,19 @@ async function sendMessage() {
                 reply_to: replyContext ? replyContext.message_id : null
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             input.value = '';
             input.style.height = 'auto';
-            
+
             // Clear reply preview
             cancelReply();
-            
+
             // Optimistically add message to UI immediately
             const currentUserId = getCurrentUserId();
-            
+
             // Get user info from existing messages or fetch it
             let userInfo = null;
             if (messagingState.messages.length > 0) {
@@ -1200,7 +1200,7 @@ async function sendMessage() {
                     };
                 }
             }
-            
+
             const optimisticMessage = {
                 id: data.data.message_id,
                 conversation_id: messagingState.currentConversationId,
@@ -1216,7 +1216,7 @@ async function sendMessage() {
                 full_name: userInfo?.full_name || 'You',
                 avatar_url: userInfo?.avatar_url || null
             };
-            
+
             // Add message to array if it doesn't exist
             const messageExists = messagingState.messages.some(m => m.id === optimisticMessage.id);
             if (!messageExists) {
@@ -1228,10 +1228,10 @@ async function sendMessage() {
                 renderMessages();
                 scrollToBottom(true);
             }
-            
+
             // Update conversations list
             await loadConversations();
-            
+
             // If WebSocket doesn't deliver within 1 second, reload messages to get server data
             setTimeout(async () => {
                 // Check if the new message is already in the array with full data
@@ -1243,14 +1243,14 @@ async function sendMessage() {
                     // Message exists, reload to ensure we have the latest server data
                     await loadMessages(messagingState.currentConversationId);
                 }
-                
+
                 // Update pin indicators after loading
                 setTimeout(() => {
                     messagingState.pinnedMessages.forEach(messageId => {
                         updatePinIndicator(messageId);
                     });
                 }, 100);
-                
+
                 scrollToBottom(true);
             }, 1000);
         } else {
@@ -1270,23 +1270,23 @@ async function sendMessage() {
 async function handleFileUpload(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
-    
+
     if (!messagingState.currentConversationId) {
         showError('Sila pilih perbualan terlebih dahulu');
         return;
     }
-    
+
     for (const file of files) {
         await uploadFile(file);
     }
-    
-    event.target.value = ''; 
+
+    event.target.value = '';
 }
 
 async function uploadFile(file) {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     try {
         const response = await fetch('/api/upload', {
             method: 'POST',
@@ -1297,9 +1297,9 @@ async function uploadFile(file) {
             credentials: 'include',
             body: formData
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             const sendResponse = await fetch('/api/messaging/send', {
                 method: 'POST',
@@ -1318,7 +1318,7 @@ async function uploadFile(file) {
                     attachment_size: file.size
                 })
             });
-            
+
             const sendData = await sendResponse.json();
             if (sendData.status === 200) {
                 // Notify via WebSocket that new message was sent
@@ -1332,17 +1332,17 @@ async function uploadFile(file) {
                         }
                     }));
                 }
-                
+
                 await loadMessages(messagingState.currentConversationId);
                 await loadConversations();
-                
+
                 // Update pin indicators after loading
                 setTimeout(() => {
                     messagingState.pinnedMessages.forEach(messageId => {
                         updatePinIndicator(messageId);
                     });
                 }, 100);
-                
+
                 // Scroll to bottom after sending file
                 setTimeout(() => scrollToBottom(true), 150);
             } else {
@@ -1360,44 +1360,44 @@ async function uploadFile(file) {
 function searchConversations() {
     const keyword = document.getElementById('searchConversations').value.toLowerCase();
     const conversations = messagingState.conversations;
-    
+
     if (!keyword) {
         renderConversations();
         return;
     }
-    
+
     const filtered = conversations.filter(conv => {
         const name = conv.type === 'group' ? conv.name : (conv.other_full_name || conv.other_username || '');
         const lastMessage = conv.last_message || '';
         return name.toLowerCase().includes(keyword) || lastMessage.toLowerCase().includes(keyword);
     });
-    
+
     renderFilteredConversations(filtered);
 }
 
 function renderFilteredConversations(conversations) {
     const container = document.getElementById('conversationsList');
-    
+
     if (conversations.length === 0) {
         container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; font-size: 14px;">No conversations found</div>';
         return;
     }
-    
+
     container.innerHTML = conversations.map(conv => `
         <div class="conversation-item ${conv.id === messagingState.currentConversationId ? 'active' : ''}" 
              onclick="selectConversation(${conv.id})">
             <div class="conversation-avatar ${conv.other_avatar ? '' : ''}">
-                ${conv.other_avatar ? 
-                    `<img src="${escapeHtml(conv.other_avatar)}" alt="${escapeHtml(conv.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                ${conv.other_avatar ?
+            `<img src="${escapeHtml(conv.other_avatar)}" alt="${escapeHtml(conv.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                      <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
                         ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
                      </div>` :
-                    conv.type === 'group' ? 
-                        '<i class="fas fa-users"></i>' :
-                        `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
+            conv.type === 'group' ?
+                '<i class="fas fa-users"></i>' :
+                `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
                             ${conv.other_username ? escapeHtml(conv.other_username.charAt(0).toUpperCase()) : '?'}
                          </div>`
-                }
+        }
             </div>
             <div class="conversation-details">
                 <div class="conversation-header">
@@ -1440,12 +1440,12 @@ function handleSearchMessagesInput() {
 async function performMessageSearch() {
     const keyword = document.getElementById('searchMessagesInput').value.trim();
     const conversationId = messagingState.currentConversationId;
-    
+
     if (!keyword || !conversationId) {
         document.getElementById('searchResults').innerHTML = '';
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/messaging/search?conversation_id=${conversationId}&keyword=${encodeURIComponent(keyword)}`, {
             method: 'GET',
@@ -1456,9 +1456,9 @@ async function performMessageSearch() {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             messagingState.searchResults = data.data.messages || [];
             renderSearchResults(messagingState.searchResults, keyword);
@@ -1474,22 +1474,22 @@ async function performMessageSearch() {
 function renderSearchResults(messages, keyword) {
     const container = document.getElementById('searchResults');
     const currentUserId = getCurrentUserId();
-    
+
     if (messages.length === 0) {
         container.innerHTML = '<div class="search-no-results">No messages found matching "' + escapeHtml(keyword) + '"</div>';
         return;
     }
-    
+
     container.innerHTML = `
         <div class="search-results-header">
             <span>Found ${messages.length} message(s)</span>
         </div>
         ${messages.map(msg => {
-            // Compare as integers to handle string/number type mismatches
-            const isOwn = parseInt(msg.sender_id) === parseInt(currentUserId);
-            const highlightedContent = highlightKeyword(msg.content, keyword);
-            
-            return `
+        // Compare as integers to handle string/number type mismatches
+        const isOwn = parseInt(msg.sender_id) === parseInt(currentUserId);
+        const highlightedContent = highlightKeyword(msg.content, keyword);
+
+        return `
                 <div class="search-result-item" onclick="scrollToMessage(${msg.id})">
                     <div class="search-result-sender">
                         ${isOwn ? 'You' : escapeHtml(msg.full_name || msg.username)}
@@ -1498,7 +1498,7 @@ function renderSearchResults(messages, keyword) {
                     <div class="search-result-content">${highlightedContent}</div>
                 </div>
             `;
-        }).join('')}
+    }).join('')}
     `;
 }
 
@@ -1515,7 +1515,7 @@ function escapeRegex(str) {
 function scrollToMessage(messageId) {
     // Close search
     closeSearchMessages();
-    
+
     // Find and scroll to message
     const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
     if (messageElement) {
@@ -1536,11 +1536,11 @@ function scrollToMessage(messageId) {
 async function archiveCurrentConversation() {
     const conversationId = messagingState.currentConversationId;
     if (!conversationId) return;
-    
+
     if (!confirm('Archive this conversation? You can unarchive it later from the Archived tab.')) {
         return;
     }
-    
+
     try {
         const response = await fetch('/api/messaging/archive', {
             method: 'POST',
@@ -1555,9 +1555,9 @@ async function archiveCurrentConversation() {
                 archive: true
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Clear current conversation
             messagingState.currentConversationId = null;
@@ -1569,7 +1569,7 @@ async function archiveCurrentConversation() {
                     <p>Select a conversation to start chatting</p>
                 </div>
             `;
-            
+
             // Reload conversations
             await loadConversations();
         } else {
@@ -1584,11 +1584,11 @@ async function archiveCurrentConversation() {
 // Switch between active and archived tabs
 function switchTab(tab) {
     messagingState.currentTab = tab;
-    
+
     // Update tab buttons
     document.getElementById('tabActive').classList.toggle('active', tab === 'active');
     document.getElementById('tabArchived').classList.toggle('active', tab === 'archived');
-    
+
     // Load appropriate conversations
     if (tab === 'archived') {
         loadArchivedConversations();
@@ -1608,9 +1608,9 @@ async function loadArchivedConversations() {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             messagingState.conversations = data.data.conversations || [];
             renderConversations();
@@ -1627,16 +1627,16 @@ async function loadArchivedConversations() {
 
 async function createGroupChat(event) {
     event.preventDefault();
-    
+
     const groupName = document.getElementById('groupName').value;
     const checkboxes = document.querySelectorAll('.member-checkbox input:checked');
     const memberIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
-    
+
     if (memberIds.length === 0) {
         showError('Sila pilih sekurang-kurangnya seorang ahli');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/messaging/group', {
             method: 'POST',
@@ -1651,9 +1651,9 @@ async function createGroupChat(event) {
                 member_ids: memberIds
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             closeCreateGroupModal();
             await loadConversations();
@@ -1678,10 +1678,32 @@ function closeCreateConversationModal() {
 
 // DM creation modal
 function openCreateDMModal() {
-    closeCreateConversationModal();
-    document.getElementById('createDMModal').classList.add('active');
-    document.getElementById('dmSearchUsers').value = '';
-    loadDMUsers();
+    try {
+        console.log('[DM Modal] Opening DM modal...');
+        closeCreateConversationModal();
+
+        const dmModal = document.getElementById('createDMModal');
+        if (!dmModal) {
+            console.error('[DM Modal] createDMModal element not found');
+            alert('Error: Could not open DM modal. Please refresh the page.');
+            return;
+        }
+
+        dmModal.classList.add('active');
+
+        const searchInput = document.getElementById('dmSearchUsers');
+        if (searchInput) {
+            searchInput.value = '';
+        } else {
+            console.warn('[DM Modal] dmSearchUsers input not found');
+        }
+
+        console.log('[DM Modal] Loading users...');
+        loadDMUsers();
+    } catch (error) {
+        console.error('[DM Modal] Error opening DM modal:', error);
+        alert('Error opening message dialog. Please try again or refresh the page.');
+    }
 }
 
 function closeCreateDMModal() {
@@ -1696,12 +1718,17 @@ function closeCreateDMModal() {
 // Load users for DM creation (following users + search)
 async function loadDMUsers(search = '') {
     const container = document.getElementById('dmUsersList');
-    if (!container) return;
-    
+    if (!container) {
+        console.error('[DM Users] dmUsersList container not found');
+        return;
+    }
+
+    console.log('[DM Users] Loading users, search term:', search || '(none)');
     container.innerHTML = '<div class="loading" style="text-align: center; padding: 20px;">Loading users...</div>';
-    
+
     try {
         // Get following users
+        console.log('[DM Users] Fetching following users...');
         const followingResponse = await fetch('/api/profile/me/following', {
             method: 'GET',
             headers: {
@@ -1710,18 +1737,27 @@ async function loadDMUsers(search = '') {
             },
             credentials: 'include'
         });
-        
+
+        console.log('[DM Users] Following response status:', followingResponse.status);
+
         let followingUsers = [];
         if (followingResponse.ok) {
             const followingData = await followingResponse.json();
+            console.log('[DM Users] Following data:', followingData);
             if (followingData.status === 200 && followingData.data && followingData.data.users) {
                 followingUsers = followingData.data.users.map(u => ({ ...u, is_following: true }));
+                console.log('[DM Users] Found', followingUsers.length, 'following users');
+            } else {
+                console.warn('[DM Users] Unexpected following data structure:', followingData);
             }
+        } else {
+            console.warn('[DM Users] Following request failed:', followingResponse.status, followingResponse.statusText);
         }
-        
+
         // If search is provided, also search all users
         let searchUsers = [];
         if (search) {
+            console.log('[DM Users] Searching for users with term:', search);
             const searchResponse = await fetch(`/api/messaging/available-users?search=${encodeURIComponent(search)}`, {
                 method: 'GET',
                 headers: {
@@ -1730,15 +1766,23 @@ async function loadDMUsers(search = '') {
                 },
                 credentials: 'include'
             });
-            
+
+            console.log('[DM Users] Search response status:', searchResponse.status);
+
             if (searchResponse.ok) {
                 const searchData = await searchResponse.json();
+                console.log('[DM Users] Search data:', searchData);
                 if (searchData.status === 200 && searchData.data && searchData.data.users) {
                     searchUsers = searchData.data.users.map(u => ({ ...u, is_following: false }));
+                    console.log('[DM Users] Found', searchUsers.length, 'search results');
+                } else {
+                    console.warn('[DM Users] Unexpected search data structure:', searchData);
                 }
+            } else {
+                console.warn('[DM Users] Search request failed:', searchResponse.status, searchResponse.statusText);
             }
         }
-        
+
         // Combine and deduplicate
         const usersMap = new Map();
         [...followingUsers, ...searchUsers].forEach(user => {
@@ -1751,36 +1795,39 @@ async function loadDMUsers(search = '') {
                 }
             }
         });
-        
+
         const users = Array.from(usersMap.values());
-        
+        console.log('[DM Users] Total unique users:', users.length);
+
         if (users.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No users found</div>';
+            console.log('[DM Users] No users found');
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No users found. Try searching for a user by name or username.</div>';
             return;
         }
-        
+
         // Group by following/other
         const following = users.filter(u => u.is_following);
         const others = users.filter(u => !u.is_following);
-        
+
         let html = '';
-        
+
         if (following.length > 0) {
             html += '<div class="members-section-header" style="font-weight: 600; color: #6b7280; font-size: 0.875rem; padding: 0.75rem 1rem; text-transform: uppercase; letter-spacing: 0.05em;">Following</div>';
             html += following.map(user => createDMUserItem(user)).join('');
         }
-        
+
         if (others.length > 0) {
             if (following.length > 0) {
                 html += '<div class="members-section-header" style="font-weight: 600; color: #6b7280; font-size: 0.875rem; padding: 0.75rem 1rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.5rem;">Other Users</div>';
             }
             html += others.map(user => createDMUserItem(user)).join('');
         }
-        
+
         container.innerHTML = html;
+        console.log('[DM Users] Successfully rendered', users.length, 'users');
     } catch (error) {
-        console.error('Error loading DM users:', error);
-        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Error loading users</div>';
+        console.error('[DM Users] Error loading DM users:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Error loading users. Please try again or refresh the page.<br><small style="color: #999; margin-top: 8px; display: block;">Error: ' + error.message + '</small></div>';
     }
 }
 
@@ -1790,7 +1837,7 @@ function createDMUserItem(user) {
     const initials = (user.full_name || user.username || 'U').charAt(0).toUpperCase();
     const fullName = escapeHtml(user.full_name || user.username);
     const username = escapeHtml(user.username);
-    
+
     return `
         <div class="dm-user-item" onclick="createDirectConversation(${user.id})" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; cursor: pointer; border-radius: 0.5rem; transition: background 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
             <div class="member-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; flex-shrink: 0; overflow: hidden;">
@@ -1818,9 +1865,9 @@ async function createDirectConversation(userId) {
             credentials: 'include',
             body: JSON.stringify({ user_id: userId })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             closeCreateDMModal();
             await loadConversations();
@@ -1853,7 +1900,7 @@ function closeCreateGroupModal() {
 async function loadAvailableMembers(search = '') {
     const container = document.getElementById('membersSelector');
     container.innerHTML = '<div class="loading" style="text-align: center; padding: 20px;">Loading users...</div>';
-    
+
     try {
         const url = `/api/messaging/available-users${search ? '?search=' + encodeURIComponent(search) : ''}`;
         const response = await fetch(url, {
@@ -1865,33 +1912,33 @@ async function loadAvailableMembers(search = '') {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data && data.data.users) {
             const users = data.data.users;
-            
+
             if (users.length === 0) {
                 container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No users found</div>';
                 return;
             }
-            
+
             // Group users by recent/other
             const recentUsers = users.filter(u => u.is_recent);
             const otherUsers = users.filter(u => !u.is_recent);
-            
+
             let html = '';
-            
+
             if (recentUsers.length > 0) {
                 html += '<div class="members-section-header">Recent Chats</div>';
                 html += recentUsers.map(user => `
                     <div class="member-checkbox" onclick="toggleMemberCheckbox(${user.id})">
                         <input type="checkbox" id="member_${user.id}" value="${user.id}" onchange="updateSelectedMembers()">
                         <div class="member-avatar">
-                            ${user.avatar_url ? 
-                                `<img src="${escapeHtml(user.avatar_url)}" alt="${escapeHtml(user.full_name || user.username)}">` :
-                                (user.username ? user.username.charAt(0).toUpperCase() : '?')
-                            }
+                            ${user.avatar_url ?
+                        `<img src="${escapeHtml(user.avatar_url)}" alt="${escapeHtml(user.full_name || user.username)}">` :
+                        (user.username ? user.username.charAt(0).toUpperCase() : '?')
+                    }
                         </div>
                         <div class="member-info">
                             <div class="member-name">${escapeHtml(user.full_name || user.username)}</div>
@@ -1900,7 +1947,7 @@ async function loadAvailableMembers(search = '') {
                     </div>
                 `).join('');
             }
-            
+
             if (otherUsers.length > 0) {
                 if (recentUsers.length > 0) {
                     html += '<div class="members-section-header">All Users</div>';
@@ -1909,10 +1956,10 @@ async function loadAvailableMembers(search = '') {
                     <div class="member-checkbox" onclick="toggleMemberCheckbox(${user.id})">
                         <input type="checkbox" id="member_${user.id}" value="${user.id}" onchange="updateSelectedMembers()">
                         <div class="member-avatar">
-                            ${user.avatar_url ? 
-                                `<img src="${escapeHtml(user.avatar_url)}" alt="${escapeHtml(user.full_name || user.username)}">` :
-                                (user.username ? user.username.charAt(0).toUpperCase() : '?')
-                            }
+                            ${user.avatar_url ?
+                        `<img src="${escapeHtml(user.avatar_url)}" alt="${escapeHtml(user.full_name || user.username)}">` :
+                        (user.username ? user.username.charAt(0).toUpperCase() : '?')
+                    }
                         </div>
                         <div class="member-info">
                             <div class="member-name">${escapeHtml(user.full_name || user.username)}</div>
@@ -1921,7 +1968,7 @@ async function loadAvailableMembers(search = '') {
                     </div>
                 `).join('');
             }
-            
+
             container.innerHTML = html;
         } else {
             container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Failed to load users</div>';
@@ -1943,12 +1990,12 @@ function toggleMemberCheckbox(userId) {
 function updateSelectedMembers() {
     const checkboxes = document.querySelectorAll('.member-checkbox input:checked');
     const selectedContainer = document.getElementById('selectedMembers');
-    
+
     if (checkboxes.length === 0) {
         selectedContainer.innerHTML = '';
         return;
     }
-    
+
     const selected = Array.from(checkboxes).map(cb => {
         const userId = parseInt(cb.value);
         const label = cb.closest('.member-checkbox').querySelector('div[style*="font-weight: 600"]');
@@ -1957,7 +2004,7 @@ function updateSelectedMembers() {
             name: label ? label.textContent : 'User'
         };
     });
-    
+
     selectedContainer.innerHTML = `
         <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--panel-muted); border-radius: 0.5rem; border: 1px solid var(--border);">
             <strong style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Selected (${selected.length})</strong>
@@ -1976,32 +2023,32 @@ function updateSelectedMembers() {
 function loadConversationDetailsFromCache(conversation) {
     const currentUserId = getCurrentUserId();
     const isGroupCreator = conversation.type === 'group' && conversation.created_by === currentUserId;
-    
+
     const header = document.getElementById('chatHeader');
     header.innerHTML = `
         <div class="chat-info">
             <div class="chat-info-avatar">
                 ${conversation.other_avatar ?
-                    `<img src="${escapeHtml(conversation.other_avatar)}" alt="${escapeHtml(conversation.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            `<img src="${escapeHtml(conversation.other_avatar)}" alt="${escapeHtml(conversation.other_username || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                      <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem;">
                         ${conversation.other_username ? escapeHtml(conversation.other_username.charAt(0).toUpperCase()) : '?'}
                      </div>` :
-                    conversation.type === 'group' ?
-                        '<i class="fas fa-users"></i>' :
-                        `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem;">
+            conversation.type === 'group' ?
+                '<i class="fas fa-users"></i>' :
+                `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 1.2rem;">
                             ${conversation.other_username ? escapeHtml(conversation.other_username.charAt(0).toUpperCase()) : '?'}
                          </div>`
-                }
+        }
             </div>
             <div class="chat-info-details">
                 <h3>${conversation.type === 'group' ? conversation.name : conversation.other_full_name || conversation.other_username}</h3>
                 <div class="chat-info-status">
                     ${conversation.type === 'direct' && conversation.is_online ?
-                        '<span class="online-indicator"></span><span>Online</span>' :
-                        conversation.type === 'group' ?
-                            `<span>${conversation.member_count || 0} members</span>` :
-                            '<span>Offline</span>'
-                    }
+            '<span class="online-indicator"></span><span>Online</span>' :
+            conversation.type === 'group' ?
+                `<span>${conversation.member_count || 0} members</span>` :
+                '<span>Offline</span>'
+        }
                 </div>
             </div>
         </div>
@@ -2042,7 +2089,7 @@ function loadConversationDetails(conversationId) {
         // If not in cache, will be updated after messages load
         return;
     }
-    
+
     // Use cached version for instant display
     loadConversationDetailsFromCache(conversation);
 }
@@ -2050,7 +2097,7 @@ function loadConversationDetails(conversationId) {
 // Load group info
 function loadGroupInfo(conversation) {
     const content = document.getElementById('infoContent');
-    
+
     // Handle members - could be array or string
     let members = conversation.members;
     if (typeof members === 'string') {
@@ -2061,15 +2108,15 @@ function loadGroupInfo(conversation) {
             members = [];
         }
     }
-    
+
     // Ensure members is an array
     if (!Array.isArray(members)) {
         members = [];
     }
-    
+
     const currentUserId = getCurrentUserId();
     const isGroupCreator = conversation.created_by === currentUserId;
-    
+
     content.innerHTML = `
         <div>
             ${isGroupCreator ? `
@@ -2088,10 +2135,10 @@ function loadGroupInfo(conversation) {
                 ${members.length > 0 ? members.map(member => `
                     <div class="member-item" style="display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #f0f0f0;">
                         <div class="conversation-avatar">
-                            ${member.avatar_url ? 
-                                `<img src="${member.avatar_url}" alt="${member.username || ''}">` :
-                                (member.username ? member.username.charAt(0).toUpperCase() : '?')
-                            }
+                            ${member.avatar_url ?
+            `<img src="${member.avatar_url}" alt="${member.username || ''}">` :
+            (member.username ? member.username.charAt(0).toUpperCase() : '?')
+        }
                         </div>
                         <div style="flex: 1; margin-left: 10px;">
                             <div style="font-weight: 600;">${escapeHtml(member.full_name || member.username || 'Unknown')}</div>
@@ -2123,7 +2170,7 @@ async function openInfoSidebar() {
                 },
                 credentials: 'include'
             });
-            
+
             const data = await response.json();
             if (data.status === 200 && data.data && data.data.conversation) {
                 conversation.members = data.data.conversation.members || [];
@@ -2133,7 +2180,7 @@ async function openInfoSidebar() {
             console.error('Error loading group members:', error);
         }
     }
-    
+
     document.getElementById('infoSidebar').style.display = 'block';
 }
 
@@ -2145,7 +2192,7 @@ function closeInfoSidebar() {
 function connectWebSocket() {
     // Get user ID from sessionStorage or fetch from API
     let userId = getCurrentUserId();
-    
+
     if (!userId) {
         // Try to get from sessionStorage directly
         userId = sessionStorage.getItem('userId');
@@ -2153,14 +2200,14 @@ function connectWebSocket() {
             userId = parseInt(userId);
         }
     }
-    
+
     if (!userId) {
         console.error('Cannot connect WebSocket: No user ID. Please log in again.');
         // Fallback to polling
         startPollingFallback();
         return;
     }
-    
+
     // Check if Echo is available - handle both constructor and instance
     const echoAvailable = typeof window.Echo !== 'undefined' && (
         // Echo is an instance (already initialized)
@@ -2168,7 +2215,7 @@ function connectWebSocket() {
         // Echo is a constructor function (will be initialized by messaging.blade.php)
         typeof window.Echo === 'function'
     );
-    
+
     if (echoAvailable) {
         // If Echo is a constructor, wait for it to be initialized
         if (typeof window.Echo === 'function' && !window.Echo.connector && !window.Echo.private) {
@@ -2192,7 +2239,7 @@ function connectWebSocket() {
             }, 100);
             return;
         }
-        
+
         // Echo is already an instance, connect immediately
         console.log('Using Laravel Echo for messaging WebSocket');
         initializeEchoConnection();
@@ -2210,41 +2257,41 @@ function initializeEchoConnection() {
         if (messagingState.currentConversationId) {
             joinConversation(messagingState.currentConversationId);
         }
-        
+
         // Update online status
         updateOnlineStatus(true);
-        
+
         // Mark as connected
         messagingState.echoConnected = true;
         messagingState.isWebSocketConnected = true;
         stopPollingFallback(); // Stop polling since WebSocket is connected
         console.log('Laravel Echo connected for messaging');
-        
+
     } catch (error) {
         console.error('Error setting up Laravel Echo:', error);
         messagingState.isWebSocketConnected = false;
         startPollingFallback();
     }
 }
-            updateOnlineStatus(true);
-            
-            // Mark as connected
-            messagingState.echoConnected = true;
-            messagingState.isWebSocketConnected = true;
-            stopPollingFallback(); // Stop polling since WebSocket is connected
-            console.log('Laravel Echo connected for messaging');
+updateOnlineStatus(true);
+
+// Mark as connected
+messagingState.echoConnected = true;
+messagingState.isWebSocketConnected = true;
+stopPollingFallback(); // Stop polling since WebSocket is connected
+console.log('Laravel Echo connected for messaging');
             
         } catch (error) {
-            console.error('Error setting up Laravel Echo:', error);
-            messagingState.isWebSocketConnected = false;
-            startPollingFallback();
-        }
+    console.error('Error setting up Laravel Echo:', error);
+    messagingState.isWebSocketConnected = false;
+    startPollingFallback();
+}
     } else {
-        // Echo not available, use polling fallback
-        console.log('Laravel Echo not available, using polling fallback');
-        messagingState.isWebSocketConnected = false;
-        startPollingFallback();
-    }
+    // Echo not available, use polling fallback
+    console.log('Laravel Echo not available, using polling fallback');
+    messagingState.isWebSocketConnected = false;
+    startPollingFallback();
+}
 }
 
 // Handle WebSocket messages
@@ -2253,12 +2300,12 @@ function handleWebSocketMessage(data) {
         case 'auth_success':
             console.log('WebSocket authenticated');
             break;
-            
+
         case 'new_message':
             // New message received - add directly to messages array
             if (data.conversation_id === messagingState.currentConversationId && data.message) {
                 const newMessage = data.message;
-                
+
                 // Check if message already exists (avoid duplicates)
                 const messageExists = messagingState.messages.some(m => m.id === newMessage.id);
                 if (!messageExists) {
@@ -2284,21 +2331,21 @@ function handleWebSocketMessage(data) {
             // Always reload conversations to update last message preview
             loadConversations();
             break;
-            
+
         case 'user_typing':
             // Show typing indicator
             if (data.conversation_id === messagingState.currentConversationId) {
                 showTypingIndicator(data.user_id);
             }
             break;
-            
+
         case 'user_stopped_typing':
             // Hide typing indicator
             if (data.conversation_id === messagingState.currentConversationId) {
                 hideTypingIndicator(data.user_id);
             }
             break;
-            
+
         case 'online_status_update':
             // Update online status in conversations
             updateConversationOnlineStatus(data.user_id, data.is_online);
@@ -2306,7 +2353,7 @@ function handleWebSocketMessage(data) {
             // Update online status in conversations
             updateConversationOnlineStatus(data.user_id, data.is_online);
             break;
-            
+
         case 'error':
             console.error('WebSocket error:', data.message);
             break;
@@ -2316,7 +2363,7 @@ function handleWebSocketMessage(data) {
 // Join a conversation via WebSocket/Echo
 function joinConversation(conversationId) {
     if (!conversationId) return;
-    
+
     // Use Laravel Echo if available
     if (typeof window.Echo !== 'undefined' && (window.Echo.connector || window.Echo.private)) {
         try {
@@ -2328,11 +2375,11 @@ function joinConversation(conversationId) {
                     delete messagingState.echoChannels[messagingState.currentConversationId];
                 }
             }
-            
+
             // Join new conversation channel
             // Note: Initial auth may show 403 errors in console, but Echo will retry and succeed
             const channel = window.Echo.private(`conversation.${conversationId}`);
-            
+
             // Handle auth errors gracefully - Echo will retry automatically
             channel.error((error) => {
                 if (error.status !== 403) {
@@ -2340,7 +2387,7 @@ function joinConversation(conversationId) {
                 }
                 // 403 errors are expected on initial attempts and will be retried
             });
-            
+
             channel.listen('.new_message', (data) => {
                 console.log('New message via Echo:', data);
                 // Mark WebSocket as connected when we receive messages
@@ -2352,7 +2399,7 @@ function joinConversation(conversationId) {
                     message: data.message
                 });
             });
-            
+
             channel.listen('.user_typing', (data) => {
                 if (data.conversation_id === conversationId) {
                     handleWebSocketMessage({
@@ -2362,7 +2409,7 @@ function joinConversation(conversationId) {
                     });
                 }
             });
-            
+
             channel.listen('.user_stopped_typing', (data) => {
                 if (data.conversation_id === conversationId) {
                     handleWebSocketMessage({
@@ -2372,7 +2419,7 @@ function joinConversation(conversationId) {
                     });
                 }
             });
-            
+
             channel.listen('.online_status_update', (data) => {
                 handleWebSocketMessage({
                     type: 'online_status_update',
@@ -2380,11 +2427,11 @@ function joinConversation(conversationId) {
                     is_online: data.is_online
                 });
             });
-            
+
             // Store channel reference
             messagingState.echoChannels = messagingState.echoChannels || {};
             messagingState.echoChannels[conversationId] = channel;
-            
+
             console.log('Joined conversation channel via Echo:', conversationId);
         } catch (error) {
             console.error('Error joining conversation via Echo:', error);
@@ -2412,25 +2459,25 @@ function leaveConversation(conversationId) {
 let typingTimeoutId = null;
 function handleTyping() {
     if (!messagingState.currentConversationId) return;
-    
+
     // Send typing indicator via WebSocket
     if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
-    if (!messagingState.isTyping) {
-        messagingState.isTyping = true;
+        if (!messagingState.isTyping) {
+            messagingState.isTyping = true;
             messagingState.ws.send(JSON.stringify({
                 type: 'typing',
                 conversation_id: messagingState.currentConversationId
             }));
         }
-        
+
         // Clear existing timeout
         if (typingTimeoutId) {
             clearTimeout(typingTimeoutId);
         }
-        
+
         // Stop typing after 3 seconds of inactivity
         typingTimeoutId = setTimeout(() => {
-        messagingState.isTyping = false;
+            messagingState.isTyping = false;
             if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
                 messagingState.ws.send(JSON.stringify({
                     type: 'stop_typing',
@@ -2445,9 +2492,9 @@ function handleTyping() {
 function showTypingIndicator(userId) {
     const currentUserId = getCurrentUserId();
     if (userId === currentUserId) return; // Don't show own typing
-    
+
     messagingState.typingUsers.add(userId);
-    
+
     // Get user name from participants or conversations
     if (!messagingState.typingUserNames.has(userId)) {
         const userName = getUserNameForTyping(userId);
@@ -2455,7 +2502,7 @@ function showTypingIndicator(userId) {
             messagingState.typingUserNames.set(userId, userName);
         }
     }
-    
+
     updateTypingIndicatorDisplay();
 }
 
@@ -2475,7 +2522,7 @@ function getUserNameForTyping(userId) {
             return participant.full_name || participant.username || 'Someone';
         }
     }
-    
+
     // Try to get from current conversation
     const conversation = messagingState.conversations.find(c => c.id === messagingState.currentConversationId);
     if (conversation) {
@@ -2495,13 +2542,13 @@ function getUserNameForTyping(userId) {
             }
         }
     }
-    
+
     // Try to get from messages
     const message = messagingState.messages.find(m => parseInt(m.sender_id) === parseInt(userId));
     if (message) {
         return message.full_name || message.username || 'Someone';
     }
-    
+
     return 'Someone';
 }
 
@@ -2509,15 +2556,15 @@ function getUserNameForTyping(userId) {
 function updateTypingIndicatorDisplay() {
     const indicator = document.getElementById('typingIndicator');
     const typingUser = document.getElementById('typingUser');
-    
+
     if (!indicator) return;
-    
+
     if (messagingState.typingUsers.size > 0) {
         const typingUserIds = Array.from(messagingState.typingUsers);
         const typingNames = typingUserIds
             .map(id => messagingState.typingUserNames.get(id) || getUserNameForTyping(id))
             .filter(name => name && name !== 'Someone');
-        
+
         if (typingUser) {
             if (typingNames.length === 0) {
                 typingUser.textContent = 'Someone';
@@ -2538,10 +2585,10 @@ function updateTypingIndicatorDisplay() {
 // Update online status in conversation list
 function updateConversationOnlineStatus(userId, isOnline) {
     // Update the conversation in the list
-    const conversation = messagingState.conversations.find(c => 
+    const conversation = messagingState.conversations.find(c =>
         c.type === 'direct' && (c.other_user_id === userId || c.id === userId)
     );
-    
+
     if (conversation) {
         conversation.is_online = isOnline;
         renderConversations();
@@ -2555,12 +2602,12 @@ function startPollingFallback() {
         clearInterval(messagingState.pollingInterval);
         messagingState.pollingInterval = null;
     }
-    
+
     // Don't start polling if WebSocket is already connected
     if (messagingState.isWebSocketConnected) {
         return;
     }
-    
+
     console.warn('Using polling fallback for real-time updates');
     // Increase interval to 15 seconds to avoid rate limiting and reduce flickering
     messagingState.pollingInterval = setInterval(() => {
@@ -2586,12 +2633,12 @@ async function updateOnlineStatus(isOnline) {
     if (messagingState.lastOnlineStatus === isOnline) {
         return;
     }
-    
+
     // Clear any pending throttle
     if (messagingState.statusUpdateThrottle) {
         clearTimeout(messagingState.statusUpdateThrottle);
     }
-    
+
     // Throttle status updates to max once per 5 seconds
     messagingState.statusUpdateThrottle = setTimeout(async () => {
         try {
@@ -2605,10 +2652,10 @@ async function updateOnlineStatus(isOnline) {
                 credentials: 'include',
                 body: JSON.stringify({ is_online: isOnline })
             });
-            
+
             // Update last sent status
             messagingState.lastOnlineStatus = isOnline;
-            
+
             // Also update via WebSocket if connected
             if (messagingState.ws && messagingState.ws.readyState === WebSocket.OPEN) {
                 messagingState.ws.send(JSON.stringify({
@@ -2629,7 +2676,7 @@ async function updateOnlineStatus(isOnline) {
 // Initialize inactive timeout tracking
 function initInactiveTimeout() {
     const INACTIVE_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
-    
+
     // Reset activity time on user interaction (only track meaningful events, not every mouse move)
     const activityEvents = ['mousedown', 'keypress', 'touchstart', 'click'];
     activityEvents.forEach(event => {
@@ -2645,7 +2692,7 @@ function initInactiveTimeout() {
             }
         }, { passive: true });
     });
-    
+
     // Check for inactivity periodically
     setInterval(() => {
         const timeSinceActivity = Date.now() - messagingState.lastActivityTime;
@@ -2680,7 +2727,7 @@ function trackUserActivity() {
             }
         }
     });
-    
+
     // Set initial online status (only once on page load)
     if (messagingState.lastOnlineStatus === null) {
         updateOnlineStatus(true);
@@ -2692,20 +2739,20 @@ function formatTime(dateString) {
     if (!dateString) {
         return '';
     }
-    
+
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) {
             return '';
         }
-        
+
         const now = new Date();
         const diff = now - date;
         const seconds = Math.floor(diff / 1000);
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
         const days = Math.floor(hours / 24);
-        
+
         if (days > 7) {
             return date.toLocaleDateString('ms-MY');
         } else if (days > 0) {
@@ -2751,14 +2798,14 @@ function escapeHtml(text) {
 // Format message content with URL detection and linking
 function formatMessageContent(text) {
     if (!text) return '';
-    
+
     // Escape HTML first
     let escaped = escapeHtml(text);
-    
+
     // Convert URLs to clickable links
     const urlPattern = /(https?:\/\/[^\s]+)/gi;
     escaped = escaped.replace(urlPattern, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #2454FF; text-decoration: underline;">$1</a>');
-    
+
     return escaped;
 }
 
@@ -2811,7 +2858,7 @@ function renderSharedPostCard(post, msg, isOwn = false) {
     const postUrl = `/forum/post/${post.id}`;
     const forumUrl = `/forum/${post.forum_id}`;
     const authorUrl = post.author_id ? `/profile/${post.author_id}` : '#';
-    
+
     // Process content preview (first 120 chars for smaller container)
     let contentPreview = '';
     if (post.content) {
@@ -2886,7 +2933,7 @@ function renderSharedPostCard(post, msg, isOwn = false) {
 }
 
 // Toggle post reaction from shared post preview
-window.togglePostReaction = async function(postId, postUrl) {
+window.togglePostReaction = async function (postId, postUrl) {
     try {
         const response = await fetch('/api/forum/react', {
             method: 'POST',
@@ -2925,7 +2972,7 @@ function renderLinkPreview(msg) {
     try {
         const preview = JSON.parse(msg.attachment_url);
         const url = preview.url || msg.attachment_name || '';
-        
+
         return `
             <div class="link-preview">
                 ${preview.image ? `
@@ -2967,7 +3014,7 @@ function renderLinkPreview(msg) {
 function showError(message, showAlert = true) {
     // Log error to console
     console.error('Messaging Error:', message);
-    
+
     // Only show alert if explicitly requested (for critical errors)
     // Don't show alerts for empty data or non-critical issues
     if (showAlert && !message.toLowerCase().includes('empty') && !message.toLowerCase().includes('tiada')) {
@@ -2987,21 +3034,21 @@ let currentContextMenuMessageId = null;
 function showMessageContextMenu(event, messageId, isOwn) {
     event.preventDefault();
     event.stopPropagation();
-    
+
     // Close any existing context menu
     closeMessageContextMenu();
-    
+
     currentContextMenuMessageId = messageId;
-    
+
     // Get message data
     const message = messagingState.messages.find(m => m.id === messageId);
     if (!message) return;
-    
+
     // Create context menu
     const menu = document.createElement('div');
     menu.id = 'messageContextMenu';
     menu.className = 'message-context-menu';
-    
+
     // Reaction emojis row
     const reactions = ['👍', '❤️', '😂', '😮', '😥', '🙏'];
     const reactionsHtml = `
@@ -3013,7 +3060,7 @@ function showMessageContextMenu(event, messageId, isOwn) {
             `).join('')}
         </div>
     `;
-    
+
     // Menu options
     const menuOptions = [
         { icon: 'fa-reply', text: 'Reply', action: `replyToMessage(${messageId})` },
@@ -3024,7 +3071,7 @@ function showMessageContextMenu(event, messageId, isOwn) {
         { icon: 'fa-trash', text: 'Delete for me', action: `confirmDeleteMessage(${messageId})` },
         { icon: 'fa-check-square', text: 'Select', action: `selectMessage(${messageId})` },
     ];
-    
+
     const menuItemsHtml = menuOptions
         .filter(option => option.condition !== false)
         .map(option => `
@@ -3033,32 +3080,32 @@ function showMessageContextMenu(event, messageId, isOwn) {
                 <span>${option.text}</span>
             </div>
         `).join('');
-    
+
     menu.innerHTML = reactionsHtml + `<div class="context-menu-divider"></div>` + menuItemsHtml;
-    
+
     // Position menu - add to DOM first to measure
     document.body.appendChild(menu);
     menu.style.visibility = 'hidden'; // Hide while measuring
     menu.style.display = 'block'; // Must be block to measure dimensions
-    
+
     // Get menu dimensions (need to measure after adding to DOM)
     const rect = menu.getBoundingClientRect();
     const menuWidth = rect.width;
     const menuHeight = rect.height;
-    
+
     // Get viewport dimensions
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const padding = 10; // Padding from edges
-    
+
     // Get click position
     const clickX = event.clientX;
     const clickY = event.clientY;
-    
+
     // Calculate position with smart boundary detection
     let menuX = clickX;
     let menuY = clickY;
-    
+
     // Horizontal positioning: prefer right of cursor, but flip to left if needed
     if (clickX + menuWidth + padding > viewportWidth) {
         // Would exceed right edge - try positioning to the left of cursor
@@ -3073,7 +3120,7 @@ function showMessageContextMenu(event, messageId, isOwn) {
             menuX = padding;
         }
     }
-    
+
     // Vertical positioning: prefer below cursor, but flip above if needed
     if (clickY + menuHeight + padding > viewportHeight) {
         // Would exceed bottom edge - position above cursor
@@ -3088,17 +3135,17 @@ function showMessageContextMenu(event, messageId, isOwn) {
             menuY = padding;
         }
     }
-    
+
     // Final boundary checks (safety net)
     menuX = Math.max(padding, Math.min(menuX, viewportWidth - menuWidth - padding));
     menuY = Math.max(padding, Math.min(menuY, viewportHeight - menuHeight - padding));
-    
+
     // Apply position
     menu.style.left = menuX + 'px';
     menu.style.top = menuY + 'px';
     menu.style.display = 'block'; // Show after positioning
     menu.style.visibility = 'visible';
-    
+
     // Close menu when clicking outside
     setTimeout(() => {
         document.addEventListener('click', closeMessageContextMenu, { once: true });
@@ -3118,16 +3165,16 @@ function closeMessageContextMenu() {
 function replyToMessage(messageId) {
     const message = messagingState.messages.find(m => m.id === messageId);
     if (!message) return;
-    
+
     // Store reply context
     messagingState.replyingTo = message;
-    
+
     // Focus message input
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
         messageInput.focus();
     }
-    
+
     // Show reply preview
     showReplyPreview(message);
 }
@@ -3138,11 +3185,11 @@ function showReplyPreview(message) {
     if (existingPreview) {
         existingPreview.remove();
     }
-    
+
     // Create reply preview element
     const inputContainer = document.getElementById('chatInputContainer');
     if (!inputContainer) return;
-    
+
     const replyPreview = document.createElement('div');
     replyPreview.id = 'replyPreview';
     replyPreview.className = 'reply-preview';
@@ -3156,19 +3203,19 @@ function showReplyPreview(message) {
                 </button>
             </div>
             <div class="reply-preview-message">
-                ${message.message_type === 'text' ? 
-                    `<div class="reply-preview-text">${escapeHtml(message.content.substring(0, 100))}${message.content.length > 100 ? '...' : ''}</div>` :
-                    message.message_type === 'file' || message.message_type === 'image' ?
-                    `<div class="reply-preview-attachment">
+                ${message.message_type === 'text' ?
+            `<div class="reply-preview-text">${escapeHtml(message.content.substring(0, 100))}${message.content.length > 100 ? '...' : ''}</div>` :
+            message.message_type === 'file' || message.message_type === 'image' ?
+                `<div class="reply-preview-attachment">
                         <i class="fas ${getFileIcon(message.attachment_name)}"></i>
                         <span>${escapeHtml(message.attachment_name || 'Attachment')}</span>
                     </div>` :
-                    `<div class="reply-preview-text">${escapeHtml(message.content || 'Message')}</div>`
-                }
+                `<div class="reply-preview-text">${escapeHtml(message.content || 'Message')}</div>`
+        }
             </div>
         </div>
     `;
-    
+
     // Insert before input wrapper
     const inputWrapper = inputContainer.querySelector('.chat-input-wrapper');
     if (inputWrapper) {
@@ -3187,7 +3234,7 @@ function cancelReply() {
 function copyMessage(messageId) {
     const message = messagingState.messages.find(m => m.id === messageId);
     if (!message) return;
-    
+
     navigator.clipboard.writeText(message.content).then(() => {
         // Show toast notification
         if (typeof showToast === 'function') {
@@ -3207,7 +3254,7 @@ function copyMessage(messageId) {
 
 async function openDirectMessage(userId) {
     if (!userId) return;
-    
+
     try {
         // Get or create direct conversation with the user
         const response = await fetch('/api/messaging/conversation/direct', {
@@ -3223,13 +3270,13 @@ async function openDirectMessage(userId) {
                 user_id: userId
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data && data.data.conversation_id) {
             // Reload conversations to ensure the new conversation appears in the list
             await loadConversations();
-            
+
             // Switch to the direct conversation
             await selectConversation(data.data.conversation_id);
         } else {
@@ -3244,10 +3291,10 @@ async function openDirectMessage(userId) {
 async function replyPrivately(messageId) {
     const message = messagingState.messages.find(m => m.id === messageId);
     if (!message || !message.sender_id) return;
-    
+
     // Use the same function as clicking avatar
     await openDirectMessage(message.sender_id);
-    
+
     // Pre-fill message input with reply context
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
@@ -3261,7 +3308,7 @@ async function replyPrivately(messageId) {
 async function forwardMessage(messageId) {
     const message = messagingState.messages.find(m => m.id === messageId);
     if (!message) return;
-    
+
     // Show forward dialog with conversation list
     showForwardDialog(message);
 }
@@ -3283,10 +3330,10 @@ function showForwardDialog(message) {
                 <div class="forward-message-preview">
                     <div class="forward-preview-header">Message to forward:</div>
                     <div class="forward-preview-content">
-                        ${message.message_type === 'text' ? 
-                            `<div>${escapeHtml(message.content.substring(0, 150))}${message.content.length > 150 ? '...' : ''}</div>` :
-                            `<div><i class="fas ${getFileIcon(message.attachment_name)}"></i> ${escapeHtml(message.attachment_name || 'Attachment')}</div>`
-                        }
+                        ${message.message_type === 'text' ?
+            `<div>${escapeHtml(message.content.substring(0, 150))}${message.content.length > 150 ? '...' : ''}</div>` :
+            `<div><i class="fas ${getFileIcon(message.attachment_name)}"></i> ${escapeHtml(message.attachment_name || 'Attachment')}</div>`
+        }
                     </div>
                 </div>
                 <div class="forward-conversations-list" id="forwardConversationsList">
@@ -3295,9 +3342,9 @@ function showForwardDialog(message) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(overlay);
-    
+
     // Load conversations
     loadConversationsForForward(message.id);
 }
@@ -3305,7 +3352,7 @@ function showForwardDialog(message) {
 async function loadConversationsForForward(messageId) {
     const listContainer = document.getElementById('forwardConversationsList');
     if (!listContainer) return;
-    
+
     try {
         const response = await fetch('/api/messaging/conversations?sort=recent', {
             method: 'GET',
@@ -3315,29 +3362,29 @@ async function loadConversationsForForward(messageId) {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200 && data.data && data.data.conversations) {
             const conversations = data.data.conversations.filter(c => c.id !== messagingState.currentConversationId);
-            
+
             if (conversations.length === 0) {
                 listContainer.innerHTML = '<div class="empty-state">No other conversations available</div>';
                 return;
             }
-            
+
             listContainer.innerHTML = conversations.map(conv => {
                 const avatar = conv.other_avatar || conv.avatar_url || '';
                 const name = conv.name || conv.other_name || 'Unknown';
                 const lastMessage = conv.last_message ? (conv.last_message.content || '').substring(0, 50) : '';
-                
+
                 return `
                     <div class="forward-conversation-item" onclick="forwardToConversation(${messageId}, ${conv.id})">
                         <div class="conversation-avatar">
-                            ${avatar ? 
-                                `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` :
-                                ''
-                            }
+                            ${avatar ?
+                        `<img src="${escapeHtml(avatar)}" alt="${escapeHtml(name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` :
+                        ''
+                    }
                             <div style="${avatar ? 'display: none;' : ''} width: 100%; height: 100%; background: linear-gradient(135deg, #2454FF 0%, #4B7BFF 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.9rem;">
                                 ${name.charAt(0).toUpperCase()}
                             </div>
@@ -3362,13 +3409,13 @@ async function loadConversationsForForward(messageId) {
 async function forwardToConversation(messageId, conversationId) {
     const message = messagingState.messages.find(m => m.id === messageId);
     if (!message) return;
-    
+
     try {
         // Forward the message content
-        const forwardContent = message.message_type === 'text' ? 
-            message.content : 
+        const forwardContent = message.message_type === 'text' ?
+            message.content :
             `Forwarded ${message.message_type}: ${message.attachment_name || 'attachment'}`;
-        
+
         const response = await fetch('/api/messaging/send', {
             method: 'POST',
             headers: {
@@ -3387,9 +3434,9 @@ async function forwardToConversation(messageId, conversationId) {
                 attachment_size: message.attachment_size
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             if (typeof showToast === 'function') {
                 showToast('Message forwarded');
@@ -3416,17 +3463,17 @@ function closeForwardDialog() {
 function pinMessage(messageId) {
     const message = messagingState.messages.find(m => m.id === messageId);
     if (!message) return;
-    
+
     // Toggle pin status
     if (messagingState.pinnedMessages.has(messageId)) {
         messagingState.pinnedMessages.delete(messageId);
     } else {
         messagingState.pinnedMessages.add(messageId);
     }
-    
+
     // Update UI to show pin indicator
     updatePinIndicator(messageId);
-    
+
     // Store in localStorage for persistence
     try {
         const pinned = Array.from(messagingState.pinnedMessages);
@@ -3434,7 +3481,7 @@ function pinMessage(messageId) {
     } catch (e) {
         console.error('Failed to save pinned messages:', e);
     }
-    
+
     // Show feedback
     const isPinned = messagingState.pinnedMessages.has(messageId);
     if (typeof showToast === 'function') {
@@ -3445,10 +3492,10 @@ function pinMessage(messageId) {
 function updatePinIndicator(messageId) {
     const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
     if (!messageElement) return;
-    
+
     const isPinned = messagingState.pinnedMessages.has(messageId);
     let pinIndicator = messageElement.querySelector('.pin-indicator');
-    
+
     if (isPinned) {
         if (!pinIndicator) {
             pinIndicator = document.createElement('div');
@@ -3473,7 +3520,7 @@ function loadPinnedMessages() {
         if (stored) {
             const pinned = JSON.parse(stored);
             messagingState.pinnedMessages = new Set(pinned);
-            
+
             // Update UI for all pinned messages
             pinned.forEach(messageId => {
                 updatePinIndicator(messageId);
@@ -3491,13 +3538,13 @@ function selectMessage(messageId) {
     if (messageId) {
         messagingState.selectedMessages.add(messageId);
     }
-    
+
     // Show selection bar
     showSelectionBar();
-    
+
     // Re-render messages with checkboxes
     renderMessages();
-    
+
     // Force show all checkboxes after render - use requestAnimationFrame for better timing
     requestAnimationFrame(() => {
         const messageGroups = document.querySelectorAll('.message-group');
@@ -3520,7 +3567,7 @@ function selectMessage(messageId) {
                 }
             }
         });
-        
+
         // Update selection bar
         updateSelectionBar();
     });
@@ -3530,17 +3577,17 @@ function exitSelectionMode() {
     messagingState.isSelectionMode = false;
     messagingState.selectedMessages.clear();
     hideSelectionBar();
-    
+
     // Hide all checkboxes
     document.querySelectorAll('.message-checkbox').forEach(checkbox => {
         checkbox.style.display = 'none';
     });
-    
+
     // Remove selected styling
     document.querySelectorAll('.message-group.message-selected').forEach(group => {
         group.classList.remove('message-selected');
     });
-    
+
     renderMessages();
 }
 
@@ -3549,24 +3596,24 @@ function toggleMessageSelection(messageId) {
         selectMessage(messageId);
         return;
     }
-    
+
     if (messagingState.selectedMessages.has(messageId)) {
         messagingState.selectedMessages.delete(messageId);
     } else {
         messagingState.selectedMessages.add(messageId);
     }
-    
+
     // Update selection bar count
     updateSelectionBar();
-    
+
     // Update checkbox state and message group styling
     const checkbox = document.querySelector(`input[type="checkbox"][data-message-id="${messageId}"]`);
     const messageGroup = document.querySelector(`.message-group[data-message-id="${messageId}"]`);
-    
+
     if (checkbox) {
         checkbox.checked = messagingState.selectedMessages.has(messageId);
     }
-    
+
     if (messageGroup) {
         if (messagingState.selectedMessages.has(messageId)) {
             messageGroup.classList.add('message-selected');
@@ -3574,7 +3621,7 @@ function toggleMessageSelection(messageId) {
             messageGroup.classList.remove('message-selected');
         }
     }
-    
+
     // If no messages selected, exit selection mode
     if (messagingState.selectedMessages.size === 0) {
         exitSelectionMode();
@@ -3584,7 +3631,7 @@ function toggleMessageSelection(messageId) {
 function showSelectionBar() {
     const chatHeader = document.getElementById('chatHeader');
     if (!chatHeader) return;
-    
+
     const selectedCount = messagingState.selectedMessages.size;
     chatHeader.innerHTML = `
         <div class="selection-bar">
@@ -3608,7 +3655,7 @@ function showSelectionBar() {
             </div>
         </div>
     `;
-    
+
     // Hide input container in selection mode
     const inputContainer = document.getElementById('chatInputContainer');
     if (inputContainer) {
@@ -3619,7 +3666,7 @@ function showSelectionBar() {
 function hideSelectionBar() {
     const chatHeader = document.getElementById('chatHeader');
     if (!chatHeader) return;
-    
+
     // Restore original header
     const conversation = messagingState.conversations.find(c => c.id === messagingState.currentConversationId);
     if (conversation) {
@@ -3632,7 +3679,7 @@ function hideSelectionBar() {
             </div>
         `;
     }
-    
+
     // Show input container again
     const inputContainer = document.getElementById('chatInputContainer');
     if (inputContainer && messagingState.currentConversationId) {
@@ -3645,7 +3692,7 @@ function updateSelectionBar() {
     if (selectionCount) {
         selectionCount.textContent = `${messagingState.selectedMessages.size} selected`;
     }
-    
+
     // Update action buttons state
     const hasSelection = messagingState.selectedMessages.size > 0;
     const actionButtons = document.querySelectorAll('.btn-selection-action');
@@ -3667,7 +3714,7 @@ function copySelectedMessages() {
     const messageIds = Array.from(messagingState.selectedMessages);
     const messages = messagingState.messages.filter(m => messageIds.includes(m.id));
     const text = messages.map(m => m.content).join('\n');
-    
+
     navigator.clipboard.writeText(text).then(() => {
         if (typeof showToast === 'function') {
             showToast('Messages copied to clipboard');
@@ -3681,7 +3728,7 @@ function copySelectedMessages() {
     }).catch(err => {
         console.error('Failed to copy:', err);
     });
-    
+
     exitSelectionMode();
 }
 
@@ -3695,22 +3742,22 @@ function forwardSelectedMessages() {
 async function deleteSelectedMessages() {
     const messageIds = Array.from(messagingState.selectedMessages);
     const count = messageIds.length;
-    
+
     if (count === 0) return;
-    
+
     if (!confirm(`Are you sure you want to delete ${count} message(s)? This action cannot be undone.`)) {
         return;
     }
-    
+
     try {
         // Delete messages one by one (or implement batch delete API)
         const deletePromises = messageIds.map(messageId => confirmDeleteMessage(messageId, false));
         await Promise.all(deletePromises);
-        
+
         // Reload messages to reflect deletions
         if (messagingState.currentConversationId) {
             await loadMessages(messagingState.currentConversationId, 1);
-            
+
             // Update pin indicators after loading
             setTimeout(() => {
                 messagingState.pinnedMessages.forEach(messageId => {
@@ -3718,7 +3765,7 @@ async function deleteSelectedMessages() {
                 });
             }, 100);
         }
-        
+
         exitSelectionMode();
     } catch (error) {
         console.error('Error deleting messages:', error);
@@ -3749,13 +3796,13 @@ async function addReaction(messageId, emoji) {
             if (message) {
                 message.reactions = data.data.reactions;
             }
-            
+
             // Clear cache for this message to force re-render
             messageElementsCache.delete(messageId);
-            
+
             // Re-render the message to show updated reactions
             renderMessages();
-            
+
             // Close context menu and emoji picker
             closeMessageContextMenu();
             const picker = document.getElementById('emojiPickerContainer');
@@ -3772,17 +3819,17 @@ async function addReaction(messageId, emoji) {
 function showMoreReactions(messageId) {
     // Close context menu first
     closeMessageContextMenu();
-    
+
     // Create emoji picker container
     let pickerContainer = document.getElementById('emojiPickerContainer');
     if (pickerContainer) {
         pickerContainer.remove();
     }
-    
+
     pickerContainer = document.createElement('div');
     pickerContainer.id = 'emojiPickerContainer';
     pickerContainer.style.cssText = 'position: fixed; z-index: 10001; background: white; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 12px; max-width: 350px; max-height: 400px; overflow-y: auto;';
-    
+
     // Get message position for placement
     const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
     if (messageElement) {
@@ -3792,13 +3839,13 @@ function showMoreReactions(messageId) {
         const pickerWidth = 350; // max-width
         const pickerHeight = 400; // max-height
         const spacing = 10; // spacing from message
-        
+
         // Calculate if picker would overflow on the right
         const rightSpace = viewportWidth - rect.right;
         const leftSpace = rect.left;
         const wouldOverflowRight = (rect.right + spacing + pickerWidth) > viewportWidth;
         const wouldOverflowLeft = (rect.left - spacing - pickerWidth) < 0;
-        
+
         // Position horizontally: prefer right, but use left if right would overflow
         if (wouldOverflowRight && leftSpace >= pickerWidth) {
             // Position on the left side of the message
@@ -3810,7 +3857,7 @@ function showMoreReactions(messageId) {
             // Position on the right side (default)
             pickerContainer.style.left = (rect.right + spacing) + 'px';
         }
-        
+
         // Position vertically: ensure it doesn't overflow bottom
         let topPosition = rect.top;
         if (topPosition + pickerHeight > viewportHeight) {
@@ -3827,7 +3874,7 @@ function showMoreReactions(messageId) {
         pickerContainer.style.right = '20px';
         pickerContainer.style.bottom = '100px';
     }
-    
+
     // Popular emojis organized by category
     const emojiCategories = {
         'Smileys & People': ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓'],
@@ -3835,9 +3882,9 @@ function showMoreReactions(messageId) {
         'Hearts & Love': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
         'Objects & Symbols': ['⭐', '🌟', '✨', '💫', '🔥', '💯', '✅', '❌', '❗', '❓', '💡', '🎉', '🎊', '🎈', '🎁'],
     };
-    
+
     let emojiHtml = '<div style="display: flex; flex-direction: column; gap: 12px;">';
-    
+
     for (const [category, emojis] of Object.entries(emojiCategories)) {
         emojiHtml += `<div><div style="font-size: 11px; color: #666; margin-bottom: 6px; font-weight: 600;">${category}</div>`;
         emojiHtml += '<div style="display: flex; flex-wrap: wrap; gap: 4px;">';
@@ -3846,12 +3893,12 @@ function showMoreReactions(messageId) {
         });
         emojiHtml += '</div></div>';
     }
-    
+
     emojiHtml += '</div>';
     pickerContainer.innerHTML = emojiHtml;
-    
+
     document.body.appendChild(pickerContainer);
-    
+
     // Close picker when clicking outside
     setTimeout(() => {
         const closePicker = (e) => {
@@ -3869,7 +3916,7 @@ function renderMessageReactions(msg) {
     if (!msg.reactions || Object.keys(msg.reactions).length === 0) {
         return '';
     }
-    
+
     // Map reaction types to emojis
     const emojiMap = {
         'like': '👍',
@@ -3881,15 +3928,15 @@ function renderMessageReactions(msg) {
         'angry': '😡',
         'star': '⭐',
     };
-    
+
     const currentUserId = getCurrentUserId();
     let reactionsHtml = '<div class="message-reactions-display" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">';
-    
+
     for (const [reactionType, reactionData] of Object.entries(msg.reactions)) {
         const emoji = emojiMap[reactionType] || '👍';
         const count = reactionData.count || 0;
         const userReacted = reactionData.user_reacted || false;
-        
+
         if (count > 0) {
             reactionsHtml += `
                 <button class="message-reaction-badge ${userReacted ? 'user-reacted' : ''}" 
@@ -3904,7 +3951,7 @@ function renderMessageReactions(msg) {
             `;
         }
     }
-    
+
     reactionsHtml += '</div>';
     return reactionsHtml;
 }
@@ -3913,7 +3960,7 @@ async function confirmDeleteMessage(messageId, showConfirm = true) {
     if (showConfirm && !confirm('Are you sure you want to delete this message? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/messaging/message/${messageId}`, {
             method: 'DELETE',
@@ -3925,9 +3972,9 @@ async function confirmDeleteMessage(messageId, showConfirm = true) {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Remove message from state
             messagingState.messages = messagingState.messages.filter(m => m.id !== messageId);
@@ -3948,7 +3995,7 @@ async function permanentlyDeleteMessage(messageId) {
     if (!confirm('Are you sure you want to permanently delete this message? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/messaging/message/${messageId}/permanent`, {
             method: 'DELETE',
@@ -3960,9 +4007,9 @@ async function permanentlyDeleteMessage(messageId) {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Remove message from state
             messagingState.messages = messagingState.messages.filter(m => m.id !== messageId);
@@ -3982,14 +4029,14 @@ async function permanentlyDeleteMessage(messageId) {
 async function confirmDeleteConversation(conversationId) {
     const conversation = messagingState.conversations.find(c => c.id === conversationId);
     const isGroup = conversation && conversation.type === 'group';
-    const message = isGroup 
+    const message = isGroup
         ? 'Are you sure you want to delete this group? All messages and members will be removed. This action cannot be undone.'
         : 'Are you sure you want to delete this conversation? This action cannot be undone.';
-    
+
     if (!confirm(message)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/messaging/conversation/${conversationId}`, {
             method: 'DELETE',
@@ -4001,9 +4048,9 @@ async function confirmDeleteConversation(conversationId) {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Remove conversation from state
             messagingState.conversations = messagingState.conversations.filter(c => c.id !== conversationId);
@@ -4011,10 +4058,10 @@ async function confirmDeleteConversation(conversationId) {
             messagingState.messages = [];
             messageElementsCache.clear();
             lastRenderedMessageIds.clear();
-            
+
             // Clear cache for this conversation
             clearConversationCache(conversationId);
-            
+
             // Clear UI
             document.getElementById('chatHeader').innerHTML = `
                 <div class="chat-header-placeholder">
@@ -4026,7 +4073,7 @@ async function confirmDeleteConversation(conversationId) {
             document.getElementById('chatInputContainer').style.display = 'none';
             document.getElementById('chatActionsBar').style.display = 'none';
             document.getElementById('infoSidebar').style.display = 'none';
-            
+
             renderConversations();
             alert(data.message || 'Conversation deleted');
         } else {
@@ -4042,7 +4089,7 @@ async function confirmClearAllMessages(conversationId) {
     if (!confirm('Are you sure you want to clear all messages in this conversation? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/messaging/conversation/${conversationId}/messages`, {
             method: 'DELETE',
@@ -4054,9 +4101,9 @@ async function confirmClearAllMessages(conversationId) {
             },
             credentials: 'include'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Clear messages from state
             messagingState.messages = [];
@@ -4089,9 +4136,9 @@ async function archiveConversation(conversationId) {
                 archive: true
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Remove from active conversations
             messagingState.conversations = messagingState.conversations.filter(c => c.id !== conversationId);
@@ -4125,12 +4172,12 @@ async function renameGroup(conversationId) {
         alert('This is not a group chat');
         return;
     }
-    
+
     const newName = prompt('Enter new group name:', conversation.name || '');
     if (!newName || newName.trim() === '') {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/messaging/group/${conversationId}/rename`, {
             method: 'POST',
@@ -4145,9 +4192,9 @@ async function renameGroup(conversationId) {
                 name: newName.trim()
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Update conversation name in state
             const conv = messagingState.conversations.find(c => c.id === conversationId);
@@ -4170,7 +4217,7 @@ async function removeGroupMember(conversationId, memberId) {
     if (!confirm('Are you sure you want to remove this member from the group?')) {
         return;
     }
-    
+
     try {
         const response = await fetch('/api/messaging/group/members', {
             method: 'POST',
@@ -4187,9 +4234,9 @@ async function removeGroupMember(conversationId, memberId) {
                 member_id: memberId
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.status === 200) {
             // Reload conversation details
             loadConversationDetails(conversationId);
@@ -4219,7 +4266,7 @@ function toggleConversationOptions(conversationId) {
 // Close conversation options when clicking outside
 document.addEventListener('click', (e) => {
     // Don't close if clicking inside the options container (button or menu)
-    if (!e.target.closest('.conversation-options-container') && 
+    if (!e.target.closest('.conversation-options-container') &&
         !e.target.closest('.conversation-options-menu') &&
         !e.target.closest('.btn-icon')) {
         document.querySelectorAll('.conversation-options-menu').forEach(menu => {
@@ -4255,7 +4302,7 @@ window.copySelectedMessages = copySelectedMessages;
 window.forwardSelectedMessages = forwardSelectedMessages;
 window.deleteSelectedMessages = deleteSelectedMessages;
 // shareMessage function - placeholder for future implementation
-window.shareMessage = function(messageId) {
+window.shareMessage = function (messageId) {
     console.log('Share message:', messageId);
     // TODO: Implement share message functionality
 };
