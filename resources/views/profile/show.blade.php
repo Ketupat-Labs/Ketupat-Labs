@@ -340,11 +340,14 @@
             padding-right: 1.5rem !important;
         }
         
-        /* Ensure navigation stays as top bar, not sidebar */
-        nav.bg-white {
-            position: relative !important;
-            display: block !important;
+        /* Ensure profile page content container is properly sized */
+        .max-w-7xl {
             width: 100% !important;
+            max-width: 1280px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding-left: 1.5rem !important;
+            padding-right: 1.5rem !important;
         }
         
         /* Prevent forum.css from creating flex layouts that break profile page */
@@ -352,13 +355,6 @@
         .min-h-screen > div,
         main {
             flex-direction: column !important;
-        }
-        
-        /* Ensure responsive menu is hidden on desktop */
-        @media (min-width: 1024px) {
-            nav .hidden.lg\\:hidden {
-                display: none !important;
-            }
         }
     </style>
     

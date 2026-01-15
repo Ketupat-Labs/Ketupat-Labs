@@ -104,10 +104,13 @@ class ProfileController extends Controller
         $role = $profileUser->role ?? 'student';
         
         $allBadges = \App\Models\Badge::with('category')
-            ->whereHas('category', function($q) use ($role) {
-                $q->where('role_restriction', 'all')
-                  ->orWhere('role_restriction', $role)
-                  ->orWhereNull('role_restriction');
+            ->where(function($query) use ($role) {
+                $query->whereHas('category', function($q) use ($role) {
+                    $q->where('role_restriction', 'all')
+                      ->orWhere('role_restriction', $role)
+                      ->orWhereNull('role_restriction');
+                })
+                ->orWhereDoesntHave('category');
             })
             ->orderBy('name', 'asc')
             ->get();
