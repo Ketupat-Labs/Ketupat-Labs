@@ -203,7 +203,6 @@
                             <div class="flex flex-wrap gap-2" id="profileStatusFilters">
                                 <button class="filter-btn active px-3 py-1 text-sm rounded-full border border-blue-500 bg-blue-500 text-white transition-colors" data-filter="all" data-type="status">Semua</button>
                                 <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" data-filter="earned" data-type="status">Tercapai</button>
-                                <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" data-filter="progress" data-type="status">Dalam Progres</button>
                                 <button class="filter-btn px-3 py-1 text-sm rounded-full border border-gray-300 text-gray-600 hover:border-gray-400 bg-white transition-colors" data-filter="locked" data-type="status">Terkunci</button>
                             </div>
                         </div>
@@ -219,11 +218,8 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="profileBadgesGrid">
                             @foreach($badges as $badge)
                                 @php
+                                    // Badges are binary: either earned or locked (no progress state)
                                     $statusType = $badge->is_earned ? 'earned' : 'locked';
-                                    // Simple logic for progress: if points > 0 but not earned (needs actual progress logic from backend eventually)
-                                    if (!$badge->is_earned && isset($badge->progress) && $badge->progress > 0) {
-                                        $statusType = 'progress';
-                                    }
                                 @endphp
                                 <div class="badge-item relative p-4 rounded-lg border transition-all duration-200 {{ $badge->is_earned ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:shadow-md' : 'bg-gray-50 border-gray-300 opacity-75' }} cursor-pointer"
                                      data-category="{{ $badge->category->code ?? 'uncategorized' }}"
