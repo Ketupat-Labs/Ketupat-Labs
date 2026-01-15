@@ -2273,26 +2273,6 @@ function initializeEchoConnection() {
         startPollingFallback();
     }
 }
-updateOnlineStatus(true);
-
-// Mark as connected
-messagingState.echoConnected = true;
-messagingState.isWebSocketConnected = true;
-stopPollingFallback(); // Stop polling since WebSocket is connected
-console.log('Laravel Echo connected for messaging');
-            
-        } catch (error) {
-    console.error('Error setting up Laravel Echo:', error);
-    messagingState.isWebSocketConnected = false;
-    startPollingFallback();
-}
-    } else {
-    // Echo not available, use polling fallback
-    console.log('Laravel Echo not available, using polling fallback');
-    messagingState.isWebSocketConnected = false;
-    startPollingFallback();
-}
-}
 
 // Handle WebSocket messages
 function handleWebSocketMessage(data) {

@@ -44,10 +44,10 @@
                         @endif
                     </div>
                 </div>
-                <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                    <div class="text-sm text-gray-500">
+                <div class="p-4 bg-gradient-to-r from-[#2454FF]/10 to-[#1a3fcc]/10 border-t border-gray-100 flex justify-between items-center">
+                    <div class="text-sm text-gray-700">
                         Dicipta: <span
-                            class="font-bold text-gray-700">{{ $classroom->created_at->format('d M Y') }}</span>
+                            class="font-bold text-[#2454FF]">{{ $classroom->created_at->format('d M Y') }}</span>
                     </div>
                     <div class="flex gap-3">
                         @if($user->role === 'teacher')
