@@ -23,4 +23,4 @@ jobs:
           api-key: ${{ secrets.RENDER_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-deployment: true
-          deployment-environment: 'production'
+          deployment-environment: 'Render Deployment'
