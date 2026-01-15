@@ -17,10 +17,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to Render
-        uses: johnbeynon/render-deploy-action@v0.0.8
+        uses: givemomentum/render-deploy@v1.5.1
         with:
           service-id: ${{ secrets.RENDER_SERVICE_ID }}
           api-key: ${{ secrets.RENDER_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          github-deployment: true
-          deployment-environment: 'Render Deployment'
+          deployment-environment: 'Render' # Renamed for a cleaner look
+          wait-for-deploy: true
