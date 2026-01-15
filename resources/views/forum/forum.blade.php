@@ -18,8 +18,10 @@
     <!-- Laravel Echo and Pusher for WebSocket -->
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.umd.min.js"></script>
+    <!-- Alpine.js is needed for the navigation component -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
-    <!-- Custom styles for notification animations -->
+    <!-- Custom styles for forum action bar and notification animations -->
     <style>
         @keyframes slide-in {
             from {
@@ -33,6 +35,61 @@
         }
         .animate-slide-in {
             animation: slide-in 0.3s ease-out;
+        }
+
+        /* Forum Action Bar Styles */
+        .forum-action-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid #edeff1;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .forum-action-bar .search-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background-color: #f6f7f8;
+            border: 1px solid #edeff1;
+            border-radius: 4px;
+            padding: 8px 16px;
+            gap: 8px;
+        }
+
+        .forum-action-bar .search-container i {
+            color: #878a8c;
+        }
+
+        .forum-action-bar .search-container input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .btn-add-post {
+            background-color: #2563eb;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-add-post:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
         }
     </style>
     
@@ -66,176 +123,13 @@
 </head>
 
 <body>
-    <!-- Dashboard-style Navigation -->
-    <nav class="bg-white border-b-2 border-blue-200 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex">
-                    <!-- Logo -->
-                    <div class="shrink-0 flex items-center">
-                        <a href="{{ route('home') }}" class="flex items-center space-x-3">
-                            <img src="{{ asset('assets/images/LOGOCompuPlay.png') }}" alt="Logo" class="h-10 w-auto">
-                        </a>
-                    </div>
+    @php
+        $currentUserId = session('user_id');
+        $currentUser = $currentUserId ? \App\Models\User::find($currentUserId) : \Illuminate\Support\Facades\Auth::user();
+    @endphp
 
-                    <!-- Navigation Links -->
-                    <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                        <a href="{{ route('dashboard') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Papan Pemuka
-                        </a>
-                        <a href="{{ route('forum.index') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 border-blue-500 text-sm font-medium leading-5 text-gray-900 focus:outline-none focus:border-blue-700 transition duration-150 ease-in-out">
-                            Forum
-                        </a>
-                        <a href="{{ route('classrooms.index') }}"
-                            class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out">
-                            Kelas Saya
-                        </a>
-                    </div>
-                </div>
+    @include('layouts.navigation', ['currentUser' => $currentUser])
 
-                <!-- Search Bar -->
-                <div class="hidden sm:flex sm:items-center sm:flex-1 sm:justify-center sm:mx-8">
-                    <div class="w-full max-w-2xl">
-                        <div class="search-container">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="searchForums" placeholder="Cari forum...">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Settings Dropdown -->
-                <div class="hidden sm:flex sm:items-center sm:ms-6 sm:gap-3">
-                    <!-- Notification Icon -->
-                    <div class="relative">
-                        <button id="notificationBtn"
-                            class="inline-flex items-center justify-center p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out relative">
-                            <i class="fas fa-bell text-lg"></i>
-                            <span id="notificationBadge"
-                                class="hidden absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 min-w-[1.25rem] h-5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full z-10"></span>
-                        </button>
-                        <div id="notificationMenu"
-                            class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                            <div class="px-4 py-2 border-b border-gray-200">
-                                <h3 class="text-sm font-semibold text-gray-900">Pemberitahuan</h3>
-                            </div>
-                            <div id="notificationList" class="py-1 max-h-80 overflow-y-auto">
-                                <div class="px-4 py-3 text-sm text-gray-500 text-center">Tiada pemberitahuan</div>
-                            </div>
-                            <div class="px-4 py-2 border-t border-gray-200 bg-gray-50 text-center">
-                                <a href="{{ route('notifications.index') }}" class="text-sm font-medium text-blue-600 hover:text-blue-800">
-                                    Lihat Semua Pemberitahuan
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Message Icon -->
-                    <div class="relative">
-                        <a href="{{ route('messaging.index') }}"
-                            class="inline-flex items-center justify-center p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out relative">
-                            <i class="fas fa-envelope text-lg"></i>
-                            <span id="messageBadge"
-                                class="hidden absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full"></span>
-                        </a>
-                    </div>
-
-                    <!-- Add Post Button -->
-                    <a href="{{ route('forum.post.create') }}"
-                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition ease-in-out duration-150">
-                        <i class="fas fa-plus mr-2"></i> Tambah Post
-                    </a>
-
-                    <!-- Profile Dropdown -->
-                    <div class="relative">
-                        <button id="userMenuBtn"
-                            class="inline-flex items-center px-3 py-2 border border-gray-200 text-sm leading-4 font-medium rounded-lg text-gray-800 bg-white hover:bg-blue-50 hover:border-blue-300 focus:outline-none transition ease-in-out duration-150 gap-2">
-                            <div id="userAvatarContainer" class="flex-shrink-0">
-                                <img id="userAvatarImg" src="" alt="User" class="h-8 w-8 rounded-full object-cover border-2 border-gray-200 hidden">
-                                <div id="userAvatarPlaceholder" class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200">
-                                    <span id="userAvatarInitial">U</span>
-                                </div>
-                            </div>
-                            <div id="userName">User</div>
-                            <svg class="fill-current h-4 w-4 ms-1" xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                        <div id="userMenu"
-                            class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                            <a href="#" onclick="event.preventDefault(); const userId = sessionStorage.getItem('userId'); if (userId) { window.location.href = '/profile/' + userId; } else { window.location.href = '/profile'; } return false;" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil</a>
-                            <a href="{{ route('settings.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Tetapan</a>
-                            <form action="{{ route('logout') }}" method="POST" class="block w-full">
-                                @csrf
-                                <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Keluar</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Hamburger -->
-                <div class="-me-2 flex items-center sm:hidden">
-                    <button id="mobileMenuBtn"
-                        class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
-                        <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                            <path class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mobile Navigation Menu -->
-        <div id="mobileMenu" class="hidden sm:hidden">
-            <!-- Mobile Search Bar -->
-            <div class="px-4 py-3 border-b border-gray-200">
-                <div class="search-container">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchForumsMobile" placeholder="Cari forum...">
-                </div>
-            </div>
-
-            <div class="pt-2 pb-3 space-y-1">
-                <a href="{{ route('dashboard') }}"
-                    class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Papan Pemuka
-                </a>
-                <a href="{{ route('forum.index') }}"
-                    class="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-blue-700 bg-blue-50 focus:outline-none focus:text-blue-800 focus:bg-blue-100 focus:border-blue-700 transition duration-150 ease-in-out">
-                    Forum
-                </a>
-                <a href="{{ route('classrooms.index') }}"
-                    class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300 transition duration-150 ease-in-out">
-                    Kelas Saya
-                </a>
-            </div>
-
-            <div class="pt-4 pb-1 border-t border-gray-200">
-                <div class="px-4">
-                    <div class="font-medium text-base text-gray-800" id="mobileUserName">User</div>
-                    <div class="font-medium text-sm text-gray-500" id="mobileUserEmail"></div>
-                </div>
-
-                <div class="mt-3 space-y-1">
-                    <a href="#" onclick="event.preventDefault(); const userId = sessionStorage.getItem('userId'); if (userId) { window.location.href = '/profile/' + userId; } else { window.location.href = '/profile'; } return false;"
-                        class="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:text-gray-800 focus:bg-gray-100 transition duration-150 ease-in-out">
-                        Profil
-                    </a>
-                    <form action="{{ route('logout') }}" method="POST" class="block w-full">
-                        @csrf
-                        <button type="submit" class="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:text-gray-800 focus:bg-gray-100 transition duration-150 ease-in-out">
-                            Log Keluar
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </nav>
 
     <div class="reddit-container">
         <div class="reddit-main">
@@ -270,7 +164,21 @@
                 </div>
             </aside>
 
-            <main class="reddit-content" id="forumsContent">
+            <main class="reddit-content">
+                <!-- Action Bar: Search and Add Post -->
+                <div class="forum-action-bar">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchForums" placeholder="Cari forum...">
+                    </div>
+                    <a href="{{ route('forum.post.create') }}" class="btn-add-post">
+                        <i class="fas fa-plus"></i> Tambah Post
+                    </a>
+                </div>
+
+                <div id="forumsContent">
+                    <!-- Forums will be loaded here by forum.js -->
+                </div>
             </main>
 
             <aside class="reddit-sidebar-right">
