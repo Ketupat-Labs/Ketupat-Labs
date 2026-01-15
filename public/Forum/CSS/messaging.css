@@ -878,14 +878,15 @@ body > div > main {
     word-break: break-word !important;
     overflow-wrap: break-word !important;
     white-space: pre-wrap !important;
-    max-width: 100% !important;
+    max-width: 85% !important;
     min-width: 0 !important;
     width: fit-content !important;
-    display: table !important;
+    display: inline-block !important;
     line-height: 1.4 !important;
     box-sizing: border-box !important;
     vertical-align: top !important;
     align-self: flex-start !important;
+    position: relative !important;
 }
 
 /* Ensure text content inside bubble wraps properly */
@@ -934,6 +935,8 @@ body > div > main {
     color: white !important;
     align-self: flex-end !important;
     margin-left: auto !important;
+    display: inline-block !important;
+    width: fit-content !important;
 }
 
 /* Message Context Menu */

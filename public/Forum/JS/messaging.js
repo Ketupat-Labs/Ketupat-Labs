@@ -2283,8 +2283,12 @@ function handleWebSocketMessage(data) {
 
         case 'new_message':
             // New message received - add directly to messages array
-            if (data.conversation_id === messagingState.currentConversationId && data.message) {
+            console.log('[WebSocket] Message received for conv:', data.conversation_id, 'Current conv:', messagingState.currentConversationId);
+
+            // Use loose equality (==) for ID comparison in case of string vs integer mismatch
+            if (data.conversation_id == messagingState.currentConversationId && data.message) {
                 const newMessage = data.message;
+                console.log('[WebSocket] Message matches current conversation, adding to chat');
 
                 // Check if message already exists (avoid duplicates)
                 const messageExists = messagingState.messages.some(m => m.id === newMessage.id);
