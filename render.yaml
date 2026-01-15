@@ -94,7 +94,7 @@ services:
         sync: false # Set in Render dashboard (Google Apps Script Web App URL)
     
     healthCheckPath: /
-    autoDeploy: true # Auto-deploy on git push
+    autoDeploy: false # Managed by GitHub Actions for deployment visibility
     
   # Redis Cache Service
   - type: redis
