@@ -55,10 +55,35 @@ class LessonAssignmentController extends Controller
     {
         $user = \App\Models\User::find(session('user_id'));
         if (!$user) {
-            abort(403);
+            abort(403, 'User not found');
         }
 
         $classrooms = \App\Models\Classroom::where('teacher_id', $user->id)->get();
+        
+        // Safety check: if no classrooms, return early with empty data
+        if ($classrooms->isEmpty()) {
+            return view('assignments.create', [
+                'classrooms' => collect([]),
+                'lessons' => collect([]),
+                'assignments' => collect([]),
+                'lessonStates' => [],
+                'activityAssignments' => collect([]),
+                'activityStates' => [],
+                'month' => date('n'),
+                'year' => date('Y'),
+                'daysInMonth' => now()->daysInMonth,
+                'firstDayOfMonth' => now()->startOfMonth()->dayOfWeek,
+                'games' => collect([]),
+                'quizzes' => collect([]),
+                'events' => [],
+                'selectedClass' => null,
+                'activeTab' => 'lesson',
+                'preselectedActivityId' => null,
+                'classroom_id' => null,
+                'assignedClassroomIdsForActivity' => [],
+                'isActivityPublic' => false
+            ]);
+        }
 
         // Prepare data for Edit Modal (Grouping data by lesson)
         $lessons = \App\Models\Lesson::where('teacher_id', $user->id)->latest()->get();

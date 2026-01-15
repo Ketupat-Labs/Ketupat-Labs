@@ -293,10 +293,7 @@
         </div>
     </div>
 
-    <!-- Include Forum CSS for post styling -->
-    <link rel="stylesheet" href="{{ asset('Forum/CSS/forum.css') }}">
-    
-    <!-- Override forum.css global styles that affect the profile page -->
+
     <script src="{{ asset('assets/js/profile.js') }}"></script>
     
     <script>
